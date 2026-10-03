@@ -48,7 +48,7 @@ Eigenes Plugin vom Typ `overlay`, zusätzlich zum Panel aus v1 (das Panel bleibt
 - Die UI schreibt nie selbst Dateien, sondern ruft CLI-Befehle auf (`duckydeck edit …`); der Daemon/CLI validiert vor dem Schreiben.
 
 ### Tastatur
-- Tab wechselt zwischen Bibliothek, Vorschau und Inspector; `/` fokussiert die Suche; alles ohne Maus bedienbar.
+- Tab wechselt zwischen Bibliothek, Vorschau und Inspector, Umschalt+Tab rückwärts; `/` fokussiert die Suche; Enter auf einem Slot öffnet den Ordner bzw. springt ins Label-Feld; Strg+P wechselt zwischen Slot- und Profil-Inspector; Esc verlässt jedes Feld zurück zur Vorschau. Alles ohne Maus bedienbar.
 
 ### Nicht im Editor (spätere v2-Punkte)
 - Eigene Icon-Dateien, Lautstärke pro App, Script-Actions, zweite Sprache.

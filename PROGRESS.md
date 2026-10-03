@@ -2,19 +2,16 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M9 – Editor (v2): M9a–M9d fertig, M9e größtenteils (Rest: Menüeintrag, Tastatur-Feinschliff). M8 fertig bis auf AUR (zurückgestellt, Repo bleibt vorerst privat)
+**Aktueller Milestone:** M9 – Editor (v2) fertig (M9a–M9e). Letzter Milestone aus SPEC.md; offen nur M8-AUR (zurückgestellt, Repo bleibt vorerst privat)
 
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- Offene Punkte: letzter Multi-Schritt nicht löschbar, `| head` ohne Panic, `setup --remove` nimmt Widget aus der Bar (`omarchy plugin disable`)
-- Event `config_changed`; Editor lädt bei externen Änderungen neu
-- Undo für Seite entfernen / Profil löschen (`duckydeck edit <id> restore <toml>`)
-- App-Icons aus dem Icon-Theme auf `launcher.app`-Tasten (PNG farbig)
-- Fokus ohne Fenster behält das Auto-Profil; am Gerät geprüft: Long-Press, Strip-Gesten, Profil löschen + Undo
+- Omarchy-Menü: „Stream Deck“ als Submenü mit „Panel“ und „Edit“; `duckydeck edit` ohne Argumente öffnet den Editor
+- Editor-Tastatur: Enter → Label-Feld, Umschalt+Tab rückwärts, Strg+P Slot/Profil-Inspector, Esc in allen Feldern (am Gerät geprüft: Menü, Strg+P, Umschalt+Tab)
 
 ## Nächster Schritt
-- M9e-Rest: Menüeintrag „Stream Deck → Edit“, Tastatur-Feinschliff im Editor
+- Ungeprüfte Punkte am Gerät abarbeiten (siehe unten), dann Label-Fix „App“ → App-Name auf `launcher.app`-Tasten
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
@@ -22,7 +19,7 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 ## Offene Probleme / Notizen
 - Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)
 - Multi-Monitor-Actions nur mit DP-1 geprüft; Bar-Tooltip noch nicht angesehen
-- Noch ungeprüft: Strip-Tippen im Editor, Strip-Wischen mit mehrseitigem Profil; Label unter App-Tasten zeigt „App“ statt App-Name
+- Noch ungeprüft: Enter → Label-Feld, Esc in Match-/Titel-/Multi-Feldern; Strip-Tippen im Editor, Strip-Wischen mit mehrseitigem Profil; Label unter App-Tasten zeigt „App“ statt App-Name
 - Profil-Dropdown zeigte einmal alten Wert nach Laufzeit-Profilwechsel; nicht reproduzierbar
 - Menüeintrag nur bei neuer Paketversion aktualisiert
 - Hyprland-Zugriff nicht hinter Trait (bewusst offen, geringer Nutzen). Nachtlicht ohne Event ist bewusst so: weder hyprsunset noch Shell melden Änderungen, Polling verboten – steht in actions.md)
