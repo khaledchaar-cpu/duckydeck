@@ -779,6 +779,13 @@ Item {
     selectProc.running = true
   }
 
+  // Copies an icon file (e.g. a library hit) into the user icons as `name`.
+  function addIcon(path, name, done) {
+    root.importDone = done
+    addIconProc.command = ["duckydeck", "icons", "add", path, name, "--json"]
+    addIconProc.running = true
+  }
+
   Process {
     id: selectProc
     command: ["omarchy", "file", "select", "--title", strings.importTitle, "--extensions", "svg png"]
@@ -1731,6 +1738,12 @@ Item {
                 root.updateSelected({ icon: name })
                 root.focusDeck()
               })
+              onLibraryPicked: function(path, name) {
+                root.addIcon(path, name, function(n) {
+                  root.updateSelected({ icon: n })
+                  root.focusDeck()
+                })
+              }
             }
 
             Repeater {
@@ -1968,6 +1981,11 @@ Item {
                           onImportRequested: root.importIcon(function(name) {
                             root.setEntryField(entries.listName, entry.index, "icon", name)
                           })
+                          onLibraryPicked: function(path, name) {
+                            root.addIcon(path, name, function(n) {
+                              root.setEntryField(entries.listName, entry.index, "icon", n)
+                            })
+                          }
                         }
                         Repeater {
                           model: entry.action ? entry.action.params : []

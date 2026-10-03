@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
@@ -25,6 +26,76 @@ Column {
   signal picked(string name)
   // Asks the editor to pick an SVG/PNG file and import it as a user icon.
   signal importRequested()
+  // A library hit was chosen; the editor imports it as user icon `name`.
+  signal libraryPicked(string path, string name)
+
+  // Free icon libraries {id, name, license, installed} and search hits
+  // {library, name, path, svg} from `duckydeck icons library|search`.
+  property var libraries: []
+  property var libraryHits: []
+  property string downloading: ""
+  property string libraryError: ""
+  readonly property bool anyLibrary: libraries.some(function(l) { return l.installed })
+  readonly property string colorArg: "#" + foreground.toString().slice(-6)
+
+  onOpenChanged: if (open) { libraryProc.running = false; libraryProc.running = true }
+  onFilterChanged: searchTimer.restart()
+
+  Timer {
+    id: searchTimer
+    interval: 200
+    onTriggered: {
+      var q = picker.filter.trim()
+      searchProc.running = false
+      if (q.length < 2 || !picker.anyLibrary) { picker.libraryHits = []; return }
+      searchProc.command = ["duckydeck", "icons", "search", q, "--color", picker.colorArg]
+      searchProc.running = true
+    }
+  }
+
+  Process {
+    id: libraryProc
+    command: ["duckydeck", "icons", "library", "--json"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try { picker.libraries = JSON.parse(text).libraries || [] } catch (e) {}
+      }
+    }
+  }
+
+  Process {
+    id: searchProc
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try { picker.libraryHits = JSON.parse(text).icons || [] } catch (e) {}
+      }
+    }
+  }
+
+  Process {
+    id: installProc
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        picker.downloading = ""
+        try {
+          var msg = JSON.parse(text)
+          picker.libraryError = msg.ok ? "" : (msg.error || "")
+        } catch (e) {}
+        libraryProc.running = false
+        libraryProc.running = true
+        searchTimer.restart()
+      }
+    }
+  }
+
+  function install(id) {
+    picker.downloading = id
+    installProc.command = ["duckydeck", "icons", "library", "install", id, "--json"]
+    installProc.running = true
+  }
 
   readonly property int tile: Style.space(40)
   readonly property var byName: {
@@ -46,6 +117,7 @@ Column {
       }
       if (list.length > 0) out.push({ category: order[o], icons: list })
     }
+    if (libraryHits.length > 0) out.push({ category: "library", icons: libraryHits })
     return out
   }
 
@@ -244,8 +316,16 @@ Column {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onContainsMouseChanged: picker.hovered = containsMouse ? cell.modelData.name : ""
-                    onClicked: picker.choose(cell.modelData.name)
+                    onContainsMouseChanged: picker.hovered = !containsMouse ? ""
+                      : cell.modelData.library ? cell.modelData.library + ": " + cell.modelData.name
+                      : cell.modelData.name
+                    onClicked: {
+                      if (cell.modelData.library) {
+                        picker.open = false
+                        picker.filter = ""
+                        picker.libraryPicked(cell.modelData.path, cell.modelData.library + "-" + cell.modelData.name)
+                      } else picker.choose(cell.modelData.name)
+                    }
                   }
                 }
               }
@@ -253,6 +333,47 @@ Column {
           }
         }
       }
+
+    // Offer the libraries not downloaded yet (network only on click).
+    Text {
+      visible: picker.libraries.some(function(l) { return !l.installed })
+      width: parent.width
+      wrapMode: Text.WordWrap
+      text: picker.libraryError !== "" ? picker.libraryError : picker.strings.librariesHint
+      color: picker.foreground
+      opacity: 0.6
+      font.family: picker.fontFamily
+      font.pixelSize: Style.font.bodySmall
+    }
+    Repeater {
+      model: picker.libraries.filter(function(l) { return !l.installed })
+      Rectangle {
+        id: lib
+        required property var modelData
+        width: parent.width
+        height: picker.tile
+        radius: Style.cornerRadius
+        color: libArea.containsMouse ? Qt.alpha(picker.accent, 0.2) : "transparent"
+        border.width: 1
+        border.color: Qt.alpha(picker.foreground, 0.25)
+        Text {
+          anchors.centerIn: parent
+          text: picker.downloading === lib.modelData.id ? picker.strings.downloading
+            : picker.strings.downloadLibrary(lib.modelData.name, lib.modelData.license)
+          color: picker.foreground
+          font.family: picker.fontFamily
+          font.pixelSize: Style.font.bodySmall
+        }
+        MouseArea {
+          id: libArea
+          anchors.fill: parent
+          hoverEnabled: true
+          enabled: picker.downloading === ""
+          cursorShape: Qt.PointingHandCursor
+          onClicked: picker.install(lib.modelData.id)
+        }
+      }
+    }
     }
   }
 }
