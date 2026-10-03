@@ -7,7 +7,7 @@ edition.workspace = true
 anyhow.workspace = true
 duckydeck-core.workspace = true
 elgato-streamdeck = "0.13"
-image = { version = "0.25", default-features = false }
+image = { version = "0.25", default-features = false, features = ["png"] }
 tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "sync"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true

@@ -1,14 +1,20 @@
 //! Stream Deck + connection: discovery, input thread and udev hotplug.
+//! With `DUCKYDECK_FAKE_DEVICE=1` a fake deck renders to a PNG and reads
+//! input lines (fixture format) from stdin.
 
+use std::io::BufRead;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use elgato_streamdeck::info::Kind;
-use elgato_streamdeck::{DeviceStateUpdate, StreamDeck, list_devices, new_hidapi};
+use elgato_streamdeck::{StreamDeck, list_devices, new_hidapi};
 use tokio::io::unix::AsyncFd;
 use tokio::sync::mpsc::UnboundedSender;
+
+use crate::input::Input;
+use crate::surface::{FakeSurface, Surface};
 
 /// Events delivered to the daemon's main loop.
 #[derive(Debug)]
@@ -19,17 +25,22 @@ pub enum DeckEvent {
     BootDone,
     /// The input thread lost the device.
     Disconnected,
-    Input(DeviceStateUpdate),
+    Input(Input),
 }
 
 /// Handle used for output (images, brightness). Input runs on a separate
 /// connection owned by a dedicated thread, so a blocking read never stalls writes.
 pub struct Deck {
     pub serial: String,
-    pub out: StreamDeck,
+    pub out: Box<dyn Surface>,
     /// Test pattern state (0-100 per encoder); goes away with the M2 renderer.
     pub levels: [u8; 4],
-    input: Option<StreamDeck>,
+    input: Option<InputSource>,
+}
+
+enum InputSource {
+    Hid(StreamDeck),
+    Stdin,
 }
 
 impl Deck {
@@ -41,7 +52,10 @@ impl Deck {
         };
         thread::Builder::new()
             .name("deck-input".into())
-            .spawn(move || input_loop(input, tx))
+            .spawn(move || match input {
+                InputSource::Hid(dev) => input_loop(dev, tx),
+                InputSource::Stdin => stdin_loop(tx),
+            })
             .context("spawn input thread")?;
         Ok(())
     }
@@ -49,6 +63,14 @@ impl Deck {
 
 /// Opens the first Stream Deck +; input starts with [`Deck::start_input`].
 pub fn connect() -> Result<Deck> {
+    if fake_enabled() {
+        return Ok(Deck {
+            serial: "FAKE".into(),
+            out: Box::new(FakeSurface::new()?),
+            levels: [50; 4],
+            input: Some(InputSource::Stdin),
+        });
+    }
     let hid = new_hidapi().context("hidapi init")?;
     let Some((kind, serial)) = list_devices(&hid)
         .into_iter()
@@ -60,9 +82,9 @@ pub fn connect() -> Result<Deck> {
     let input = StreamDeck::connect(&hid, kind, &serial).context("open input handle")?;
     Ok(Deck {
         serial,
-        out,
+        out: Box::new(out),
         levels: [50; 4],
-        input: Some(input),
+        input: Some(InputSource::Hid(input)),
     })
 }
 
@@ -77,8 +99,8 @@ fn input_loop(input: StreamDeck, tx: UnboundedSender<DeckEvent>) {
         // timeout blocks in poll(2) until the device reports something.
         match reader.read(Some(READ_TIMEOUT)) {
             Ok(updates) => {
-                for u in updates {
-                    if tx.send(DeckEvent::Input(u)).is_err() {
+                for i in updates.into_iter().filter_map(Input::from_update) {
+                    if tx.send(DeckEvent::Input(i)).is_err() {
                         return;
                     }
                 }
@@ -88,6 +110,27 @@ fn input_loop(input: StreamDeck, tx: UnboundedSender<DeckEvent>) {
                 let _ = tx.send(DeckEvent::Disconnected);
                 return;
             }
+        }
+    }
+}
+
+pub fn fake_enabled() -> bool {
+    std::env::var_os("DUCKYDECK_FAKE_DEVICE").is_some_and(|v| v != "0" && !v.is_empty())
+}
+
+/// Fake input: one event per line, e.g. `cat fixture.txt | duckydeckd`.
+/// EOF just ends input; the fake deck stays "connected".
+fn stdin_loop(tx: UnboundedSender<DeckEvent>) {
+    for line in std::io::stdin().lock().lines() {
+        let Ok(line) = line else { return };
+        match Input::parse(&line) {
+            Some(i) => {
+                if tx.send(DeckEvent::Input(i)).is_err() {
+                    return;
+                }
+            }
+            None if line.trim().is_empty() || line.starts_with('#') => {}
+            None => tracing::warn!(%line, "unknown fake input"),
         }
     }
 }

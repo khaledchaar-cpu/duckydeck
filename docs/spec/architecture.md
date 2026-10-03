@@ -112,7 +112,7 @@ Genauso wird der Hyprland-Zugriff hinter einem Trait gekapselt (Fake mit vorgege
 - `elgato-streamdeck` (sync API) mit zwei HID-Handles: eines für Ausgabe, eines im Lese-Thread. `read(None)` ist in der Crate **nicht-blockierend** (Busy-Loop) → immer `read(Some(lange))`, blockiert in `poll(2)`.
 - Der Lese-Thread startet erst **nach** dem ersten vollständigen Zeichnen; parallel startende Reads lassen das Gerät das Strip-Bild verwerfen.
 - Nach dem Einstecken löscht die bootende Firmware den Strip einmal (1,0–1,5 s nach dem udev-`add`); Tasten sind nicht betroffen → Strip 2 s nach Hotplug neu zeichnen. Kein `reset()` vor dem Zeichnen.
-- Gesten (Tap, Long-Press, Swipe auf dem Strip) liefert die Firmware selbst; Encoder-Twist mit Schrittweite (±1, ±2). Long-Press für Tasten/Regler muss der Daemon selbst messen.
+- Gesten (Tap, Long-Press, Swipe auf dem Strip) liefert die Firmware selbst; Encoder-Twist mit Schrittweite (±1, ±2). Long-Press für Tasten/Regler misst der Daemon selbst (`gesture.rs`, 500 ms, feuert noch während des Haltens).
 - Hotplug über udev-Monitor (`udev`-Crate, Subsystem `hidraw`) in einem eigenen Thread (Monitor ist nicht `Sync`).
 - Leerlauf gemessen: 0 CPU-Ticks/10 s, ~7,6 MB RSS.
 - Zugriffsrechte: ohne eigene Regel nur dank fremder Regel (`/etc/udev/rules.d/50-companion-desktop.rules`) → `packaging/70-duckydeck.rules` (uaccess) ist Pflicht.

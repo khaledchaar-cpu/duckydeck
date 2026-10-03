@@ -1,12 +1,16 @@
 //! DuckyDeck daemon: owns the Stream Deck +, renders keys and runs actions.
 
 mod device;
+mod gesture;
+mod input;
+mod surface;
 mod testpattern;
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use device::{Deck, DeckEvent};
+use gesture::Recognizer;
 use tokio::sync::mpsc;
 use tracing_subscriber::EnvFilter;
 
@@ -24,7 +28,76 @@ async fn main() -> Result<()> {
     tracing::info!(version = env!("CARGO_PKG_VERSION"), "duckydeckd starting");
 
     let (tx, mut rx) = mpsc::unbounded_channel();
-    let hotplug_tx = tx.clone();
+    if !device::fake_enabled() {
+        spawn_hotplug(tx.clone())?;
+    }
+
+    let mut deck = try_connect(&tx);
+    let mut gestures = Recognizer::default();
+    loop {
+        let deadline = gestures.deadline();
+        let ev = tokio::select! {
+            ev = rx.recv() => match ev {
+                Some(ev) => ev,
+                None => break,
+            },
+            () = sleep_until(deadline) => {
+                for g in gestures.tick(Instant::now()) {
+                    on_gesture(&mut deck, g);
+                }
+                continue;
+            }
+        };
+        match ev {
+            DeckEvent::Added if deck.is_none() => {
+                deck = try_connect(&tx);
+                // The booting firmware clears the strip once, 1.0–1.5 s after
+                // plug-in (measured on fw 2.0.3.7); keys are not affected.
+                let tx = tx.clone();
+                tokio::spawn(async move {
+                    tokio::time::sleep(BOOT_TIME).await;
+                    let _ = tx.send(DeckEvent::BootDone);
+                });
+            }
+            DeckEvent::Added => {}
+            DeckEvent::BootDone => {
+                if let Some(d) = &mut deck
+                    && let Err(e) = testpattern::draw_strip(d)
+                {
+                    tracing::warn!(error = %e, "strip redraw failed");
+                }
+            }
+            DeckEvent::Disconnected => {
+                tracing::info!("Stream Deck + disconnected");
+                deck = None;
+                gestures = Recognizer::default();
+            }
+            DeckEvent::Input(i) => {
+                tracing::debug!(input = ?i, "input");
+                for g in gestures.input(i, Instant::now()) {
+                    on_gesture(&mut deck, g);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn on_gesture(deck: &mut Option<Deck>, g: gesture::Gesture) {
+    tracing::info!(gesture = ?g, "gesture");
+    if let Some(d) = deck {
+        testpattern::on_gesture(d, g);
+    }
+}
+
+async fn sleep_until(deadline: Option<Instant>) {
+    match deadline {
+        Some(t) => tokio::time::sleep_until(t.into()).await,
+        None => std::future::pending().await,
+    }
+}
+
+fn spawn_hotplug(hotplug_tx: mpsc::UnboundedSender<DeckEvent>) -> Result<()> {
     // The udev monitor is not `Sync`, so it gets its own single-threaded runtime.
     std::thread::Builder::new()
         .name("hotplug".into())
@@ -39,40 +112,6 @@ async fn main() -> Result<()> {
                 tracing::error!(error = %e, "hotplug watcher stopped");
             }
         })?;
-
-    let mut deck = try_connect(&tx);
-    while let Some(ev) = rx.recv().await {
-        match ev {
-            DeckEvent::Added if deck.is_none() => {
-                deck = try_connect(&tx);
-                // The booting firmware clears the strip once, 1.0–1.5 s after
-                // plug-in (measured on fw 2.0.3.7); keys are not affected.
-                let tx = tx.clone();
-                tokio::spawn(async move {
-                    tokio::time::sleep(BOOT_TIME).await;
-                    let _ = tx.send(DeckEvent::BootDone);
-                });
-            }
-            DeckEvent::Added => {}
-            DeckEvent::BootDone => {
-                if let Some(d) = &deck
-                    && let Err(e) = testpattern::draw_strip(d)
-                {
-                    tracing::warn!(error = %e, "strip redraw failed");
-                }
-            }
-            DeckEvent::Disconnected => {
-                tracing::info!("Stream Deck + disconnected");
-                deck = None;
-            }
-            DeckEvent::Input(u) => {
-                tracing::info!(event = ?u, "input");
-                if let Some(d) = &mut deck {
-                    testpattern::on_input(d, &u);
-                }
-            }
-        }
-    }
     Ok(())
 }
 
@@ -80,7 +119,7 @@ fn try_connect(tx: &mpsc::UnboundedSender<DeckEvent>) -> Option<Deck> {
     match device::connect() {
         Ok(mut d) => {
             tracing::info!(serial = %d.serial, "Stream Deck + connected");
-            if let Err(e) = testpattern::draw(&d) {
+            if let Err(e) = testpattern::draw(&mut d) {
                 tracing::warn!(error = %e, "drawing test pattern failed");
             }
             if let Err(e) = d.start_input(tx.clone()) {
