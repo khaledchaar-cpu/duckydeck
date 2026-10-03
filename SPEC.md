@@ -52,5 +52,5 @@ Ein Schritt = etwa eine Claude-Sitzung. Fortschritt steht in [PROGRESS.md](PROGR
 | M5d | Actions: Launcher | `.desktop`, `omarchy launch …`, Fokussieren-oder-Starten, Badges |
 | M6 | IPC & CLI | Unix-Socket-Protokoll, `duckydeck`-CLI inkl. `subscribe`/`--json`, `duckydeck setup` |
 | M7 | Shell-Plugins | Bar-Widget, Panel, Menüeintrag |
-| M8 | Kontext & Release | Auto-Profilwechsel, Multi-/Toggle-Actions, CI (GitHub Actions: fmt/clippy/test), PKGBUILD, Doku, AUR |
+| M8 | Kontext & Release | Auto-Profilwechsel, Multi-/Toggle-Actions, CI (GitHub Actions: fmt/clippy/test), PKGBUILD, Doku, Release-Paket auf GitHub (kein AUR) |
 | M9 | Editor (v2) | Schritte M9a–M9e siehe [docs/spec/ui.md](docs/spec/ui.md) |

@@ -2,7 +2,7 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M9 – Editor (v2) fertig (M9a–M9e). Letzter Milestone aus SPEC.md; offen nur M8-AUR (zurückgestellt, Repo bleibt vorerst privat)
+**Aktueller Milestone:** M9 – Editor (v2) fertig (M9a–M9e). Letzter Milestone aus SPEC.md; offen nur das erste Release (M8)
 
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
@@ -12,7 +12,7 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 - App-Tasten zeigen den App-Namen aus dem Desktop-Eintrag statt „App“ (am Gerät geprüft)
 
 ## Nächster Schritt
-- Release vorbereiten: Repo öffentlich, Tag `v0.1.0`, `sha256sums` + `.SRCINFO`, AUR
+- Erstes Release: Repo öffentlich machen, Tag `v0.1.0` pushen, Workflow `release.yml` prüfen (lokal ungetestet, Docker ohne Rechte), Install-URL aus README testen
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
@@ -28,4 +28,4 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 - Dev-Test der Shell mit neuer CLI: Shell nutzt `/usr/bin/duckydeck` → lokales Paket bauen (Working Tree als `duckydeck-0.1.0.tar.gz` neben PKGBUILD, `makepkg -d -f`), Nutzer installiert per `sudo pacman -U`. Version bleibt 0.1.0 → `setup` läuft nicht automatisch neu
 - Dev-Loop Editor: `setup` aus Debug-Build ändert vorhandene Paket-Links nicht → Paket bauen (Tarball ohne target/.git), Nutzer installiert; bei CLI-/Katalog-Änderung auch `systemctl --user restart duckydeck`
 - Daemon beenden mit `kill $(pgrep -x duckydeckd)` – `pkill -f` trifft auch die eigene Shell
-- Später: Repo öffentlich, Tag `v0.1.0`, `sha256sums` + `.SRCINFO`, AUR (Account + SSH-Key)
+- Entscheidung 2026-10-03: kein AUR, nur GitHub-Release mit fertigem Paket

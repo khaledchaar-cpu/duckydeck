@@ -1,0 +1,42 @@
+name: Release
+
+# Pushing a tag `v<pkgver>` builds the Arch package and attaches it to a
+# GitHub release. Install: `sudo pacman -U <asset url>`.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - run: pacman -Syu --noconfirm --needed base-devel git github-cli
+      - uses: actions/checkout@v5
+      - name: Tag matches pkgver
+        run: |
+          pkgver=$(sed -n 's/^pkgver=//p' packaging/PKGBUILD)
+          test "v$pkgver" = "$GITHUB_REF_NAME"
+      # The tarball takes the place of the archive download in `source`.
+      - name: Source tarball
+        run: |
+          pkgver=$(sed -n 's/^pkgver=//p' packaging/PKGBUILD)
+          git config --global --add safe.directory "$PWD"
+          git archive --prefix="duckydeck-$pkgver/" -o "packaging/duckydeck-$pkgver.tar.gz" HEAD
+      # makepkg refuses to run as root.
+      - name: Build
+        run: |
+          useradd -m builder
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder
+          chown -R builder packaging
+          cd packaging && sudo -u builder makepkg -s --noconfirm
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config --global --add safe.directory "$PWD"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes \
+            $(ls packaging/duckydeck-*.pkg.tar.zst | grep -v -- -debug-)

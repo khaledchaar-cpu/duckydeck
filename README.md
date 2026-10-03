@@ -19,8 +19,10 @@ Only for current Omarchy and only for the Stream Deck + (USB `0fd9:0084`).
 ## Install
 
 ```bash
-omarchy pkg aur add duckydeck
+sudo pacman -U https://github.com/khaledchaar-cpu/duckydeck/releases/latest/download/duckydeck-0.1.0-1-x86_64.pkg.tar.zst
 ```
+
+Packages for every version are on the [releases page](https://github.com/khaledchaar-cpu/duckydeck/releases).
 
 Then plug the deck in (or replug it). That's all: the package ships a udev rule
 (access without root, starts the daemon on plug-in) and a systemd user service
