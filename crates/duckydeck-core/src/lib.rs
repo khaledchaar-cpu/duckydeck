@@ -7,6 +7,7 @@ pub mod compound;
 pub mod config;
 pub mod context;
 pub mod dial;
+pub mod edit;
 pub mod font;
 pub mod hypr;
 pub mod icons;

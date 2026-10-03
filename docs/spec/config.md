@@ -31,4 +31,10 @@ duckydeck status | reload | check
 duckydeck profile <name> | page <n> | brightness <0-100>
 duckydeck export <profil> > profil.toml
 duckydeck setup [--remove]
+duckydeck actions | preview <profil> [<seite>|<ordner>]     # Editor (v2), über den Daemon
+duckydeck edit <profil> set <seite|ordner> key|dial <n> '<json>'
+duckydeck edit <profil> clear <seite|ordner> key|dial <n>
+duckydeck edit <profil> swap <seite|ordner> key|dial <n> <seite|ordner> <n>
 ```
+
+`edit` arbeitet ohne Daemon direkt auf `profiles/<id>.toml` (`toml_edit`: Kommentare/Format bleiben), schreibt atomar und lehnt Änderungen ab, die neue `check`-Probleme erzeugen. Das Standardprofil wird beim ersten Edit nach `profiles/omarchy.toml` kopiert. Leere Slots am Ende eines Arrays werden entfernt.

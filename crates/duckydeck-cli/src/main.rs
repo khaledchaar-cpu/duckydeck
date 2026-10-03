@@ -19,6 +19,11 @@ commands:
   brightness <0-100>    set the brightness (until the next config change)
   check                 validate config and profiles (no daemon needed)
   export <profile>      print a profile as TOML (also the built-in one)
+  edit <profile> set <page|folder> key|dial <n> <json>
+  edit <profile> clear <page|folder> key|dial <n>
+  edit <profile> swap <page|folder> key|dial <n> <page|folder> <n>
+                        change one slot in the profile file (no daemon needed;
+                        <json> = {action, args?, label?, icon?} as JSON)
   reload                re-read system font, theme and config
   actions               list every action (id, slot, label) for the editor
   preview <profile> [<page>|<folder>]
@@ -44,6 +49,13 @@ async fn main() -> Result<()> {
     match args.iter().map(String::as_str).collect::<Vec<_>>()[..] {
         ["check"] => return check(),
         ["export", id] => return export(id),
+        ["edit", ref rest @ ..] => {
+            if let Err(e) = edit(rest) {
+                eprintln!("duckydeck: {e:#}");
+                std::process::exit(if e.is::<Usage>() { 2 } else { 1 });
+            }
+            return Ok(());
+        }
         ["check", ..] | ["export", ..] => {
             eprintln!("duckydeck: wrong arguments for {}\n\n{USAGE}", args[0]);
             std::process::exit(2);
@@ -155,6 +167,74 @@ fn check() -> Result<()> {
         eprintln!("{p}");
     }
     std::process::exit(1);
+}
+
+/// Wrong arguments for `edit` (exit code 2).
+#[derive(Debug)]
+struct Usage(String);
+
+impl std::fmt::Display for Usage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for Usage {}
+
+fn edit(args: &[&str]) -> Result<()> {
+    use duckydeck_core::edit::{self, Kind, Location, SlotRef};
+
+    let usage = || anyhow::Error::new(Usage(format!("wrong arguments for edit\n\n{USAGE}")));
+    let at = |s: &str| match s.parse::<usize>() {
+        Ok(n) => Location::Page(n),
+        Err(_) => Location::Folder(s.to_owned()),
+    };
+    let kind = |s: &str| match s {
+        "key" => Ok(Kind::Key),
+        "dial" => Ok(Kind::Dial),
+        _ => Err(usage()),
+    };
+    let index = |s: &str| s.parse::<usize>().map_err(|_| usage());
+    let dir = config::dir().context("neither XDG_CONFIG_HOME nor HOME is set")?;
+    let catalog = Catalog::builtin()?;
+    match args {
+        [id, "set", loc, k, n, json] => {
+            let slot = SlotRef {
+                at: at(loc),
+                kind: kind(k)?,
+                index: index(n)?,
+            };
+            let binding: serde_json::Value =
+                serde_json::from_str(json).context("binding is not valid JSON")?;
+            edit::apply(&dir, id, &catalog, |src| {
+                edit::set(src, &slot, Some(&binding))
+            })?;
+        }
+        [id, "clear", loc, k, n] => {
+            let slot = SlotRef {
+                at: at(loc),
+                kind: kind(k)?,
+                index: index(n)?,
+            };
+            edit::apply(&dir, id, &catalog, |src| edit::set(src, &slot, None))?;
+        }
+        [id, "swap", loc, k, n, loc2, n2] => {
+            let k = kind(k)?;
+            let a = SlotRef {
+                at: at(loc),
+                kind: k,
+                index: index(n)?,
+            };
+            let b = SlotRef {
+                at: at(loc2),
+                kind: k,
+                index: index(n2)?,
+            };
+            edit::apply(&dir, id, &catalog, |src| edit::swap(src, &a, &b))?;
+        }
+        _ => return Err(usage()),
+    }
+    Ok(())
 }
 
 /// The profile file as written, so comments survive; the built-in default

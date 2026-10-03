@@ -1,0 +1,21 @@
+---
+source: crates/duckydeck-core/src/edit.rs
+expression: out
+---
+# My profile
+name = "Dev"
+
+[[pages]]
+# Top row
+keys = [
+  { action = "system.lock" },   # lock it
+  { action = "capture.screenshot", args = { mode = "region" } },
+  { action = "launcher.terminal" },
+]
+dials = [{ action = "media.volume" }]
+
+[[pages]]
+keys = [{ action = "system.menu" }]
+
+[folders.tools]
+keys = [{ action = "capture.qr" }]
