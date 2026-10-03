@@ -98,6 +98,37 @@ pub trait CommandRunner: Send + Sync {
 
     /// Starts the command detached (apps, long-running tools) without waiting for it.
     fn spawn(&self, spec: &CommandSpec) -> Result<(), CommandError>;
+
+    /// Like [`spawn`](Self::spawn), but calls `on_fail` with a short reason
+    /// if the process exits unsuccessfully within [`QUICK_FAIL`]. Later exits
+    /// (closed apps) are ignored.
+    fn spawn_watched(
+        &self,
+        spec: &CommandSpec,
+        on_fail: Box<dyn FnOnce(String) + Send>,
+    ) -> Result<(), CommandError> {
+        let _ = on_fail;
+        self.spawn(spec)
+    }
+}
+
+/// How long [`CommandRunner::spawn_watched`] waits for a failing exit.
+pub const QUICK_FAIL: Duration = Duration::from_secs(3);
+
+/// Bytes of stderr kept for the failure reason.
+const STDERR_TAIL: usize = 2048;
+
+/// `exit status 1: <last stderr line>`.
+fn fail_reason(status: std::process::ExitStatus, stderr: &[u8]) -> String {
+    let status = match status.code() {
+        Some(c) => format!("exit status {c}"),
+        None => "killed by a signal".to_owned(),
+    };
+    let text = String::from_utf8_lossy(stderr);
+    match text.lines().map(str::trim).rfind(|l| !l.is_empty()) {
+        Some(line) => format!("{status}: {line}"),
+        None => status,
+    }
 }
 
 /// Production runner based on `tokio::process::Command`.
@@ -152,6 +183,45 @@ impl CommandRunner for TokioRunner {
         tokio::spawn(async move {
             if let Err(err) = child.wait().await {
                 tracing::warn!(%program, %err, "waiting for detached process failed");
+            }
+        });
+        Ok(())
+    }
+
+    fn spawn_watched(
+        &self,
+        spec: &CommandSpec,
+        on_fail: Box<dyn FnOnce(String) + Send>,
+    ) -> Result<(), CommandError> {
+        use tokio::io::AsyncReadExt;
+
+        let mut child = Self::command(spec)
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|source| CommandError::Spawn {
+                program: spec.program.clone(),
+                source,
+            })?;
+        let program = spec.program.clone();
+        let started = tokio::time::Instant::now();
+        tokio::spawn(async move {
+            // Drain stderr so a chatty app never blocks; keep only the tail.
+            let mut tail = Vec::new();
+            if let Some(mut err) = child.stderr.take() {
+                let mut buf = [0u8; 1024];
+                while let Ok(n @ 1..) = err.read(&mut buf).await {
+                    tail.extend_from_slice(&buf[..n]);
+                    let excess = tail.len().saturating_sub(STDERR_TAIL);
+                    tail.drain(..excess);
+                }
+            }
+            match child.wait().await {
+                Ok(s) if !s.success() && started.elapsed() < QUICK_FAIL => {
+                    on_fail(fail_reason(s, &tail));
+                }
+                Ok(_) => {}
+                Err(err) => tracing::warn!(%program, %err, "waiting for detached process failed"),
             }
         });
         Ok(())
@@ -269,6 +339,34 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(err, CommandError::Timeout { .. }));
+    }
+
+    #[tokio::test]
+    async fn spawn_watched_reports_quick_failure() {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        TokioRunner
+            .spawn_watched(
+                &CommandSpec::new("sh")
+                    .args(["-c", "echo first >&2; echo 'no such route' >&2; exit 3"]),
+                Box::new(move |r| {
+                    let _ = tx.send(r);
+                }),
+            )
+            .unwrap();
+        assert_eq!(rx.await.unwrap(), "exit status 3: no such route");
+    }
+
+    #[tokio::test]
+    async fn spawn_watched_ignores_success() {
+        let (tx, rx) = tokio::sync::oneshot::channel::<String>();
+        TokioRunner
+            .spawn_watched(
+                &CommandSpec::new("true"),
+                Box::new(move |r| drop(tx.send(r))),
+            )
+            .unwrap();
+        // The callback is dropped without being called.
+        assert!(rx.await.is_err());
     }
 
     #[tokio::test]

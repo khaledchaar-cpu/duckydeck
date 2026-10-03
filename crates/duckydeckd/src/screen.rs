@@ -588,7 +588,14 @@ impl Screen {
             .exec(&b.action, &b.args)
             .map_err(anyhow::Error::from)
             .and_then(|exec| match exec {
-                Exec::Command(spec) => Ok(TokioRunner.spawn(&spec)?),
+                Exec::Command(spec) => {
+                    let label = b.label.clone().unwrap_or_else(|| entry.label.clone());
+                    let action = b.action.clone();
+                    Ok(TokioRunner.spawn_watched(
+                        &spec,
+                        Box::new(move |reason| notify_failed(&action, &label, &reason)),
+                    )?)
+                }
                 Exec::Dispatch(lua) => {
                     self.dispatch(lua);
                     Ok(())
@@ -800,5 +807,16 @@ fn load_theme() -> Option<Theme> {
             tracing::warn!(error = ?other.map(|r| r.err()), "theme unavailable");
             None
         }
+    }
+}
+
+/// Shell notification for a catalog command that failed right away.
+fn notify_failed(action: &str, label: &str, reason: &str) {
+    tracing::warn!(%action, %reason, "action failed");
+    let spec =
+        duckydeck_core::CommandSpec::omarchy(["notification", "send", "--app-name", "DuckyDeck"])
+            .args([format!("{label} failed"), reason.to_owned()]);
+    if let Err(e) = TokioRunner.spawn(&spec) {
+        tracing::warn!(error = %e, "action failure notification failed");
     }
 }
