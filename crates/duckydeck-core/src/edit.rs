@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use toml_edit::{Array, DocumentMut, InlineTable, Item, Table, Value};
+use toml_edit::{Array, ArrayOfTables, DocumentMut, InlineTable, Item, Table, Value};
 
 use crate::catalog::Catalog;
 use crate::check;
@@ -77,6 +77,208 @@ pub fn swap(src: &str, a: &SlotRef, b: &SlotRef) -> Result<String, EditError> {
     finish(doc)
 }
 
+/// Appends an empty page.
+pub fn page_add(src: &str) -> Result<String, EditError> {
+    let mut doc = parse(src)?;
+    let pages = pages(&mut doc)?;
+    // Right after the last page, not after the folders.
+    let mut page = Table::new();
+    page.set_position(pages.iter().filter_map(Table::position).max());
+    pages.push(page);
+    finish(doc)
+}
+
+/// Removes page `n` (1-based); the last remaining page stays.
+pub fn page_remove(src: &str, n: usize) -> Result<String, EditError> {
+    let mut doc = parse(src)?;
+    let pages = pages(&mut doc)?;
+    let i = page_index(pages, n)?;
+    if pages.len() == 1 {
+        return Err(invalid("a profile needs at least one page"));
+    }
+    pages.remove(i);
+    finish(doc)
+}
+
+/// Moves page `from` to position `to` (both 1-based).
+pub fn page_move(src: &str, from: usize, to: usize) -> Result<String, EditError> {
+    let mut doc = parse(src)?;
+    let pages = pages(&mut doc)?;
+    let (a, b) = (page_index(pages, from)?, page_index(pages, to)?);
+    // The file order follows the tables' positions, so they move along.
+    let mut positions: Vec<_> = pages.iter().map(Table::position).collect();
+    positions.sort();
+    let page = pages.remove(a);
+    pages.insert(b, page);
+    for (t, pos) in pages.iter_mut().zip(positions) {
+        t.set_position(pos);
+    }
+    finish(doc)
+}
+
+/// Sets the display name.
+pub fn set_name(src: &str, name: &str) -> Result<String, EditError> {
+    if name.trim().is_empty() {
+        return Err(invalid("name must not be empty"));
+    }
+    let mut doc = parse(src)?;
+    match doc.get_mut("name").and_then(Item::as_value_mut) {
+        Some(v) => {
+            let decor = v.decor().clone();
+            *v = Value::from(name);
+            *v.decor_mut() = decor;
+        }
+        None => {
+            doc.insert("name", toml_edit::value(name));
+        }
+    }
+    finish(doc)
+}
+
+/// Sets the window class regex for the automatic switch; empty removes it
+/// (a title regex is kept).
+pub fn set_match(src: &str, class: &str) -> Result<String, EditError> {
+    if !class.is_empty() {
+        regex_lite::Regex::new(class).map_err(|e| invalid(format!("invalid regex: {e}")))?;
+    }
+    let mut doc = parse(src)?;
+    let table = doc
+        .entry("match")
+        .or_insert_with(|| Item::Value(Value::InlineTable(InlineTable::new())));
+    let Some(t) = table.as_table_like_mut() else {
+        return Err(invalid("`match` must be a table"));
+    };
+    if class.is_empty() {
+        t.remove("class");
+    } else {
+        t.insert("class", toml_edit::value(class));
+    }
+    if t.is_empty() {
+        doc.remove("match");
+    }
+    finish(doc)
+}
+
+/// Creates profile `id`, empty or as a copy of profile `from`.
+pub fn create(dir: &Path, id: &str, from: Option<&str>) -> Result<PathBuf, EditError> {
+    check_id(id)?;
+    let path = profile_path(dir, id);
+    if id == config::DEFAULT_PROFILE_ID || path.exists() {
+        return Err(invalid(format!("profile {id:?} already exists")));
+    }
+    let src = match from {
+        Some(f) => {
+            let mut doc = parse(&read(dir, f)?)?;
+            let name = doc.get("name").and_then(Item::as_str).unwrap_or(f);
+            let name = format!("{name} copy");
+            doc.insert("name", toml_edit::value(name));
+            // Two profiles for the same windows would only shadow each other.
+            doc.remove("match");
+            doc.to_string()
+        }
+        None => format!("name = \"{id}\"\n\n[[pages]]\n"),
+    };
+    Profile::parse(&src, &path)?;
+    write(&path, &src)?;
+    Ok(path)
+}
+
+/// Deletes profile `id`. The default profile cannot go away: deleting it
+/// resets it to the built-in one. Profiles still in use are refused.
+pub fn delete(dir: &Path, id: &str) -> Result<(), EditError> {
+    let loaded = Loaded::load(dir)?;
+    if !loaded.profiles.contains_key(id) {
+        return Err(invalid(format!("unknown profile {id:?}")));
+    }
+    if id != config::DEFAULT_PROFILE_ID {
+        if loaded.config.profile == id {
+            return Err(invalid(format!(
+                "profile {id:?} is the fallback profile in config.toml"
+            )));
+        }
+        let users: Vec<_> = loaded
+            .profiles
+            .iter()
+            .filter(|(other, p)| *other != id && links_to(p, id))
+            .map(|(_, p)| p.name.clone())
+            .collect();
+        if !users.is_empty() {
+            return Err(invalid(format!(
+                "profile {id:?} is used by: {}",
+                users.join(", ")
+            )));
+        }
+    }
+    let path = profile_path(dir, id);
+    match std::fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(source) => Err(EditError::Io { path, source }),
+    }
+}
+
+/// Whether a `structure.profile` slot of `p` switches to `id`.
+fn links_to(p: &Profile, id: &str) -> bool {
+    p.pages
+        .iter()
+        .chain(p.folders.values())
+        .flat_map(|pg| pg.keys.iter().chain(&pg.dials))
+        .filter_map(|s| s.0.as_ref())
+        .any(|b| {
+            b.action == "structure.profile"
+                && b.args.get("profile").and_then(|v| v.as_str()) == Some(id)
+        })
+}
+
+/// Profile ids are file stems: lowercase letters, digits, `-` and `_`.
+fn check_id(id: &str) -> Result<(), EditError> {
+    let ok = !id.is_empty()
+        && id
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_');
+    if ok {
+        Ok(())
+    } else {
+        Err(invalid("profile id may only contain a-z, 0-9, - and _"))
+    }
+}
+
+fn profile_path(dir: &Path, id: &str) -> PathBuf {
+    dir.join("profiles").join(format!("{id}.toml"))
+}
+
+/// The profile file, or the built-in default profile without one.
+fn read(dir: &Path, id: &str) -> Result<String, EditError> {
+    let path = profile_path(dir, id);
+    match std::fs::read_to_string(&path) {
+        Ok(s) => Ok(s),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound && id == config::DEFAULT_PROFILE_ID => {
+            Ok(config::DEFAULT_PROFILE.to_owned())
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            Err(invalid(format!("unknown profile {id:?}")))
+        }
+        Err(source) => Err(EditError::Io { path, source }),
+    }
+}
+
+fn write(path: &Path, content: &str) -> Result<(), EditError> {
+    let io = |path: &Path| {
+        let path = path.to_owned();
+        move |source| EditError::Io { path, source }
+    };
+    let dir = path.parent().unwrap_or(Path::new("."));
+    std::fs::create_dir_all(dir).map_err(io(dir))?;
+    // Same directory, so the rename is atomic and the watcher sees one change.
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("profile");
+    let tmp = dir.join(format!(".{name}.tmp"));
+    std::fs::write(&tmp, content).map_err(io(&tmp))?;
+    std::fs::rename(&tmp, path).map_err(io(path))
+}
+
 /// Applies `change` to the file of profile `id` in config dir `dir`. The
 /// built-in default profile gets its own file on the first edit. A change
 /// that adds problems (unknown action, missing argument, …) is refused;
@@ -87,33 +289,15 @@ pub fn apply(
     catalog: &Catalog,
     change: impl FnOnce(&str) -> Result<String, EditError>,
 ) -> Result<PathBuf, EditError> {
-    let profiles = dir.join("profiles");
-    let path = profiles.join(format!("{id}.toml"));
-    let src = match std::fs::read_to_string(&path) {
-        Ok(s) => s,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound && id == config::DEFAULT_PROFILE_ID => {
-            config::DEFAULT_PROFILE.to_owned()
-        }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            return Err(invalid(format!("unknown profile {id:?}")));
-        }
-        Err(source) => return Err(EditError::Io { path, source }),
-    };
+    let path = profile_path(dir, id);
+    let src = read(dir, id)?;
     let out = change(&src)?;
     let after = Profile::parse(&out, &path)?;
     let added = added_problems(dir, id, Profile::parse(&src, &path).ok(), after, catalog);
     if !added.is_empty() {
         return Err(invalid(added.join("\n")));
     }
-    let io = |path: &Path| {
-        let path = path.to_owned();
-        move |source| EditError::Io { path, source }
-    };
-    std::fs::create_dir_all(&profiles).map_err(io(&profiles))?;
-    // Same directory, so the rename is atomic and the watcher sees one change.
-    let tmp = profiles.join(format!(".{id}.toml.tmp"));
-    std::fs::write(&tmp, out).map_err(io(&tmp))?;
-    std::fs::rename(&tmp, &path).map_err(io(&path))?;
+    write(&path, &out)?;
     Ok(path)
 }
 
@@ -148,6 +332,18 @@ fn added_problems(
 fn parse(src: &str) -> Result<DocumentMut, EditError> {
     src.parse::<DocumentMut>()
         .map_err(|e| invalid(format!("profile is not valid TOML: {e}")))
+}
+
+fn pages(doc: &mut DocumentMut) -> Result<&mut ArrayOfTables, EditError> {
+    doc.get_mut("pages")
+        .and_then(Item::as_array_of_tables_mut)
+        .ok_or_else(|| invalid("profile has no [[pages]]"))
+}
+
+fn page_index(pages: &ArrayOfTables, n: usize) -> Result<usize, EditError> {
+    n.checked_sub(1)
+        .filter(|i| *i < pages.len())
+        .ok_or_else(|| invalid(format!("page must be 1-{}", pages.len())))
 }
 
 fn finish(doc: DocumentMut) -> Result<String, EditError> {
@@ -429,6 +625,75 @@ keys = [{ action = "capture.qr" }]
         });
         assert!(err.is_err());
         assert_eq!(std::fs::read_to_string(&path).unwrap(), written);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn pages_add_move_remove() {
+        let out = page_add(SRC).unwrap();
+        let p = Profile::parse(&out, Path::new("t")).unwrap();
+        assert_eq!(p.pages.len(), 3);
+        assert!(out.rfind("[[pages]]") < out.find("[folders"), "{out}");
+        let moved = page_move(SRC, 2, 1).unwrap();
+        let p = Profile::parse(&moved, Path::new("t")).unwrap();
+        assert_eq!(p.pages[0].keys[0].0.as_ref().unwrap().action, "system.menu");
+        assert!(
+            moved.find("system.menu") < moved.find("# Top row"),
+            "{moved}"
+        );
+        assert!(moved.rfind("[[pages]]") < moved.find("[folders"), "{moved}");
+        let removed = page_remove(SRC, 1).unwrap();
+        let p = Profile::parse(&removed, Path::new("t")).unwrap();
+        assert_eq!(p.pages.len(), 1);
+        assert!(page_remove(&removed, 1).is_err());
+        assert!(page_move(SRC, 1, 3).is_err());
+    }
+
+    #[test]
+    fn name_and_match() {
+        let out = set_name(SRC, "Code").unwrap();
+        assert!(out.starts_with("# My profile\nname = \"Code\"\n"), "{out}");
+        assert!(set_name(SRC, " ").is_err());
+        let out = set_match(SRC, "^code$").unwrap();
+        let p = Profile::parse(&out, Path::new("t")).unwrap();
+        assert_eq!(p.matcher.unwrap().class.as_deref(), Some("^code$"));
+        let back = set_match(&out, "").unwrap();
+        assert!(!back.contains("match"), "{back}");
+        assert!(set_match(SRC, "(").is_err());
+    }
+
+    #[test]
+    fn create_and_delete_profiles() {
+        let dir = std::env::temp_dir().join(format!("duckydeck-profiles-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        create(&dir, "dev", None).unwrap();
+        create(&dir, "dev2", Some("omarchy")).unwrap();
+        assert!(create(&dir, "dev", None).is_err());
+        assert!(create(&dir, "omarchy", None).is_err());
+        assert!(create(&dir, "Bad Id", None).is_err());
+        let loaded = Loaded::load(&dir).unwrap();
+        assert_eq!(loaded.profiles["dev"].name, "dev");
+        assert!(loaded.profiles["dev2"].name.ends_with(" copy"));
+        let catalog = Catalog::builtin().unwrap();
+        apply(&dir, "dev2", &catalog, |src| {
+            set(
+                src,
+                &key(Location::Page(1), 1),
+                Some(&json!({ "action": "structure.profile", "args": { "profile": "dev" } })),
+            )
+        })
+        .unwrap();
+        assert!(
+            delete(&dir, "dev")
+                .unwrap_err()
+                .to_string()
+                .contains("used by")
+        );
+        delete(&dir, "dev2").unwrap();
+        delete(&dir, "dev").unwrap();
+        assert!(delete(&dir, "dev").is_err());
+        // The default profile is only reset.
+        delete(&dir, config::DEFAULT_PROFILE_ID).unwrap();
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

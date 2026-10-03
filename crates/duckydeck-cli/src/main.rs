@@ -25,6 +25,11 @@ commands:
   edit <profile> swap <page|folder> key|dial <n> <page|folder> <n>
                         change one slot in the profile file (no daemon needed;
                         <json> = {action, args?, label?, icon?} as JSON)
+  edit <profile> page add | page remove <n> | page move <from> <to>
+  edit <profile> name <text> | match <class regex, empty = off>
+  edit <profile> create [<copy of>] | delete
+                        manage pages and profiles; deleting the default
+                        profile resets it to the built-in one
   reload                re-read system font, theme and config
   actions               list every action (id, slot, label) for the editor
   icons                 list the built-in icon names (no daemon needed)
@@ -265,6 +270,30 @@ fn edit(args: &[&str]) -> Result<()> {
             };
             edit::apply(&dir, id, &catalog, |src| edit::swap(src, &a, &b))?;
         }
+        [id, "page", "add"] => {
+            edit::apply(&dir, id, &catalog, edit::page_add)?;
+        }
+        [id, "page", "remove", n] => {
+            let n = index(n)?;
+            edit::apply(&dir, id, &catalog, |src| edit::page_remove(src, n))?;
+        }
+        [id, "page", "move", from, to] => {
+            let (from, to) = (index(from)?, index(to)?);
+            edit::apply(&dir, id, &catalog, |src| edit::page_move(src, from, to))?;
+        }
+        [id, "name", name] => {
+            edit::apply(&dir, id, &catalog, |src| edit::set_name(src, name))?;
+        }
+        [id, "match", class] => {
+            edit::apply(&dir, id, &catalog, |src| edit::set_match(src, class))?;
+        }
+        [id, "create"] => {
+            edit::create(&dir, id, None)?;
+        }
+        [id, "create", from] => {
+            edit::create(&dir, id, Some(from))?;
+        }
+        [id, "delete"] => edit::delete(&dir, id)?,
         _ => return Err(usage()),
     }
     Ok(())
