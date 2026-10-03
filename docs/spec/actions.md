@@ -57,7 +57,7 @@ Unten steht bei jeder Kategorie, was Katalog (K) und was Rust (R) ist.
 - Status über `pactl subscribe` (Event-Stream, kein Polling)
 - Play/Pause, Weiter, Zurück über MPRIS, aktiver Player wählbar
 - Touchstrip: Titel, Interpret, Fortschritt (Cover optional) über die ganze Breite, solange der aktive Player spielt (1,5 s Nachlauf, weil Player beim Spulen kurz pausieren); Regler anfassen zeigt 2 s die Reglerwerte. Position wird bei Status-/Titelwechsel und `Seeked` gelesen und hochgerechnet
-- Medientasten `media.play_pause|next|previous`, optional `args = { player = "spotify" }`; sonst der zuletzt gestartete spielende Player
+- Medientasten `media.play_pause|next|previous` (ausgegraut, wenn der Player `CanGoNext`/`CanGoPrevious = false` meldet), optional `args = { player = "spotify" }`; sonst der zuletzt gestartete spielende Player
 - Audio-Ausgabegerät wechseln
 - v2: Lautstärke pro App
 

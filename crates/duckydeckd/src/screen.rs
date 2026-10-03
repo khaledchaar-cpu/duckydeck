@@ -130,7 +130,7 @@ impl Screen {
             keys.iter()
                 .flatten()
                 .filter_map(|b| Some((MediaKey::from_binding(b)?, b)))
-                .map(|(k, b)| k.icon(playing(ps, b)))
+                .map(|(k, b)| (k.icon(playing(ps, b)), enabled(ps, k, b)))
                 .collect::<Vec<_>>()
         };
         let before = icons(&self.players);
@@ -324,7 +324,13 @@ impl Screen {
         let view = KeyView {
             icon: binding.as_ref().and_then(|b| self.icon(b)),
             label: label.as_deref(),
-            fg: Role::Foreground,
+            fg: match binding
+                .as_ref()
+                .and_then(|b| Some((MediaKey::from_binding(b)?, b)))
+            {
+                Some((k, b)) if !enabled(&self.players, k, b) => Role::Muted,
+                _ => Role::Foreground,
+            },
             bg: if pressed {
                 Role::LighterBackground
             } else {
@@ -434,6 +440,11 @@ fn playing(players: &Players, b: &Binding) -> bool {
     players
         .active(media::wanted_player(b))
         .is_some_and(|p| p.status == Status::Playing)
+}
+
+/// Whether the player a media key controls accepts it.
+fn enabled(players: &Players, k: MediaKey, b: &Binding) -> bool {
+    k.enabled(players.active(media::wanted_player(b)))
 }
 
 fn dial_icon(d: Dial, pct: Option<u8>, muted: bool) -> &'static str {

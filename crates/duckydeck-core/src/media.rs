@@ -34,6 +34,16 @@ impl MediaKey {
         }
     }
 
+    /// Whether `player` accepts this key; play/pause always does.
+    pub fn enabled(self, player: Option<&Player>) -> bool {
+        let Some(p) = player else { return true };
+        match self {
+            Self::PlayPause => true,
+            Self::Next => p.can_next != Some(false),
+            Self::Previous => p.can_previous != Some(false),
+        }
+    }
+
     /// Icon for the current state: play/pause shows what a press does.
     pub fn icon(self, playing: bool) -> &'static str {
         match self {
@@ -82,6 +92,9 @@ pub struct Player {
     pub length: Option<Duration>,
     /// Last reported position and when it was reported.
     pub position: Option<(Duration, Instant)>,
+    /// `CanGoNext` / `CanGoPrevious`; `None` = not reported (assume yes).
+    pub can_next: Option<bool>,
+    pub can_previous: Option<bool>,
 }
 
 impl Player {
@@ -241,6 +254,12 @@ mod tests {
         assert_eq!(wanted_player(&b), Some("spotify"));
         assert_eq!(MediaKey::PlayPause.icon(true), "pause");
         assert_eq!(MediaKey::Next.method(), "Next");
+        let mut p = Player::default();
+        assert!(MediaKey::Next.enabled(Some(&p)));
+        p.can_next = Some(false);
+        assert!(!MediaKey::Next.enabled(Some(&p)));
+        assert!(MediaKey::Previous.enabled(Some(&p)));
+        assert!(MediaKey::Next.enabled(None));
         assert_eq!(Status::parse("Playing"), Status::Playing);
     }
 }

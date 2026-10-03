@@ -176,6 +176,13 @@ fn apply(players: &mut Players, name: &str, props: &HashMap<String, OwnedValue>)
             .map(|a| a.join(", "))
             .filter(|s| !s.is_empty());
     }
+    let flag = |k: &str| props.get(k).and_then(|v| bool::try_from(v.clone()).ok());
+    if let Some(b) = flag("CanGoNext") {
+        players.insert(name).can_next = Some(b);
+    }
+    if let Some(b) = flag("CanGoPrevious") {
+        players.insert(name).can_previous = Some(b);
+    }
     if let Some(us) = props.get("Position").and_then(as_i64) {
         players.insert(name).position = Some((micros(us), Instant::now()));
     }

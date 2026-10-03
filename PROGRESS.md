@@ -10,7 +10,8 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - M5a: Regler Lautstärke/Mikrofon/Helligkeit (`duckydeck_core::dial`, Daemon-Worker `levels` fasst Drehungen zusammen, Status via `pactl subscribe`)
 - MPRIS über `zbus` (`duckydeck_core::media`, Daemon `mpris`): Medientasten, Player-Auswahl, Play/Pause-Icon nach Status
 - Touchstrip-Medienansicht (`Renderer::media`), 2 s Regler-Overlay, 1,5 s Nachlauf beim Spulen
-- Alles am Gerät abgenommen
+- Medientasten grauen aus bei `CanGoNext`/`CanGoPrevious = false`
+- Alles am Gerät abgenommen (Next/Previous mit Playlist)
 
 ## Nächster Schritt
 - M5b: Hyprland-Socket-Modul (eigene Anbindung, Events `workspace`/`activewindow`), `window.workspace` + Workspace-Scroll-Regler
