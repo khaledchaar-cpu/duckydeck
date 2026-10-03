@@ -2,25 +2,26 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M5b – Actions: Window Management (M5a abgeschlossen)
+**Aktueller Milestone:** M5c – Actions: System & Capture (M5b abgeschlossen)
 
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
-- Hyprland-Socket-Modul (`duckydeck_core::hypr`, Daemon `hyprland`): Events `.socket2.sock`, Dispatch/Queries `.socket.sock`, Reconnect
-- Katalog-Feld `dispatch` (Lua `hl.dsp.…`, Hyprland 0.56 mit Lua-Config), sichere Platzhalter
-- Workspace-Tasten (Glyphe, aktiv/belegt/leer), Scroll-Regler (Druck = Scratchpad), Fenster-Dispatches + `omarchy hyprland window …`-Routen
-- Gruppe `hyprland` in `docs/omarchy-reference.md` aufgenommen
-- Am Gerät abgenommen (Tasten, Regler, Sync mit Tastatur-Wechsel)
+- M5b fertig: `window.move` (swap in Richtung), `window.to_monitor`, `window.monitor_internal`/`window.monitor_mirror`, `window.dispatch`
+- Katalogfeld `raw`: ganzer `hl.dsp.…`-Ausdruck aus dem Profil (einzeilig, Präfix geprüft)
+- Fix: Änderung von `profile` in `config.toml` wechselt beim Live-Reload das Profil
+- Am Gerät abgenommen (außer Multi-Monitor-Actions)
 
 ## Nächster Schritt
-- M5b abschließen: Fenster verschieben in Richtung, Fenster an Monitor, interner Monitor an/aus/spiegeln (`omarchy hyprland monitor internal …`), beliebiger Dispatch (`window.dispatch`, nur Profilwert prüfen)
+- M5c: Toggle-`state` (Katalogfeld, Status-Events statt Polling) und fehlende System-/Capture-Einträge laut `docs/spec/actions.md` (Bildschirmaufnahme mit Laufzeitanzeige)
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
 - nach M7: `shell-plugin` (QML-Regeln, Manifest-Muster, Reload) – Details dann aus CLAUDE.md entfernen
 
 ## Offene Probleme / Notizen
+- Multi-Monitor-Actions (`to_monitor`, `monitor_internal`/`mirror`) nicht testbar (nur DP-1)
+- `scripts/check.sh` findet `cargo` nur mit `PATH=$HOME/.cargo/bin:$PATH`
 - RSS ~27 MB (Debug) statt < 15 MB – laut Nutzer unkritisch; Release-Build noch nicht gemessen
 - Strip zeigt immer den automatisch gewählten Player, Tasten mit `player = …` ggf. einen anderen
 - Catalog-Actions per `spawn` – Fehler von `omarchy` werden nicht gemeldet (ggf. M5c)
