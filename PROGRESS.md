@@ -2,18 +2,18 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M6 – IPC & CLI (M5c abgeschlossen)
+**Aktueller Milestone:** M6 – IPC & CLI (Teil 1: Socket + CLI-Grundgerüst fertig)
 
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
-- M5c: Katalogfeld `state` (`file` per inotify / `command` nach Druck, `json`, `elapsed`), Task `toggles.rs`
-- Toggle-Icons für Nachtlicht, Wach bleiben, Nicht stören; unbekannter Status = `off`
-- Neu: `capture.screenrecording` mit Laufzeit, `capture.color_picker` (hyprpicker), `system.dismiss_notifications` (Icon `bell-x`)
-- Am Gerät abgenommen (OCR/QR nur angetippt)
+- IPC-Protokoll v1 (`core::ipc`, `docs/ipc.md`), Socket `$XDG_RUNTIME_DIR/duckydeck/duckydeck.sock`
+- Daemon: Socket-Server, Status-Events (`device_connected/disconnected`, `profile_changed`) mit vollem Status
+- CLI: `status | profile | page | brightness | subscribe | version`, `--json`
+- Am Gerät abgenommen (Helligkeit, Ab-/Anstecken über `subscribe`)
 
 ## Nächster Schritt
-- M6: Unix-Socket-Protokoll (JSON-Lines) im Daemon + `duckydeck`-CLI-Grundgerüst laut `docs/spec/`
+- M6 Teil 2: `duckydeck setup [--remove]` (Plugin-Symlinks, Menüblock, Hook) laut `docs/spec/architecture.md`; danach `reload`/`check`/`export`, `get_config`/`list_actions`
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
@@ -30,4 +30,6 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - Long-Press-Bestätigung (Power off) und mehrseitige Profile/Swipe noch nicht am Gerät geprüft
 - Erstanbieter-Panels sind `bar-widget`-Plugins (`entryPoints.barWidget`) – bei M7 beachten
 - Hyprland-Zugriff noch nicht hinter Trait (Spec architecture.md: Fake für Tests) – Logik ist in Core testbar, I/O nicht
+- `profile`/`brightness` per CLI nur zur Laufzeit (Reset bei Config-Änderung) – vom Nutzer nicht beanstandet
+- Socket-Pfad darf nicht zu lang sein (SUN_LEN): Tests mit kurzem `XDG_RUNTIME_DIR` unter `/tmp/claude-1000`
 - `duckydeck.service` fehlt noch (Packaging); Kontrasttest braucht `/usr/share/omarchy/themes`
