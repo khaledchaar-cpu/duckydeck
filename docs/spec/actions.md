@@ -27,6 +27,7 @@ run   = ["omarchy", "toggle", "nightlight"]
 state = { kind = "command", check = ["…"] }   # optional, nur wenn es ein Event/Status gibt
 ```
 
+- `dispatch = 'hl.dsp.window.close()'` statt `run`: Hyprland-Dispatcher als Lua-Ausdruck (Hyprland ≥ 0.55 mit Lua-Config), direkt über `.socket.sock` gesendet. Platzhalterwerte dürfen nur Buchstaben, Ziffern und `_+-:` enthalten (bleiben im Lua-String); `{ … }` ohne Bezeichner ist eine Lua-Tabelle, kein Platzhalter.
 - `requires = "omarchy capture screenshot"`: Route, die beim Start gegen `omarchy commands --json` geprüft wird (Default: aus `run` abgeleitet).
 - Parameter aus dem Profil per Platzhalter als **eigenes Argument** (`"{n}"`, auch innerhalb eines Arguments wie `"--size={n}"`), nie String-Verkettung in einer Shell. `defaults = { mode = "smart" }` liefert Werte, die das Profil nicht setzt.
 - `confirm = "long-press"`: Tap tut nichts, nur Long-Press führt aus (Herunterfahren, Neustart, Abmelden). Andere Actions laufen bei Tap und Long-Press.
@@ -62,8 +63,8 @@ Unten steht bei jeder Kategorie, was Katalog (K) und was Rust (R) ist.
 - v2: Lautstärke pro App
 
 ## Window Management (M5b) – Dispatches/Omarchy-Routen K, Workspace-Status und Regler R
-- Workspace 1–10 wechseln / Fenster verschieben, aktiver Workspace markiert
-- **Regler:** Workspaces durchblättern, Druck = Special-Workspace
+- Workspace 1–10 wechseln / Fenster verschieben (`window.workspace`, `window.move_to_workspace`, `args = { n }`); Taste zeigt die Ziffer: aktiv = Akzent + Balken, belegt = Vordergrund, leer = gedimmt. Status aus Events `workspacev2`/`focusedmonv2`, Belegung per `j/workspaces` nur nach Fenster-/Workspace-Events
+- **Regler** `window.workspace_scroll`: Workspaces durchblättern (`e±N`), Druck = Scratchpad; Strip zeigt die aktive Nummer
 - Fenster schließen, Floating, Vollbild, Pseudo, Split
 - Omarchy-Routen: Tiled-Fullscreen, Pop-out, Transparenz, Gaps, Layout dwindle ↔ scrolling (`omarchy hyprland …`)
 - Fokus/Verschieben in Richtung, Fenster an Monitor, internen Monitor an/aus/spiegeln
