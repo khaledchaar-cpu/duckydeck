@@ -12,13 +12,12 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 - Mit Fake-Daemon geprüft (`duckydeck actions` listet alle); am echten Gerät noch nicht gedrückt
 - Status-Text statt Label (Katalogfeld `text`): Output zeigt Ausgabegerät, Quelle zeigt aktiven Player; Icons Lautsprecher/Note
 - Schritt 2: Bluetooth zeigt verbundenes Gerät, aktives Energieprofil leuchtet (D-Bus-Events); größere Schrift für Labels/Regler/Strip
+- Am Gerät bestätigt (Nutzer): Bluetooth-Name, Panels, Status-Texte. Regler Tastaturlicht gestrichen (nicht testbar, Taste reicht); Testprofil gelöscht
 - Schritt 3: Erinnerung zeigt Fälligkeit, Tastaturlicht Stufe (ungetestet, Desktop ohne Tastaturlicht)
 - `choice_icons`: Icon je Platzhalterwert (Shell-Panels, Fokus-Richtung statt Sonderfall im Daemon)
 
 ## Nächster Schritt
-- Am Gerät prüfen: Bluetooth-Gerätename (beim Test war kein Gerät verbunden), größere Schrift
-- Rust-Teil aus Idee 1: Regler Tastaturbeleuchtung (Energieprofil-Zyklus entfällt, aktive Taste leuchtet)
-- Testprofil `~/.config/duckydeck/profiles/test-controls.toml` danach löschen
+- Idee 2 aus SPEC.md: Icon-Auswahl mit visueller Vorschau – Plan abstimmen
 - Danach Release 0.1.1 erwägen, dann Idee 2 (Icon-Auswahl)
 
 ## Offene Probleme / Notizen

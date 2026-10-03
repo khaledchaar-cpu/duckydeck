@@ -55,7 +55,7 @@ Unten steht bei jeder Kategorie, was Katalog (K) und was Rust (R) ist.
 - Bluetooth an/aus mit Zustand (`omarchy bluetooth power toggle`, Zustand per Exit-Code von `… is-on`)
 - Energieprofil (`omarchy powerprofiles set autodetect <profil>`, eine Taste pro Profil), Touchpad umschalten, Tastaturbeleuchtung als Taste (`omarchy brightness keyboard cycle`)
 - Erinnerung (`omarchy reminder <min>`), Coding-Agent (`omarchy agent`)
-- Offen (Rust, 2. Schritt): Regler Tastaturbeleuchtung, Zyklus der Energieprofile mit Anzeige des aktiven Profils
+- Kein Regler für die Tastaturbeleuchtung (Entscheidung 2026-10-03: nicht testbar, Taste `cycle` reicht); Energieprofil: aktive Taste leuchtet statt Zyklus
 - Beliebiger Befehl (Argumentliste, keine Shell-Interpolation)
 
 ## Capture (M5c) – K, Aufnahme-Laufzeit R
