@@ -58,3 +58,70 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod contrast_tests {
+    use super::*;
+    use crate::render::{KEY_SIZE, KeyView, Renderer};
+    use crate::theme::{Color, MIN_CONTRAST, Mode, Role, Theme};
+
+    const STOCK_THEMES: &str = "/usr/share/omarchy/themes";
+
+    fn stock_themes() -> Vec<(String, Theme)> {
+        let mut themes: Vec<_> = std::fs::read_dir(STOCK_THEMES)
+            .unwrap()
+            .filter_map(|e| {
+                let dir = e.ok()?.path();
+                let theme = Theme::load(&dir.join("colors.toml")).ok()?;
+                Some((dir.file_name()?.to_string_lossy().into_owned(), theme))
+            })
+            .collect();
+        themes.sort_by(|a, b| a.0.cmp(&b.0));
+        themes
+    }
+
+    /// Measured on rendered pixels: the solid `omarchy-menu` glyph's
+    /// strongest pixel must reach the minimum contrast against the key
+    /// background, for every foreground/background role in every stock theme.
+    #[test]
+    fn icons_readable_in_all_stock_themes() {
+        let themes = stock_themes();
+        assert!(themes.len() >= 10, "stock themes not found");
+        assert!(themes.iter().any(|(_, t)| t.mode == Mode::Light));
+
+        let mut renderer = Renderer::new(Vec::new());
+        let fgs = [Role::Foreground, Role::Accent, Role::Muted, Role::Red];
+        let bgs = [Role::Background, Role::LighterBackground];
+        let mut failures = Vec::new();
+        for (name, theme) in &themes {
+            for bg in bgs {
+                for fg in fgs {
+                    let view = KeyView {
+                        icon: get("omarchy-menu"),
+                        fg,
+                        bg,
+                        ..KeyView::default()
+                    };
+                    let img = renderer.key(theme, &view).unwrap();
+                    let [r, g, b] = img.pixel(0, 0);
+                    let back = Color(r, g, b);
+                    let best = (0..KEY_SIZE)
+                        .flat_map(|y| (0..KEY_SIZE).map(move |x| (x, y)))
+                        .map(|(x, y)| {
+                            let [r, g, b] = img.pixel(x, y);
+                            Color(r, g, b).contrast(back)
+                        })
+                        .fold(1.0_f32, f32::max);
+                    if best < MIN_CONTRAST {
+                        failures.push(format!("{name}: {fg:?} on {bg:?} = {best:.2}"));
+                    }
+                }
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "low contrast:\n{}",
+            failures.join("\n")
+        );
+    }
+}

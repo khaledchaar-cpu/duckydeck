@@ -169,7 +169,9 @@ dependencies = [
 name = "duckydeck-core"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "cosmic-text",
+ "image",
  "insta",
  "resvg",
  "serde",
