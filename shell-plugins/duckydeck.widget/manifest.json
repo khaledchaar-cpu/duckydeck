@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "duckydeck.widget",
+  "name": "DuckyDeck",
+  "version": "0.1.0",
+  "author": "DuckyDeck",
+  "license": "MIT",
+  "description": "Stream Deck + status and controls in the Omarchy bar.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Stream Deck",
+    "description": "Stream Deck + connection, active profile and controls",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

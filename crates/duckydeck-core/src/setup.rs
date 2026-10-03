@@ -105,6 +105,14 @@ pub fn needed(paths: &Paths) -> bool {
 pub async fn install(paths: &Paths, runner: &dyn CommandRunner) -> Result<Vec<String>, SetupError> {
     let mut done = Vec::new();
     let linked = link_plugins(paths)?;
+    if !linked.is_empty() {
+        // The shell only knows new plugins after a rescan; `bar put` checks.
+        run(
+            runner,
+            CommandSpec::new("omarchy-shell").args(["shell", "rescanPlugins"]),
+        )
+        .await?;
+    }
     if linked.iter().any(|id| id == WIDGET) {
         omarchy(runner, ["bar", "put", WIDGET]).await?;
         done.push(format!("added {WIDGET} to the bar"));
@@ -245,8 +253,11 @@ async fn omarchy<const N: usize>(
     runner: &dyn CommandRunner,
     args: [&str; N],
 ) -> Result<(), SetupError> {
-    let spec = CommandSpec::omarchy(args);
-    let command = format!("omarchy {}", spec.args.join(" "));
+    run(runner, CommandSpec::omarchy(args)).await
+}
+
+async fn run(runner: &dyn CommandRunner, spec: CommandSpec) -> Result<(), SetupError> {
+    let command = format!("{} {}", spec.program, spec.args.join(" "));
     match runner.run(&spec).await {
         Ok(out) if out.success() => Ok(()),
         Ok(out) => Err(SetupError::Command {
@@ -321,8 +332,9 @@ mod tests {
         let done = install(&p, &runner).await?;
         assert_eq!(done.len(), 5, "{done:?}");
         let lines = runner.command_lines();
-        assert_eq!(lines[0], "omarchy bar put duckydeck.widget");
-        assert!(lines[1].starts_with("omarchy hook install font-set "));
+        assert_eq!(lines[0], "omarchy-shell shell rescanPlugins");
+        assert_eq!(lines[1], "omarchy bar put duckydeck.widget");
+        assert!(lines[2].starts_with("omarchy hook install font-set "));
         assert!(p.plugins().join("duckydeck.panel").is_symlink());
         assert!(!p.plugins().join("spike").exists());
         assert!(!needed(&p));

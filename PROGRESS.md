@@ -2,26 +2,25 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M6 – IPC & CLI fertig → nächster: M7 Shell-Plugins
+**Aktueller Milestone:** M7 – Shell-Plugins (Bar-Icon fertig, Panel offen)
 
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
-- `duckydeck reload` (IPC `reload`): Systemschrift, Theme, Config neu laden + neu zeichnen; am Gerät geprüft, auch über den Font-Hook (`omarchy font set`)
-- `duckydeck check` (Actions aller Profile gegen Katalog/eingebaute Actions, `core::check`), `duckydeck export <profil>`
-- `get_config`/`list_actions` auf v2 (Editor) verschoben – Entscheidung Nutzer 2026-10-03
+- Entscheidung: ein Plugin `duckydeck.widget` (Bar-Icon + Panel) wie Erstanbieter-Panels; Spec angepasst
+- Bar-Icon (`shell-plugins/duckydeck.widget`): gedimmt ohne Gerät/Daemon, Tooltip mit Profil/Seite, reconnect per Backoff – im Bar geprüft
+- `setup` ruft nach dem Verlinken `omarchy-shell shell rescanPlugins` vor `bar put` (sonst „not a known widget“)
 
 ## Nächster Schritt
-- M7: Bar-Widget `duckydeck.widget` (Status via `duckydeck subscribe`), dann Panel `duckydeck.panel`, Menüeintrag aufs Panel umstellen
+- M7: Panel (`KeyboardPanel` in `Panel.qml`): Profil, Seite, Helligkeit, „Config öffnen“, „Neu laden“; Menüeintrag auf `omarchy-shell duckydeck.widget toggle` umstellen
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
 - nach M7: `shell-plugin` (QML-Regeln, Manifest-Muster, Reload) – Details dann aus CLAUDE.md entfernen
 
 ## Offene Probleme / Notizen
-- Menüeintrag öffnet vorerst die Config – bei M7 auf das Panel umstellen (`packaging/omarchy/menu.jsonc`)
+- Tooltip-Text beim Hover noch nicht angesehen
 - `setup --remove` nimmt das Widget nicht aus dem Bar-Layout (keine Route zum Entfernen)
-- Erstanbieter-Panels sind `bar-widget`-Plugins (`entryPoints.barWidget`) – bei M7 beachten
 - `scripts/check.sh` findet `cargo` nur mit `PATH=$HOME/.cargo/bin:$PATH`
 - RSS ~27 MB (Debug) statt < 15 MB – laut Nutzer unkritisch; Release noch nicht gemessen
 - Nicht am Gerät geprüft: Long-Press-Bestätigung, mehrseitige Profile/Swipe; Multi-Monitor-Actions (nur DP-1)

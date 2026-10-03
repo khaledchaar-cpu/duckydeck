@@ -33,7 +33,7 @@ USB: VID `0x0fd9`, PID `0x0084`.
 
 ```
                     ┌──────── omarchy-shell (Quickshell) ────────┐
-                    │  duckydeck.widget        duckydeck.panel   │
+                    │    duckydeck.widget (Bar-Icon + Panel)     │
                     └─────────────────────┬──────────────────────┘
                                           │ Process: `duckydeck subscribe` (stdout)
                                           │          `duckydeck <cmd>` (Befehle)
