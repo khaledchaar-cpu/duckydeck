@@ -386,10 +386,11 @@ fn export(id: &str) -> Result<()> {
 
 async fn setup(remove: bool) -> Result<()> {
     let paths = setup::Paths::detect()?;
+    let runner = duckydeck_core::TokioRunner;
     let done = if remove {
-        setup::remove(&paths)?
+        setup::remove(&paths, &runner).await?
     } else {
-        setup::install(&paths, &duckydeck_core::TokioRunner).await?
+        setup::install(&paths, &runner).await?
     };
     if done.is_empty() {
         println!("nothing to do");

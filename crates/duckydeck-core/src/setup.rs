@@ -144,19 +144,35 @@ pub async fn install(paths: &Paths, runner: &dyn CommandRunner) -> Result<Vec<St
     Ok(done)
 }
 
-/// Undoes [`install`]; returns one line per change.
-pub fn remove(paths: &Paths) -> Result<Vec<String>, SetupError> {
+/// Undoes [`install`]; returns one line per change. Disabling takes the
+/// widget out of the bar layout; without a running shell that step is
+/// skipped (with a note) and the rest still happens.
+pub async fn remove(paths: &Paths, runner: &dyn CommandRunner) -> Result<Vec<String>, SetupError> {
     let mut done = Vec::new();
     let plugins = paths.plugins();
-    if let Ok(entries) = std::fs::read_dir(&plugins) {
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().into_owned();
-            let is_link = entry.file_type().is_ok_and(|t| t.is_symlink());
-            if name.starts_with(PLUGIN_PREFIX) && is_link {
-                std::fs::remove_file(entry.path()).map_err(io_err(&entry.path()))?;
-                done.push(format!("unlinked plugin {name}"));
-            }
+    let mut links: Vec<_> = std::fs::read_dir(&plugins)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_symlink()))
+        .map(|e| (e.file_name().to_string_lossy().into_owned(), e.path()))
+        .filter(|(name, _)| name.starts_with(PLUGIN_PREFIX))
+        .collect();
+    links.sort();
+    for (name, path) in &links {
+        match omarchy(runner, ["plugin", "disable", name.as_str()]).await {
+            Ok(()) => done.push(format!("disabled plugin {name}")),
+            Err(e) => done.push(format!("could not disable {name}: {e}")),
         }
+        std::fs::remove_file(path).map_err(io_err(path))?;
+        done.push(format!("unlinked plugin {name}"));
+    }
+    if !links.is_empty() {
+        let _ = run(
+            runner,
+            CommandSpec::new("omarchy-shell").args(["shell", "rescanPlugins"]),
+        )
+        .await;
     }
     let menu = paths.menu();
     if let Some(old) = read_optional(&menu)? {
@@ -351,8 +367,17 @@ mod tests {
 
         std::fs::create_dir_all(p.hook().parent().unwrap_or(&p.omarchy))?;
         std::fs::write(p.hook(), FONT_HOOK)?;
-        let done = remove(&p)?;
-        assert_eq!(done.len(), 4, "{done:?}");
+        let runner = RecordingRunner::new();
+        let done = remove(&p, &runner).await?;
+        assert_eq!(done.len(), 6, "{done:?}");
+        assert_eq!(
+            runner.command_lines(),
+            [
+                "omarchy plugin disable duckydeck.panel",
+                "omarchy plugin disable duckydeck.widget",
+                "omarchy-shell shell rescanPlugins",
+            ]
+        );
         assert!(!p.plugins().join(WIDGET).exists());
         assert!(!std::fs::read_to_string(p.menu())?.contains("duckydeck"));
         assert!(!needed(&p));

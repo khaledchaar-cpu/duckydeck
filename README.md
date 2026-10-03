@@ -124,12 +124,12 @@ Multi and toggle keys wrap other actions:
 
 ```bash
 systemctl --user mask --now duckydeck   # stop for good (disable has no effect, it is enabled globally)
-duckydeck setup --remove                # remove menu entry, plugin link and hook
+duckydeck setup --remove                # remove bar widget, editor, menu entry and hook
 omarchy pkg drop duckydeck
 ```
 
-`setup --remove` cannot take the widget out of the bar layout yet; remove
-`duckydeck.widget` from the bar layout by hand.
+Run `setup --remove` while the shell is running: it takes the widget out of the
+bar layout via `omarchy plugin disable`.
 
 ## Develop
 
