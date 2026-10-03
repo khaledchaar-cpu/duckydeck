@@ -11,6 +11,7 @@ Der Daemon bricht den Start ab, wenn schon ein Daemon auf dem Socket lauscht; ei
 | `set_profile` | `profile` | Profil wechseln, Seite 1 (Laufzeit, `config.toml` bleibt unverändert) |
 | `set_page` | `page` (ab 1) | Seite des aktiven Profils, schließt einen offenen Ordner |
 | `set_brightness` | `brightness` (0–100) | Helligkeit bis zur nächsten Config-Änderung |
+| `reload` | – | Systemschrift, Theme und Config neu laden, neu zeichnen (Font-Hook) |
 | `subscribe` | – | Antwort wie `status`, danach Events bis der Client trennt |
 
 ```json
@@ -37,4 +38,4 @@ Noch nicht umgesetzt: `get_config`, `list_actions`, `key_state`, `config_error`.
 
 ## CLI
 
-`duckydeck status | profile <name> | page <n> | brightness <0-100> | subscribe | version`, jeweils mit `--json` (Antwort-Zeile unverändert). `subscribe` gibt immer JSON-Zeilen aus, die erste ist die Status-Antwort. Exit-Code 1 bei Fehlern des Daemons, 2 bei falscher Bedienung.
+`duckydeck status | reload | profile <name> | page <n> | brightness <0-100> | subscribe | version`, jeweils mit `--json` (Antwort-Zeile unverändert). `subscribe` gibt immer JSON-Zeilen aus, die erste ist die Status-Antwort. Exit-Code 1 bei Fehlern des Daemons, 2 bei falscher Bedienung.

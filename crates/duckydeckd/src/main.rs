@@ -220,6 +220,17 @@ async fn main() -> Result<()> {
                 deck = None;
                 gestures = Recognizer::default();
             }
+            DeckEvent::Ipc(duckydeck_core::ipc::Command::Reload, reply) => {
+                tracing::info!("reload requested");
+                painter.set_font(duckydeck_core::font::system_font(&runner).await);
+                painter.reload_theme();
+                painter.reload_config(&runner);
+                let resp = match deck.as_mut().map(|d| painter.draw(d)) {
+                    Some(Err(e)) => duckydeck_core::ipc::Response::error(format!("redraw: {e}")),
+                    _ => duckydeck_core::ipc::Response::ok(painter.status(deck.as_ref())),
+                };
+                let _ = reply.send(resp);
+            }
             DeckEvent::Ipc(cmd, reply) => {
                 let resp = match painter.command(deck.as_mut(), &cmd) {
                     Ok(()) => duckydeck_core::ipc::Response::ok(painter.status(deck.as_ref())),

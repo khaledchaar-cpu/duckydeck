@@ -42,6 +42,8 @@ pub enum Command {
     SetBrightness {
         brightness: u8,
     },
+    /// Re-reads system font, theme and config, then redraws.
+    Reload,
     /// Answered with the status, then events until the client disconnects.
     Subscribe,
 }
@@ -150,6 +152,10 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&Request::new(Command::Status))?,
             r#"{"v":1,"cmd":"status"}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&Request::new(Command::Reload))?,
+            r#"{"v":1,"cmd":"reload"}"#
         );
         assert!(serde_json::from_str::<Request>(r#"{"v":1,"cmd":"reboot"}"#).is_err());
         Ok(())

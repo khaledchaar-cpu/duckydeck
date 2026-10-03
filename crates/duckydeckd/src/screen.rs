@@ -113,6 +113,13 @@ impl Screen {
         })
     }
 
+    /// Swaps the label font; `None` keeps the current one.
+    pub fn set_font(&mut self, font: Option<Vec<u8>>) {
+        if let Some(f) = font {
+            self.renderer = Renderer::new(vec![f]);
+        }
+    }
+
     /// Keeps the previous theme if the new one cannot be read.
     pub fn reload_theme(&mut self) {
         if let Some(t) = load_theme() {
@@ -170,14 +177,17 @@ impl Screen {
         }
     }
 
-    /// Applies an IPC command; `Status` and `Subscribe` change nothing.
+    /// Applies an IPC command; `Status` and `Subscribe` change nothing,
+    /// `Reload` is handled by the main loop (it needs async font lookup).
     pub fn command(
         &mut self,
         deck: Option<&mut Deck>,
         cmd: &ipc::Command,
     ) -> std::result::Result<(), String> {
         let press = match cmd {
-            ipc::Command::Status | ipc::Command::Subscribe => return Ok(()),
+            ipc::Command::Status | ipc::Command::Subscribe | ipc::Command::Reload => {
+                return Ok(());
+            }
             ipc::Command::SetProfile { profile } => {
                 self.nav.set_profile(&self.store.current, profile)?
             }

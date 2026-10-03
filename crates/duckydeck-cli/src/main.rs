@@ -16,6 +16,7 @@ commands:
   profile <name>        switch to a profile (until the next config change)
   page <n>              open page n (1-based) of the active profile
   brightness <0-100>    set the brightness (until the next config change)
+  reload                re-read system font, theme and config
   subscribe             print status events as JSON lines until killed
   setup [--remove]      link shell plugins, add menu entry and font hook (or undo)
   version               print the version";
@@ -85,6 +86,7 @@ fn parse(args: &[String]) -> Result<Option<Command>> {
         "version" => return Ok(None),
         "status" if args.len() == 1 => Command::Status,
         "subscribe" if args.len() == 1 => Command::Subscribe,
+        "reload" if args.len() == 1 => Command::Reload,
         "profile" => Command::SetProfile {
             profile: arg("<name>")?.clone(),
         },
@@ -183,6 +185,7 @@ mod tests {
     fn parses_commands() -> Result<()> {
         assert_eq!(p(&[])?, Some(Command::Status));
         assert_eq!(p(&["version"])?, None);
+        assert_eq!(p(&["reload"])?, Some(Command::Reload));
         assert_eq!(p(&["page", "2"])?, Some(Command::SetPage { page: 2 }));
         assert_eq!(
             p(&["brightness", "40"])?,

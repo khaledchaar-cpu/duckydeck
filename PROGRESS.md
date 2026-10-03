@@ -2,17 +2,18 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M6 – IPC & CLI (Teil 2: `setup` fertig)
+**Aktueller Milestone:** M6 – IPC & CLI (Teil 3a: `reload` fertig)
 
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
 - `duckydeck setup [--remove]` (`core::setup`): Plugin-Symlinks `duckydeck.*`, `omarchy bar put duckydeck.widget`, markierter Menüblock, Hook `font-set.d/duckydeck`
 - Daemon führt Setup einmal pro Version aus (Marker `~/.local/state/duckydeck/setup`)
+- `duckydeck reload` (IPC `reload`): Systemschrift, Theme, Config neu laden + neu zeichnen; am Gerät geprüft
 - Am echten System geprüft: Menüeintrag „Stream Deck“ erscheint und öffnet den Editor
 
 ## Nächster Schritt
-- M6 Teil 3: `duckydeck reload` (vom Font-Hook bereits aufgerufen), danach `check`, `export`, `get_config`/`list_actions`
+- M6 Teil 3b: `duckydeck check`, `export`, `get_config`/`list_actions`
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
