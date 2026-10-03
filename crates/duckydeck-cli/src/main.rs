@@ -20,6 +20,7 @@ commands:
   check                 validate config and profiles (no daemon needed)
   export <profile>      print a profile as TOML (also the built-in one)
   reload                re-read system font, theme and config
+  actions               list every action (id, slot, label) for the editor
   subscribe             print status events as JSON lines until killed
   setup [--remove]      link shell plugins, add menu entry and font hook (or undo)
   version               print the version";
@@ -98,6 +99,7 @@ fn parse(args: &[String]) -> Result<Option<Command>> {
         "version" => return Ok(None),
         "status" if args.len() == 1 => Command::Status,
         "subscribe" if args.len() == 1 => Command::Subscribe,
+        "actions" if args.len() == 1 => Command::ListActions,
         "reload" if args.len() == 1 => Command::Reload,
         "profile" => Command::SetProfile {
             profile: arg("<name>")?.clone(),
@@ -192,6 +194,7 @@ async fn run(cmd: Command, json: bool) -> Result<()> {
     if !subscribe {
         match (json, &resp.status) {
             (true, _) => println!("{line}"),
+            (false, _) if resp.actions.is_some() => print_actions(resp.actions.as_deref()),
             (false, Some(s)) => print_status(s),
             (false, None) => {}
         }
@@ -210,6 +213,17 @@ async fn next(lines: &mut Lines<BufReader<OwnedReadHalf>>) -> Result<String> {
         .next_line()
         .await?
         .context("daemon closed the connection")
+}
+
+fn print_actions(items: Option<&[duckydeck_core::library::Item]>) {
+    for it in items.unwrap_or_default() {
+        let slot = match it.slot {
+            duckydeck_core::library::Slot::Key => "key",
+            duckydeck_core::library::Slot::Dial => "dial",
+        };
+        let note = if it.available { "" } else { "  (unavailable)" };
+        println!("{:<30} {slot:<5} {}{note}", it.id, it.label);
+    }
 }
 
 fn print_status(s: &Status) {
@@ -238,6 +252,7 @@ mod tests {
     fn parses_commands() -> Result<()> {
         assert_eq!(p(&[])?, Some(Command::Status));
         assert_eq!(p(&["version"])?, None);
+        assert_eq!(p(&["actions"])?, Some(Command::ListActions));
         assert_eq!(p(&["reload"])?, Some(Command::Reload));
         assert_eq!(p(&["page", "2"])?, Some(Command::SetPage { page: 2 }));
         assert_eq!(

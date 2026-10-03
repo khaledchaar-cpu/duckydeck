@@ -258,7 +258,14 @@ async fn main() -> Result<()> {
             }
             DeckEvent::Ipc(cmd, reply) => {
                 let resp = match painter.command(deck.as_mut(), &cmd) {
-                    Ok(()) => duckydeck_core::ipc::Response::ok(painter.status(deck.as_ref())),
+                    Ok(()) => {
+                        let mut r =
+                            duckydeck_core::ipc::Response::ok(painter.status(deck.as_ref()));
+                        if cmd == duckydeck_core::ipc::Command::ListActions {
+                            r.actions = Some(painter.actions());
+                        }
+                        r
+                    }
                     Err(e) => duckydeck_core::ipc::Response::error(e),
                 };
                 let _ = reply.send(resp);

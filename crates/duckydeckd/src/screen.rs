@@ -201,6 +201,11 @@ impl Screen {
         }
     }
 
+    /// Every action the editor offers, with availability on this system.
+    pub fn actions(&self) -> Vec<duckydeck_core::library::Item> {
+        duckydeck_core::library::items(&self.catalog, &self.unavailable)
+    }
+
     /// Applies an IPC command; `Status` and `Subscribe` change nothing,
     /// `Reload` is handled by the main loop (it needs async font lookup).
     pub fn command(
@@ -209,7 +214,10 @@ impl Screen {
         cmd: &ipc::Command,
     ) -> std::result::Result<(), String> {
         let press = match cmd {
-            ipc::Command::Status | ipc::Command::Subscribe | ipc::Command::Reload => {
+            ipc::Command::Status
+            | ipc::Command::Subscribe
+            | ipc::Command::Reload
+            | ipc::Command::ListActions => {
                 return Ok(());
             }
             ipc::Command::SetProfile { profile } => {

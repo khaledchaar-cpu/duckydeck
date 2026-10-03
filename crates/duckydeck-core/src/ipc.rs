@@ -46,6 +46,8 @@ pub enum Command {
     Reload,
     /// Answered with the status, then events until the client disconnects.
     Subscribe,
+    /// Status plus every action the editor offers (`Response::actions`).
+    ListActions,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -56,6 +58,8 @@ pub struct Response {
     pub status: Option<Status>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub actions: Option<Vec<crate::library::Item>>,
 }
 
 impl Response {
@@ -65,6 +69,7 @@ impl Response {
             ok: true,
             status: Some(status),
             error: None,
+            actions: None,
         }
     }
 
@@ -74,6 +79,7 @@ impl Response {
             ok: false,
             status: None,
             error: Some(msg.into()),
+            actions: None,
         }
     }
 }

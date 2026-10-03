@@ -109,6 +109,25 @@ impl Entry {
         ))
     }
 
+    /// Placeholder names in `run`/`dispatch`, in order of first use.
+    pub fn placeholders(&self) -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        for arg in self.run.iter().chain(&self.dispatch) {
+            let mut rest = arg.as_str();
+            while let Some(start) = rest.find('{') {
+                let Some(len) = rest[start..].find('}') else {
+                    break;
+                };
+                let name = &rest[start + 1..start + len];
+                if is_placeholder(name) && !out.iter().any(|n| n == name) {
+                    out.push(name.to_owned());
+                }
+                rest = &rest[start + 1..];
+            }
+        }
+        out
+    }
+
     fn fill(
         &self,
         id: &str,
@@ -124,7 +143,7 @@ impl Entry {
             };
             let name = &rest[start + 1..start + len];
             // Lua tables (`{ mode = "x" }`) are not placeholders.
-            if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            if !is_placeholder(name) {
                 out.push_str(&rest[..=start]);
                 rest = &rest[start + 1..];
                 continue;
@@ -246,6 +265,10 @@ impl Catalog {
 }
 
 /// All routes (including aliases) from `omarchy commands --json`.
+fn is_placeholder(name: &str) -> bool {
+    !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 pub fn parse_routes(json: &str) -> Result<HashSet<String>, CatalogError> {
     #[derive(Deserialize)]
     struct Commands {

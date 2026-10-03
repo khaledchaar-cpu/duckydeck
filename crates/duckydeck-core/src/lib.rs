@@ -11,6 +11,7 @@ pub mod font;
 pub mod hypr;
 pub mod icons;
 pub mod ipc;
+pub mod library;
 pub mod media;
 pub mod nav;
 
