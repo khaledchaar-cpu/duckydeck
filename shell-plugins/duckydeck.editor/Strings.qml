@@ -27,6 +27,11 @@ QtObject {
   readonly property string searchApps: "Search apps"
   readonly property string searchIcons: "Search icons"
   readonly property string importIcon: "Import SVG/PNG…"
+  readonly property string searchIconsLibraries: "Search icons and libraries"
+  readonly property string allIcons: "All"
+  readonly property string noIcons: "No icons found"
+  readonly property string useDefaultIcon: "Use default icon"
+  readonly property string close: "Close"
   readonly property string librariesHint: "More icons: download a free library (once, from npmjs.org)"
   function downloadLibrary(name, license) { return "Download " + name + " (" + license + ")" }
   readonly property string downloading: "Downloading…"

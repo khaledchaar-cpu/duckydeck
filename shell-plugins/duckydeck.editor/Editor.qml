@@ -779,6 +779,21 @@ Item {
     selectProc.running = true
   }
 
+  // Icon browser for one icon field; `done` gets the chosen name.
+  property var iconDone: null
+
+  function openIcons(value, defaultName, done) {
+    root.iconDone = done
+    iconBrowser.value = value
+    iconBrowser.defaultName = defaultName
+    iconBrowser.show()
+  }
+
+  function iconChosen(name) {
+    if (root.iconDone) root.iconDone(name)
+    root.focusDeck()
+  }
+
   // Copies an icon file (e.g. a library hit) into the user icons as `name`.
   function addIcon(path, name, done) {
     root.importDone = done
@@ -1034,6 +1049,27 @@ Item {
           font.family: root.fontFamily
           font.pixelSize: Style.font.body
         }
+      }
+
+      // Over the library and deck columns; the inspector stays visible.
+      IconBrowser {
+        id: iconBrowser
+        z: 10
+        x: columns.x
+        y: columns.y
+        width: columns.width - columns.sideWidth - columns.spacing
+        height: columns.height
+        icons: root.icons
+        strings: strings
+        foreground: root.foreground
+        accent: root.accent
+        fontFamily: root.fontFamily
+        onPicked: function(name) { root.iconChosen(name) }
+        onImportRequested: root.importIcon(function(name) { root.iconChosen(name) })
+        onLibraryPicked: function(path, name) {
+          root.addIcon(path, name, function(n) { root.iconChosen(n) })
+        }
+        onClosed: root.focusDeck()
       }
 
       Row {
@@ -1730,20 +1766,9 @@ Item {
               foreground: root.foreground
               accent: root.accent
               fontFamily: root.fontFamily
-              onPicked: function(name) {
+              onBrowseRequested: root.openIcons(value, defaultName, function(name) {
                 root.updateSelected({ icon: name })
-                root.focusDeck()
-              }
-              onImportRequested: root.importIcon(function(name) {
-                root.updateSelected({ icon: name })
-                root.focusDeck()
               })
-              onLibraryPicked: function(path, name) {
-                root.addIcon(path, name, function(n) {
-                  root.updateSelected({ icon: n })
-                  root.focusDeck()
-                })
-              }
             }
 
             Repeater {
@@ -1975,17 +2000,9 @@ Item {
                           foreground: root.foreground
                           accent: root.accent
                           fontFamily: root.fontFamily
-                          onPicked: function(name) {
-                            root.setEntryField(entries.listName, entry.index, "icon", name)
-                          }
-                          onImportRequested: root.importIcon(function(name) {
+                          onBrowseRequested: root.openIcons(value, defaultName, function(name) {
                             root.setEntryField(entries.listName, entry.index, "icon", name)
                           })
-                          onLibraryPicked: function(path, name) {
-                            root.addIcon(path, name, function(n) {
-                              root.setEntryField(entries.listName, entry.index, "icon", n)
-                            })
-                          }
                         }
                         Repeater {
                           model: entry.action ? entry.action.params : []
