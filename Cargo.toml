@@ -1,0 +1,28 @@
+[workspace]
+resolver = "3"
+members = ["crates/duckydeck-core", "crates/duckydeckd", "crates/duckydeck-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+duckydeck-core = { path = "crates/duckydeck-core" }
+anyhow = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["process", "time", "rt", "macros"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
