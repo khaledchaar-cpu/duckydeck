@@ -3,3 +3,6 @@
 *.snap.new
 .claude/settings.local.json
 *.pkg.tar.zst
+packaging/pkg/
+packaging/src/
+packaging/*.tar.gz
