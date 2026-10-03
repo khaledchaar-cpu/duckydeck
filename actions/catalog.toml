@@ -1,0 +1,98 @@
+# Built-in command actions: "run a command + show an icon".
+# Schema: docs/spec/actions.md. Every entry is checked by the catalog test
+# (icons exist, omarchy routes exist, placeholders complete).
+#
+# Placeholders like "{mode}" are filled from the binding's `args` (falling
+# back to `defaults`) and always stay inside their own argument.
+
+# ── System ────────────────────────────────────────────────────────────
+[system.lock]
+label = "Lock"
+icon  = "lock"
+run   = ["omarchy", "system", "lock"]
+
+[system.suspend]
+label = "Suspend"
+icon  = "suspend"
+run   = ["systemctl", "suspend"]
+
+[system.reboot]
+label   = "Reboot"
+icon    = "reboot"
+run     = ["omarchy", "system", "reboot"]
+confirm = "long-press"
+
+[system.shutdown]
+label   = "Power off"
+icon    = "power"
+run     = ["omarchy", "system", "shutdown"]
+confirm = "long-press"
+
+[system.logout]
+label   = "Log out"
+icon    = "logout"
+run     = ["omarchy", "system", "logout"]
+confirm = "long-press"
+
+[system.menu]
+label = "Menu"
+icon  = "omarchy-menu"
+run   = ["omarchy", "menu", "toggle"]
+
+[system.theme]
+label = "Theme"
+icon  = "theme"
+run   = ["omarchy", "theme", "switcher"]
+
+[system.wallpaper]
+label = "Wallpaper"
+icon  = "wallpaper"
+run   = ["omarchy", "theme", "bg", "next"]
+
+[system.nightlight]
+label = "Night light"
+icon  = { on = "nightlight", off = "nightlight-off" }
+run   = ["omarchy", "toggle", "nightlight"]
+
+[system.idle]
+label = "Stay awake"
+icon  = { on = "idle-inhibit", off = "idle-inhibit-off" }
+run   = ["omarchy", "toggle", "idle"]
+
+[system.dnd]
+label = "Silence"
+icon  = "dnd"
+run   = ["omarchy", "toggle", "notification", "silencing"]
+
+# ── Capture ───────────────────────────────────────────────────────────
+[capture.screenshot]
+label    = "Screenshot"
+icon     = "screenshot-region"
+run      = ["omarchy", "capture", "screenshot", "{mode}"]
+defaults = { mode = "smart" }
+
+[capture.ocr]
+label = "OCR"
+icon  = "ocr"
+run   = ["omarchy", "capture", "text"]
+
+[capture.qr]
+label = "QR code"
+icon  = "qr"
+run   = ["omarchy", "capture", "qr"]
+
+# ── Launcher ──────────────────────────────────────────────────────────
+[launcher.terminal]
+label = "Terminal"
+icon  = "terminal"
+run   = ["omarchy", "launch", "terminal"]
+
+[launcher.browser]
+label = "Browser"
+icon  = "browser"
+run   = ["omarchy", "launch", "browser"]
+
+[launcher.files]
+label = "Files"
+icon  = "files"
+run   = ["omarchy", "launch", "nautilus"]

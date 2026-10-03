@@ -1,5 +1,6 @@
 //! Shared library for the DuckyDeck daemon and CLI.
 
+pub mod catalog;
 pub mod command;
 pub mod config;
 pub mod font;
