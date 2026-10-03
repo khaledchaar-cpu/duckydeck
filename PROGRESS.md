@@ -7,6 +7,7 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
+- `README.md` (Englisch): Installation, Bedienung, Config, Action-Tabelle, Multi/Toggle, Entfernen; Beispiele mit `duckydeck check` validiert
 - Shell-Benachrichtigung „Stream Deck + connected“ beim Einstecken (und nach Erst-Setup) – vom Nutzer am Gerät bestätigt
 - M8: `packaging/PKGBUILD`, `duckydeck.service`, udev-Regel startet den Dienst beim Einstecken, `LICENSE` (MIT); Paket installiert und am Gerät geprüft: Einstecken startet den Dienst, Setup automatisch, RSS 13,5 MB
 - M8: CI-Workflow `.github/workflows/ci.yml` (fmt/clippy/test, `--locked`); noch nie gelaufen – es gibt kein GitHub-Remote. Kontrasttest wird ohne `/usr/share/omarchy/themes` übersprungen
@@ -14,7 +15,7 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - M8: Auto-Profilwechsel (`duckydeck_core::context`, Event `activewindow` + `j/activewindow` beim Verbinden) – mit Fake-Device gegen echtes Hyprland geprüft
 
 ## Nächster Schritt
-- README/Doku, danach GitHub-Repo `khaledchaar-cpu/duckydeck` + Tag `v0.1.0`, AUR
+- Nutzer: GitHub-Repo `khaledchaar-cpu/duckydeck` anlegen + pushen (CI läuft erstmals), Tag `v0.1.0`; danach `sha256sums` im PKGBUILD + `.SRCINFO`, AUR-Upload
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
