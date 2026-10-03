@@ -54,7 +54,8 @@ async fn main() -> Result<()> {
     }
 
     let runner = duckydeck_core::TokioRunner;
-    first_start_setup(&runner).await;
+    // After a fresh install the plug-in itself started the daemon: greet then too.
+    let installed = first_start_setup(&runner).await;
     let config_dir = duckydeck_core::config::dir()
         .ok_or_else(|| anyhow::anyhow!("neither XDG_CONFIG_HOME nor HOME is set"))?;
     let store = duckydeck_core::config::Store::open(config_dir.clone(), &runner)?;
@@ -109,6 +110,9 @@ async fn main() -> Result<()> {
         None => tracing::warn!("XDG_RUNTIME_DIR not set: IPC disabled"),
     }
     let mut deck = try_connect(&mut painter, &tx);
+    if installed && deck.is_some() {
+        notify_connected(&runner);
+    }
     let mut gestures = Recognizer::default();
     let mut last = painter.status(deck.as_ref());
     loop {
@@ -152,6 +156,9 @@ async fn main() -> Result<()> {
         match ev {
             DeckEvent::Added if deck.is_none() => {
                 deck = try_connect(&mut painter, &tx);
+                if deck.is_some() {
+                    notify_connected(&runner);
+                }
                 // The booting firmware clears the strip once, 1.0–1.5 s after
                 // plug-in (measured on fw 2.0.3.7); keys are not affected.
                 let tx = tx.clone();
@@ -357,15 +364,32 @@ fn try_connect(p: &mut screen::Screen, tx: &mpsc::UnboundedSender<DeckEvent>) ->
 }
 
 /// Plug & Play: run `duckydeck setup` once per installed version.
-async fn first_start_setup(runner: &duckydeck_core::TokioRunner) {
+/// Shell notification on plug-in; not at login with the deck already there.
+fn notify_connected(runner: &dyn duckydeck_core::CommandRunner) {
+    let spec =
+        duckydeck_core::CommandSpec::omarchy(["notification", "send", "--app-name", "DuckyDeck"])
+            .args([CONNECTED_TEXT]);
+    if let Err(e) = runner.spawn(&spec) {
+        tracing::warn!(error = %e, "connect notification failed");
+    }
+}
+
+const CONNECTED_TEXT: &str = "Stream Deck + connected";
+
+/// Returns whether setup ran (first start after installing this version).
+async fn first_start_setup(runner: &duckydeck_core::TokioRunner) -> bool {
     use duckydeck_core::setup;
     let paths = match setup::Paths::detect() {
         Ok(p) if setup::needed(&p) => p,
-        Ok(_) => return,
-        Err(e) => return tracing::warn!(error = %e, "setup skipped"),
+        Ok(_) => return false,
+        Err(e) => {
+            tracing::warn!(error = %e, "setup skipped");
+            return false;
+        }
     };
     match setup::install(&paths, runner).await {
         Ok(done) => tracing::info!(?done, "setup done"),
         Err(e) => tracing::warn!(error = %e, "setup failed"),
     }
+    true
 }

@@ -7,6 +7,7 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
+- Shell-Benachrichtigung „Stream Deck + connected“ beim Einstecken (und nach Erst-Setup) – vom Nutzer am Gerät bestätigt
 - M8: `packaging/PKGBUILD`, `duckydeck.service`, udev-Regel startet den Dienst beim Einstecken, `LICENSE` (MIT); Paket installiert und am Gerät geprüft: Einstecken startet den Dienst, Setup automatisch, RSS 13,5 MB
 - M8: CI-Workflow `.github/workflows/ci.yml` (fmt/clippy/test, `--locked`); noch nie gelaufen – es gibt kein GitHub-Remote. Kontrasttest wird ohne `/usr/share/omarchy/themes` übersprungen
 - M8: `structure.profile`/`structure.multi`/`structure.toggle` (`duckydeck_core::compound`) – mit Fake-Device geprüft
