@@ -11,7 +11,7 @@ DuckyDeck richtet sich nach den Standards, die Omarchy selbst verwendet:
 | **Omarchy-Menü** | `~/.config/omarchy/extensions/omarchy-menu.jsonc` | Menüeintrag „Stream Deck“ |
 | **`omarchy`-CLI** | `omarchy <group> <action>`, `omarchy commands --json` | Fast alle Actions rufen diese Routen auf |
 | **OSD** | Plugin `omarchy.osd`, ausgelöst z. B. von `omarchy audio output volume` | Kein eigenes OSD |
-| **Benachrichtigungen** | `omarchy.notifications` (freedesktop) | Meldungen via `notify-send` |
+| **Benachrichtigungen** | `omarchy.notifications` (freedesktop) | Meldungen via `omarchy notification send --app-name DuckyDeck` (über `CommandRunner`) |
 | **Themes** | `~/.local/state/omarchy/current/theme/colors.toml` (`accent`, `background`, `foreground`, `red` …, `mode`) | Einzige Farbquelle |
 | **Hooks** | `~/.config/omarchy/hooks/<event>.d/` (`theme-set`, `font-set`, `post-boot`) | Theme: kein Hook, der Daemon beobachtet `current/` per inotify (`omarchy theme set` ersetzt `theme/` per `mv`). Font: Hook `font-set.d/duckydeck` ruft `duckydeck reload` (ab M6), bis dahin wird die Schrift beim Start geladen |
 | **Fonts** | `omarchy font set`, Standard JetBrainsMono Nerd Font | Label-Schrift folgt der Systemschrift |

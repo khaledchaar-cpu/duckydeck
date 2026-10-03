@@ -3,7 +3,7 @@
 ## Dateien
 - `~/.config/duckydeck/config.toml` – global (Helligkeit, Screensaver-Zeit, Default-Profil)
 - `~/.config/duckydeck/profiles/<name>.toml` – ein Profil mit Seiten
-- Live-Reload per inotify. Ungültige Config → letzte gültige bleibt aktiv, Fehler als Shell-Benachrichtigung mit Datei und Zeile.
+- Live-Reload per inotify (Config-Ordner, `profiles/`, bei fehlendem Ordner das nächste existierende Elternverzeichnis; 200 ms Debounce, nur `*.toml`). Ungültige Config → letzte gültige bleibt aktiv, Fehler als Shell-Benachrichtigung mit Datei und Zeile.
 - Optional: ein Omarchy-Theme kann `duckydeck.toml` mitbringen (Tasten-Hintergrund, Icon-Farben), das die aus `colors.toml` abgeleiteten Werte überschreibt.
 
 Da Layouts in v1 von Hand bearbeitet werden, gilt: Format kurz und lesbar halten, `examples/profiles/` mit kommentierten Beispielprofilen pflegen, `duckydeck check` validiert ohne Neustart.

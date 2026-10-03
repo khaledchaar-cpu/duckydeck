@@ -25,6 +25,8 @@ pub enum DeckEvent {
     BootDone,
     /// `omarchy theme set` replaced the current theme; reload and redraw.
     ThemeChanged,
+    /// Something under the config directory changed; reload it.
+    ConfigChanged,
     /// The input thread lost the device.
     Disconnected,
     Input(Input),

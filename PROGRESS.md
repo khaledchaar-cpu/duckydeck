@@ -15,14 +15,17 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 - M4 (1/2): `duckydeck_core::config` – Typen + Parser + Validierung für `config.toml` und Profile (Seiten, Ordner, leere Slots), `Loaded::load(dir)`; Default-Profil `examples/profiles/omarchy.toml` eingebettet; Schema in `docs/spec/config.md`
 
+- M4 (2/3): Live-Reload – `config::Store` (letzte gültige Config bleibt, Fehler per `omarchy notification send`), Daemon-Modul `configwatch` (inotify, Debounce); mit Fake-Device und temporärem `XDG_CONFIG_HOME` geprüft
+
 ## Nächster Schritt
-- M4 (2/2): Live-Reload per inotify im Daemon (letzte gültige Config bleibt, Fehler mit Datei+Zeile), Seiten/Ordner-Navigation im Daemon (Zurück-Taste), Profil am Gerät rendern
+- M4 (3/3): aktives Profil am Gerät rendern (Label/Icon aus Binding, Platzhalter bis M5), Seiten/Ordner-Navigation inkl. automatischer Zurück-Taste, Redraw nach Reload
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik (Katalog-Einträge brauchen keinen Skill) – ggf. ganz weglassen
 - nach M7: `shell-plugin` (QML-Regeln, Manifest-Muster, Reload) – Details dann aus CLAUDE.md entfernen
 
 ## Offene Probleme / Notizen
+- toml-Fehlertext ist mehrzeilig (mit Quell-Ausschnitt) – für die Benachrichtigung ggf. auf erste Zeile + „line N“ kürzen
 - Erstanbieter-Panels (Audio usw.) sind Plugins vom Typ `bar-widget` mit `entryPoints.barWidget: Panel.qml`, nicht `panel` – beim Spike/M7 berücksichtigen (ggf. `docs/spec/ui.md` anpassen)
 - Drehen bei gedrücktem Regler noch nicht am Gerät geprüft (nur Unit-Test)
 - `duckydeck.service` existiert noch nicht (kommt mit Packaging); Daemon zum Testen direkt starten

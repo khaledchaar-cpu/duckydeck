@@ -9,6 +9,8 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
+use crate::command::{CommandRunner, CommandSpec};
+
 pub const KEYS: usize = 8;
 pub const DIALS: usize = 4;
 /// Action that opens a folder; its `folder` arg names an entry of `[folders]`.
@@ -249,6 +251,77 @@ impl Loaded {
     }
 }
 
+/// `$XDG_CONFIG_HOME/duckydeck`, falling back to `~/.config/duckydeck`.
+pub fn dir() -> Option<PathBuf> {
+    let base = std::env::var_os("XDG_CONFIG_HOME")
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
+    Some(base.join("duckydeck"))
+}
+
+/// The active configuration; an invalid reload keeps the last valid state
+/// and reports the error as a shell notification.
+pub struct Store {
+    dir: PathBuf,
+    pub current: Loaded,
+}
+
+impl Store {
+    /// Loads `dir`; on error falls back to the built-in defaults.
+    pub fn open(dir: PathBuf, runner: &dyn CommandRunner) -> Result<Self, ConfigError> {
+        let current = match Loaded::load(&dir) {
+            Ok(loaded) => loaded,
+            Err(e) => {
+                notify_error(runner, &e);
+                Loaded {
+                    config: Config::default(),
+                    profiles: BTreeMap::from([(
+                        DEFAULT_PROFILE_ID.to_owned(),
+                        Profile::default_profile()?,
+                    )]),
+                }
+            }
+        };
+        Ok(Self { dir, current })
+    }
+
+    pub fn dir(&self) -> &Path {
+        &self.dir
+    }
+
+    /// Returns whether the active configuration changed.
+    pub fn reload(&mut self, runner: &dyn CommandRunner) -> bool {
+        match Loaded::load(&self.dir) {
+            Ok(loaded) if loaded == self.current => false,
+            Ok(loaded) => {
+                self.current = loaded;
+                true
+            }
+            Err(e) => {
+                notify_error(runner, &e);
+                false
+            }
+        }
+    }
+}
+
+fn notify_error(runner: &dyn CommandRunner, e: &ConfigError) {
+    tracing::warn!(error = %e, "invalid config, keeping last valid one");
+    let spec = CommandSpec::omarchy([
+        "notification",
+        "send",
+        "--app-name",
+        "DuckyDeck",
+        "-u",
+        "critical",
+    ])
+    .args(["DuckyDeck config error".to_owned(), e.to_string()]);
+    if let Err(e) = runner.spawn(&spec) {
+        tracing::warn!(error = %e, "config error notification failed");
+    }
+}
+
 fn parse_toml<T: serde::de::DeserializeOwned>(src: &str, path: &Path) -> Result<T, ConfigError> {
     toml::from_str(src).map_err(|e| ConfigError::Parse {
         path: path.to_owned(),
@@ -386,6 +459,39 @@ mod tests {
 
         std::fs::write(dir.join("config.toml"), "profile = \"nope\"")?;
         assert!(Loaded::load(&dir).is_err());
+        std::fs::remove_dir_all(&dir)?;
+        Ok(())
+    }
+
+    #[test]
+    fn store_keeps_last_valid_config() -> anyhow::Result<()> {
+        let dir = std::env::temp_dir().join(format!("duckydeck-store-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir)?;
+        let runner = crate::RecordingRunner::new();
+
+        std::fs::write(dir.join("config.toml"), "brightness = 30")?;
+        let mut store = Store::open(dir.clone(), &runner)?;
+        assert_eq!(store.current.config.brightness, 30);
+        assert!(!store.reload(&runner));
+
+        std::fs::write(dir.join("config.toml"), "brightness = 40")?;
+        assert!(store.reload(&runner));
+        assert_eq!(store.current.config.brightness, 40);
+        assert!(runner.calls().is_empty());
+
+        std::fs::write(dir.join("config.toml"), "brightness = 4\nbrightness = 5")?;
+        assert!(!store.reload(&runner));
+        assert_eq!(store.current.config.brightness, 40);
+        let lines = runner.command_lines();
+        assert_eq!(lines.len(), 1);
+        assert!(lines[0].starts_with("omarchy notification send --app-name DuckyDeck"));
+        assert!(
+            lines[0].contains("config.toml") && lines[0].contains("line 2"),
+            "{}",
+            lines[0]
+        );
+
         std::fs::remove_dir_all(&dir)?;
         Ok(())
     }

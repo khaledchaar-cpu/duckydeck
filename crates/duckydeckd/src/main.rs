@@ -1,5 +1,6 @@
 //! DuckyDeck daemon: owns the Stream Deck +, renders keys and runs actions.
 
+mod configwatch;
 mod device;
 mod gesture;
 mod input;
@@ -43,6 +44,20 @@ async fn main() -> Result<()> {
         tokio::spawn(async move {
             if let Err(e) = themewatch::watch(&colors, tx).await {
                 tracing::warn!(error = %e, "theme watcher stopped");
+            }
+        });
+    }
+
+    let runner = duckydeck_core::TokioRunner;
+    let config_dir = duckydeck_core::config::dir()
+        .ok_or_else(|| anyhow::anyhow!("neither XDG_CONFIG_HOME nor HOME is set"))?;
+    let mut store = duckydeck_core::config::Store::open(config_dir.clone(), &runner)?;
+    log_config(&store);
+    {
+        let tx = tx.clone();
+        tokio::spawn(async move {
+            if let Err(e) = configwatch::watch(config_dir, tx).await {
+                tracing::warn!(error = %e, "config watcher stopped");
             }
         });
     }
@@ -92,6 +107,11 @@ async fn main() -> Result<()> {
                     tracing::warn!(error = %e, "redraw after theme change failed");
                 }
             }
+            DeckEvent::ConfigChanged => {
+                if store.reload(&runner) {
+                    log_config(&store);
+                }
+            }
             DeckEvent::Disconnected => {
                 tracing::info!("Stream Deck + disconnected");
                 deck = None;
@@ -106,6 +126,16 @@ async fn main() -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn log_config(store: &duckydeck_core::config::Store) {
+    let c = &store.current;
+    tracing::info!(
+        dir = %store.dir().display(),
+        profile = %c.config.profile,
+        profiles = c.profiles.len(),
+        "config loaded"
+    );
 }
 
 fn on_gesture(p: &mut testpattern::Painter, deck: &mut Option<Deck>, g: gesture::Gesture) {
