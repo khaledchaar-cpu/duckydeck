@@ -21,6 +21,12 @@ Groups relevant to DuckyDeck only. Full list: `omarchy commands --json`. ⚠ = r
 | `omarchy audio source switch` | [next\|previous] | Cycle to the next media source and transfer playback when the current source is playing |
 | `omarchy audio tuning` | <on\|off\|status\|match\|fronted-sink> [--force] | Manage the speaker tuning for this laptop |
 
+### bar
+
+| Route | Args | Summary |
+|---|---|---|
+| `omarchy bar` | use <id> \| reset \| defaults \| position <top\|bottom\|left\|right> \| transparent <true\|false\|toggle> \| put <id> [placement] \| move <id> [placement] \| set <id> <key> <value> [--json] [placement] | Configure the bar and its widget layout |
+
 ### brightness
 
 | Route | Args | Summary |
@@ -49,6 +55,13 @@ Groups relevant to DuckyDeck only. Full list: `omarchy commands --json`. ⚠ = r
 | `omarchy font current` |  | Show current monospace font |
 | `omarchy font list` |  | List available monospace fonts |
 | `omarchy font set` | <font-name> | Set the system monospace font |
+
+### hook
+
+| Route | Args | Summary |
+|---|---|---|
+| `omarchy hook` | [name] [args...] | Run a named hook from ~/.config/omarchy/hooks/<name> and ~/.config/omarchy/hooks/<name>.d/. |
+| `omarchy hook install` | <type> <file> | Install a hook into ~/.config/omarchy/hooks/<type>.d/ |
 
 ### hyprland
 
