@@ -77,6 +77,7 @@ async fn main() -> Result<()> {
     let mut gestures = Recognizer::default();
     loop {
         let deadline = gestures.deadline();
+        let strip_deadline = deck.as_ref().and_then(|_| painter.strip_deadline());
         let ev = tokio::select! {
             ev = rx.recv() => match ev {
                 Some(ev) => ev,
@@ -85,6 +86,14 @@ async fn main() -> Result<()> {
             () = sleep_until(deadline) => {
                 for g in gestures.tick(Instant::now()) {
                     on_gesture(&mut painter, &mut deck, g);
+                }
+                continue;
+            }
+            () = sleep_until(strip_deadline) => {
+                if let Some(d) = &mut deck
+                    && let Err(e) = painter.draw_strip(d)
+                {
+                    tracing::warn!(error = %e, "strip redraw failed");
                 }
                 continue;
             }
@@ -135,9 +144,9 @@ async fn main() -> Result<()> {
             DeckEvent::Media(p) => {
                 if painter.set_media(p)
                     && let Some(d) = &mut deck
-                    && let Err(e) = painter.draw_keys(d)
+                    && let Err(e) = painter.draw_keys(d).and_then(|()| painter.draw_strip(d))
                 {
-                    tracing::warn!(error = %e, "key redraw failed");
+                    tracing::warn!(error = %e, "redraw after media change failed");
                 }
             }
             DeckEvent::Disconnected => {

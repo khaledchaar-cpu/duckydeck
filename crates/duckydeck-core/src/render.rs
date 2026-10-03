@@ -29,6 +29,15 @@ const SEG_TEXT_PX: f32 = 22.0;
 const SEG_BAR_TOP: f32 = 68.0;
 const SEG_BAR_H: f32 = 10.0;
 
+/// The whole strip, used for the media view.
+pub const STRIP_W: u32 = 800;
+const MEDIA_ICON: f32 = 40.0;
+const MEDIA_TITLE_PX: f32 = 24.0;
+const MEDIA_ARTIST_PX: f32 = 18.0;
+const MEDIA_TIME_W: f32 = 140.0;
+const MEDIA_BAR_TOP: f32 = 80.0;
+const MEDIA_BAR_H: f32 = 6.0;
+
 #[derive(Debug, thiserror::Error)]
 pub enum RenderError {
     #[error("invalid SVG: {0}")]
@@ -81,6 +90,18 @@ impl Default for SegmentView<'_> {
             bg: Role::Background,
         }
     }
+}
+
+/// What the whole strip shows during playback: status icon, title and time
+/// on the first line, artist below, progress bar at the bottom.
+#[derive(Debug, Clone, Default)]
+pub struct MediaView<'a> {
+    pub icon: Option<&'a [u8]>,
+    pub title: &'a str,
+    pub artist: Option<&'a str>,
+    pub time: Option<&'a str>,
+    /// 0.0–1.0, clamped; `None` hides the bar.
+    pub progress: Option<f32>,
 }
 
 /// Raw RGB888 image, row-major.
@@ -178,6 +199,68 @@ impl Renderer {
             fill_rect(&mut pm, SEG_PAD, SEG_BAR_TOP, inner, SEG_BAR_H, track);
             let fill = (inner * level.clamp(0.0, 1.0)).round();
             fill_rect(&mut pm, SEG_PAD, SEG_BAR_TOP, fill, SEG_BAR_H, fg);
+        }
+        Ok(to_rgb(&pm))
+    }
+
+    pub fn media(&mut self, theme: &Theme, view: &MediaView) -> Result<RgbImage, RenderError> {
+        let bg = theme.get(Role::Background);
+        let fg = theme.get(Role::Foreground).readable_on(bg, MIN_CONTRAST);
+        let accent = theme.get(Role::Accent).readable_on(bg, MIN_CONTRAST);
+        let mut pm = canvas(STRIP_W, SEGMENT_H, bg)?;
+        let right = STRIP_W as f32 - SEG_PAD;
+        if let Some(svg) = view.icon {
+            draw_svg(&mut pm, svg, &accent.hex(), MEDIA_ICON, SEG_PAD, 16.0)?;
+        }
+        let left = SEG_PAD + MEDIA_ICON + 16.0;
+        let time_left = right - MEDIA_TIME_W;
+        let title_right = if view.time.is_some() {
+            time_left - 16.0
+        } else {
+            right
+        };
+        let title = TextBox {
+            left,
+            top: 10.0,
+            width: title_right - left,
+            px: MEDIA_TITLE_PX,
+            align: Align::Left,
+        };
+        if !view.title.is_empty() {
+            self.draw_text(&mut pm, view.title, &title, fg);
+        }
+        if let Some(time) = view.time {
+            let b = TextBox {
+                left: time_left,
+                top: 13.0,
+                width: MEDIA_TIME_W,
+                px: MEDIA_ARTIST_PX,
+                align: Align::Right,
+            };
+            self.draw_text(&mut pm, time, &b, fg);
+        }
+        if let Some(artist) = view.artist.filter(|a| !a.is_empty()) {
+            let b = TextBox {
+                left,
+                top: 44.0,
+                width: right - left,
+                px: MEDIA_ARTIST_PX,
+                align: Align::Left,
+            };
+            self.draw_text(&mut pm, artist, &b, accent);
+        }
+        if let Some(p) = view.progress {
+            let w = right - SEG_PAD;
+            fill_rect(
+                &mut pm,
+                SEG_PAD,
+                MEDIA_BAR_TOP,
+                w,
+                MEDIA_BAR_H,
+                theme.get(Role::Muted),
+            );
+            let fill = (w * p.clamp(0.0, 1.0)).round();
+            fill_rect(&mut pm, SEG_PAD, MEDIA_BAR_TOP, fill, MEDIA_BAR_H, accent);
         }
         Ok(to_rgb(&pm))
     }
@@ -303,6 +386,23 @@ mod tests {
             out.push('\n');
         }
         out
+    }
+
+    #[test]
+    fn media_strip() {
+        let mut r = Renderer::new(vec![]);
+        let view = MediaView {
+            icon: Some(ICON),
+            // No font in tests: text is not drawn.
+            progress: Some(0.25),
+            ..Default::default()
+        };
+        let img = r.media(&theme(), &view).unwrap();
+        assert_eq!((img.width, img.height), (800, 100));
+        // Bar: filled in accent up to a quarter, track after it.
+        assert_eq!(img.pixel(100, 82), [0xe6, 0x8e, 0x0d]);
+        assert_eq!(img.pixel(600, 82), [0x33, 0x33, 0x33]);
+        insta::assert_snapshot!(ascii(&img, [0x12, 0x12, 0x12]));
     }
 
     #[test]

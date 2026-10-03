@@ -1,9 +1,11 @@
 //! Tracks MPRIS players on the session bus and sends media key presses.
 //!
 //! Event-driven: `PropertiesChanged` for playback state and metadata,
-//! `NameOwnerChanged` for players appearing and leaving.
+//! `Seeked` for jumps, `NameOwnerChanged` for players appearing and leaving.
+//! `Position` sends no signal; it is read once per change and extrapolated.
 
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use duckydeck_core::media::{MPRIS_PREFIX, MediaKey, Player, Players, Status};
@@ -46,6 +48,13 @@ async fn watch(
         .path(PATH)?
         .build();
     let mut changes = MessageStream::for_match_rule(rule, &conn, None).await?;
+    let rule = MatchRule::builder()
+        .msg_type(zbus::message::Type::Signal)
+        .interface(PLAYER_IFACE)?
+        .member("Seeked")?
+        .path(PATH)?
+        .build();
+    let mut seeks = MessageStream::for_match_rule(rule, &conn, None).await?;
     let mut owners = dbus.receive_name_owner_changed().await?;
 
     let mut players = Players::default();
@@ -77,7 +86,20 @@ async fn watch(
                 if iface != PLAYER_IFACE {
                     continue;
                 }
-                apply(&mut players, name, &props);
+                let name = name.clone();
+                apply(&mut players, &name, &props);
+                if props.contains_key("PlaybackStatus") || props.contains_key("Metadata") {
+                    read_position(&conn, &mut players, &name).await;
+                }
+            }
+            Some(msg) = seeks.next() => {
+                let Ok(msg) = msg else { continue };
+                let Some(sender) = msg.header().sender().map(|s| s.to_string()) else { continue };
+                let Some(name) = unique.get(&sender) else { continue };
+                let Ok(us) = msg.body().deserialize::<i64>() else { continue };
+                if let Some(p) = players.get_mut(name) {
+                    p.position = Some((micros(us), Instant::now()));
+                }
             }
             Some(sig) = owners.next() => {
                 let Ok(args) = sig.args() else { continue };
@@ -143,6 +165,7 @@ fn apply(players: &mut Players, name: &str, props: &HashMap<String, OwnedValue>)
         .and_then(|v| HashMap::<String, OwnedValue>::try_from(v.clone()).ok())
     {
         let p: &mut Player = players.insert(name);
+        p.length = meta.get("mpris:length").and_then(as_i64).map(micros);
         p.title = meta
             .get("xesam:title")
             .and_then(|v| String::try_from(v.clone()).ok())
@@ -153,6 +176,42 @@ fn apply(players: &mut Players, name: &str, props: &HashMap<String, OwnedValue>)
             .map(|a| a.join(", "))
             .filter(|s| !s.is_empty());
     }
+    if let Some(us) = props.get("Position").and_then(as_i64) {
+        players.insert(name).position = Some((micros(us), Instant::now()));
+    }
+}
+
+/// `Position` is not part of `PropertiesChanged`; read it after a change.
+async fn read_position(conn: &Connection, players: &mut Players, name: &str) {
+    let res = conn
+        .call_method(
+            Some(name),
+            PATH,
+            Some("org.freedesktop.DBus.Properties"),
+            "Get",
+            &(PLAYER_IFACE, "Position"),
+        )
+        .await;
+    let us = res
+        .ok()
+        .and_then(|m| m.body().deserialize::<OwnedValue>().ok())
+        .and_then(|v| as_i64(&v));
+    if let Some(p) = players.get_mut(name) {
+        p.position = us.map(|us| (micros(us), Instant::now()));
+    }
+}
+
+/// Players send times as `x` (spec) or `t`.
+fn as_i64(v: &OwnedValue) -> Option<i64> {
+    i64::try_from(v.clone()).ok().or_else(|| {
+        u64::try_from(v.clone())
+            .ok()
+            .and_then(|n| i64::try_from(n).ok())
+    })
+}
+
+fn micros(us: i64) -> Duration {
+    Duration::from_micros(u64::try_from(us).unwrap_or(0))
 }
 
 async fn send_key(conn: &Connection, players: &Players, press: &Press) {

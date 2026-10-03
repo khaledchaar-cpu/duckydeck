@@ -5,6 +5,7 @@
 //! [`levels`](crate::levels) worker.
 
 use std::collections::BTreeSet;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use duckydeck_core::catalog::{Catalog, Confirm};
@@ -13,7 +14,7 @@ use duckydeck_core::dial::{Dial, Levels};
 use duckydeck_core::icons;
 use duckydeck_core::media::{self, MediaKey, Players, Status};
 use duckydeck_core::nav::{BACK_ACTION, Nav, PAGE_ACTION, Press};
-use duckydeck_core::render::{KeyView, Renderer, SegmentView};
+use duckydeck_core::render::{KeyView, MediaView, Renderer, SegmentView};
 use duckydeck_core::theme::{Role, Theme};
 use duckydeck_core::{CommandRunner, TokioRunner};
 use image::RgbImage;
@@ -29,6 +30,10 @@ const FALLBACK_THEME: &str =
     "background = \"#121212\"\nforeground = \"#bebebe\"\naccent = \"#e68e0d\"";
 /// Minimum horizontal travel for a strip swipe to change the page.
 const SWIPE_MIN: u16 = 100;
+/// How long dial values replace the media view after touching a dial.
+const OVERLAY: Duration = Duration::from_secs(2);
+/// Media view refresh while playing (progress and time).
+const MEDIA_TICK: Duration = Duration::from_secs(1);
 
 pub struct Screen {
     renderer: Renderer,
@@ -42,6 +47,10 @@ pub struct Screen {
     levels: Levels,
     media_tx: UnboundedSender<mpris::Press>,
     players: Players,
+    /// Dial values are shown instead of the media view until then.
+    overlay_until: Option<Instant>,
+    /// Next media view refresh; `Some` while the strip shows it.
+    media_tick: Option<Instant>,
 }
 
 impl Screen {
@@ -69,6 +78,8 @@ impl Screen {
             levels: Levels::default(),
             media_tx,
             players: Players::default(),
+            overlay_until: None,
+            media_tick: None,
         })
     }
 
@@ -118,13 +129,59 @@ impl Screen {
         };
         let before = icons(&self.players);
         let after = icons(&players);
+        let strip_before = self.playing_now().cloned();
         self.players = players;
-        before != after
+        let strip_after = self.playing_now().cloned();
+        before != after || strip_before != strip_after
     }
 
     pub fn draw_strip(&mut self, deck: &mut Deck) -> Result<()> {
-        (0..4u8).try_for_each(|seg| self.segment(deck, seg, false))?;
+        let now = Instant::now();
+        if self.overlay_until.is_some_and(|t| t <= now) {
+            self.overlay_until = None;
+        }
+        if self.overlay_until.is_none()
+            && let Some(p) = self.playing_now()
+        {
+            let p = p.clone();
+            let time = p.time_text(now);
+            let view = MediaView {
+                icon: icons::get("play"),
+                title: p.title.as_deref().unwrap_or(p.short_name()),
+                artist: p.artist.as_deref(),
+                time: time.as_deref(),
+                progress: p.progress(now),
+            };
+            let img = to_image(self.renderer.media(&self.theme, &view)?)?;
+            self.media_tick = Some(now + MEDIA_TICK);
+            deck.out.set_strip(0, &img)?;
+        } else {
+            self.media_tick = None;
+            (0..4u8).try_for_each(|seg| self.segment(deck, seg, false))?;
+        }
         deck.out.flush()
+    }
+
+    /// The player shown on the strip: the active one, if it is playing.
+    fn playing_now(&self) -> Option<&media::Player> {
+        self.players
+            .active(None)
+            .filter(|p| p.status == Status::Playing)
+    }
+
+    /// When the strip needs the next redraw without an event.
+    pub fn strip_deadline(&self) -> Option<Instant> {
+        if let Some(t) = self.overlay_until {
+            return Some(t);
+        }
+        self.media_tick
+    }
+
+    /// Dial values become visible (or stay visible) for [`OVERLAY`].
+    fn touch_dials(&mut self, deck: &mut Deck) -> Result<()> {
+        let was = self.overlay_until.is_some() || self.media_tick.is_none();
+        self.overlay_until = self.playing_now().map(|_| Instant::now() + OVERLAY);
+        if was { Ok(()) } else { self.draw_strip(deck) }
     }
 
     /// Returns whether a shown dial changed.
@@ -142,8 +199,12 @@ impl Screen {
         let res = match g {
             Gesture::Down(Control::Key(i)) => self.key(deck, i, true),
             Gesture::Up(Control::Key(i)) => self.key(deck, i, false),
-            Gesture::Down(Control::Encoder(i)) => self.segment(deck, i, true),
-            Gesture::Up(Control::Encoder(i)) => self.segment(deck, i, false),
+            Gesture::Down(Control::Encoder(i)) => self
+                .touch_dials(deck)
+                .and_then(|()| self.segment(deck, i, true)),
+            Gesture::Up(Control::Encoder(i)) => self
+                .touch_dials(deck)
+                .and_then(|()| self.segment(deck, i, false)),
             Gesture::Tap(Control::Key(i)) => {
                 let press = self.nav.press_key(&self.store.current, usize::from(i));
                 self.handle(deck, press, false)
@@ -158,7 +219,7 @@ impl Screen {
             }
             Gesture::Twist { encoder, delta, .. } => {
                 self.dial_job(encoder, |d| Job::Twist(d, i32::from(delta)));
-                return;
+                self.touch_dials(deck)
             }
             Gesture::StripSwipe((x0, _), (x1, _)) if x0.abs_diff(x1) >= SWIPE_MIN => {
                 let press = self

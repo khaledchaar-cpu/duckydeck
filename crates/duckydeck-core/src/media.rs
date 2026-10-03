@@ -2,6 +2,8 @@
 //!
 //! The D-Bus side lives in the daemon; this module only decides.
 
+use std::time::{Duration, Instant};
+
 use crate::config::Binding;
 
 pub const MPRIS_PREFIX: &str = "org.mpris.MediaPlayer2.";
@@ -76,13 +78,52 @@ pub struct Player {
     pub artist: Option<String>,
     /// Increases with each change to "Playing"; higher = more recent.
     pub last_played: u64,
+    /// Track length (`mpris:length`).
+    pub length: Option<Duration>,
+    /// Last reported position and when it was reported.
+    pub position: Option<(Duration, Instant)>,
 }
 
 impl Player {
+    /// Position at `now`, extrapolated while playing, capped at the length.
+    pub fn position_at(&self, now: Instant) -> Option<Duration> {
+        let (pos, at) = self.position?;
+        let pos = match self.status {
+            Status::Playing => pos + now.saturating_duration_since(at),
+            _ => pos,
+        };
+        Some(self.length.map_or(pos, |l| pos.min(l)))
+    }
+
+    /// 0.0–1.0 of the track; `None` without length or position.
+    pub fn progress(&self, now: Instant) -> Option<f32> {
+        let len = self.length.filter(|l| !l.is_zero())?;
+        Some(self.position_at(now)?.as_secs_f32() / len.as_secs_f32())
+    }
+
+    /// `1:23 / 4:56`, or just the position without a length.
+    pub fn time_text(&self, now: Instant) -> Option<String> {
+        let pos = clock(self.position_at(now)?);
+        Some(match self.length {
+            Some(l) if !l.is_zero() => format!("{pos} / {}", clock(l)),
+            _ => pos,
+        })
+    }
+
     /// Name without the MPRIS prefix and instance suffix (`chromium`).
     pub fn short_name(&self) -> &str {
         let s = self.name.strip_prefix(MPRIS_PREFIX).unwrap_or(&self.name);
         s.split('.').next().unwrap_or(s)
+    }
+}
+
+/// `m:ss`, or `h:mm:ss` from one hour on.
+pub fn clock(d: Duration) -> String {
+    let s = d.as_secs();
+    if s >= 3600 {
+        format!("{}:{:02}:{:02}", s / 3600, s / 60 % 60, s % 60)
+    } else {
+        format!("{}:{:02}", s / 60, s % 60)
     }
 }
 
@@ -163,6 +204,29 @@ mod tests {
         assert_eq!(ps.active(Some("vlc")).unwrap().short_name(), "chromium");
         ps.remove(&name("chromium.instance42"));
         assert_eq!(ps.list.len(), 1);
+    }
+
+    #[test]
+    fn extrapolates_position() {
+        let t0 = Instant::now();
+        let mut p = Player {
+            status: Status::Playing,
+            length: Some(Duration::from_secs(200)),
+            position: Some((Duration::from_secs(50), t0)),
+            ..Player::default()
+        };
+        let t = t0 + Duration::from_secs(50);
+        assert_eq!(p.progress(t), Some(0.5));
+        assert_eq!(p.time_text(t).as_deref(), Some("1:40 / 3:20"));
+        assert_eq!(
+            p.position_at(t0 + Duration::from_secs(999)),
+            Some(Duration::from_secs(200))
+        );
+        p.status = Status::Paused;
+        assert_eq!(p.time_text(t).as_deref(), Some("0:50 / 3:20"));
+        p.length = None;
+        assert_eq!(p.progress(t), None);
+        assert_eq!(clock(Duration::from_secs(3725)), "1:02:05");
     }
 
     #[test]
