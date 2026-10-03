@@ -1,6 +1,6 @@
 # Maintainer: Khaled Chaar <254331885+khaledchaar-cpu@users.noreply.github.com>
 pkgname=duckydeck
-pkgver=0.1.0
+pkgver=0.1.1
 pkgrel=1
 pkgdesc='Elgato Stream Deck + integration for Omarchy'
 arch=('x86_64')
