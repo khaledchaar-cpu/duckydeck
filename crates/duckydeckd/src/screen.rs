@@ -503,16 +503,15 @@ impl Screen {
     }
 
     fn toggle_slot(&self, i: u8) -> ToggleSlot {
-        let n = &self.nav;
-        (n.profile.clone(), n.page, n.folder.clone(), i)
+        toggle_slot(&self.nav, i)
     }
 
     /// A toggle key shows the binding its next press runs.
-    fn shown(&self, i: u8, b: Binding) -> Binding {
+    fn shown_in(&self, nav: &Nav, i: u8, b: Binding) -> Binding {
         if b.action != TOGGLE_ACTION {
             return b;
         }
-        let n = self.toggled.get(&self.toggle_slot(i)).copied().unwrap_or(0);
+        let n = self.toggled.get(&toggle_slot(nav, i)).copied().unwrap_or(0);
         match compound::states(&b) {
             Ok(states) => states[n].clone(),
             Err(_) => b,
@@ -620,9 +619,15 @@ impl Screen {
     }
 
     fn key(&mut self, deck: &mut Deck, i: u8, pressed: bool) -> Result<()> {
-        let binding = self.nav.keys(&self.store.current)[usize::from(i % 8)]
+        let nav = self.nav.clone();
+        let img = self.key_image(&nav, i, pressed)?;
+        deck.out.set_key(i, &img)
+    }
+
+    fn key_image(&mut self, nav: &Nav, i: u8, pressed: bool) -> Result<RgbImage> {
+        let binding = nav.keys(&self.store.current)[usize::from(i % 8)]
             .take()
-            .map(|b| self.shown(i, b));
+            .map(|b| self.shown_in(nav, i, b));
         let bg = if pressed {
             Role::LighterBackground
         } else {
@@ -642,8 +647,7 @@ impl Screen {
                 },
                 bg,
             };
-            let img = to_image(self.renderer.glyph_key(&self.theme, &view)?)?;
-            return deck.out.set_key(i, &img);
+            return to_image(self.renderer.glyph_key(&self.theme, &view)?);
         }
         let label = binding.as_ref().map(|b| self.label(b));
         let view = KeyView {
@@ -664,13 +668,19 @@ impl Screen {
         };
         let img = to_image(self.renderer.key(&self.theme, &view)?)?;
         debug_assert_eq!(img.width(), KEY_SIZE);
-        deck.out.set_key(i, &img)
+        Ok(img)
     }
 
     /// Strip segment above encoder `seg`: icon and label of its dial, or
     /// its level once known.
     fn segment(&mut self, deck: &mut Deck, seg: u8, pressed: bool) -> Result<()> {
-        let binding = self.nav.dials(&self.store.current)[usize::from(seg % 4)].take();
+        let nav = self.nav.clone();
+        let img = self.segment_image(&nav, seg, pressed)?;
+        deck.out.set_strip(u16::from(seg) * 200, &img)
+    }
+
+    fn segment_image(&mut self, nav: &Nav, seg: u8, pressed: bool) -> Result<RgbImage> {
+        let binding = nav.dials(&self.store.current)[usize::from(seg % 4)].take();
         let level = binding
             .as_ref()
             .and_then(Dial::from_binding)
@@ -706,7 +716,7 @@ impl Screen {
         };
         let img = to_image(self.renderer.segment(&self.theme, &view)?)?;
         debug_assert_eq!(img.height(), STRIP_H);
-        deck.out.set_strip(u16::from(seg) * 200, &img)
+        Ok(img)
     }
 
     /// Explicit label, else the catalog label, else the folder name, else
@@ -802,6 +812,10 @@ fn dial_icon(d: Dial, pct: Option<u8>, muted: bool) -> &'static str {
         Dial::Brightness { .. } if low => "brightness-low",
         Dial::Brightness { .. } => "brightness",
     }
+}
+
+fn toggle_slot(nav: &Nav, i: u8) -> ToggleSlot {
+    (nav.profile.clone(), nav.page, nav.folder.clone(), i)
 }
 
 fn to_image(img: duckydeck_core::render::RgbImage) -> Result<RgbImage> {
