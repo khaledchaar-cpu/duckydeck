@@ -15,8 +15,10 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 - `choice_icons`: Icon je Platzhalterwert (Shell-Panels, Fokus-Richtung statt Sonderfall im Daemon)
 
 ## Nächster Schritt
-- Neue Actions am Gerät testen (Paket bauen), v. a. `system.panel` und Bluetooth-Zustand
-- Rust-Teil aus Idee 1: Regler Tastaturbeleuchtung, Energieprofil-Zyklus mit Anzeige
+- Status-Text Schritt 3: Tastaturlicht-Stufe, Restzeit der Erinnerung (Grundsatz: Live-Infos überall, wo sie Mehrwert bringen)
+- Am Gerät prüfen: Bluetooth-Gerätename (beim Test war kein Gerät verbunden), größere Schrift
+- Rust-Teil aus Idee 1: Regler Tastaturbeleuchtung (Energieprofil-Zyklus entfällt, aktive Taste leuchtet)
+- Testprofil `~/.config/duckydeck/profiles/test-controls.toml` danach löschen
 - Danach Release 0.1.1 erwägen, dann Idee 2 (Icon-Auswahl)
 
 ## Offene Probleme / Notizen
