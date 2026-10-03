@@ -21,7 +21,7 @@ tracing.workspace = true
 anyhow.workspace = true
 image = { version = "0.25", default-features = false, features = ["png"] }
 insta.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "sync"] }
 
 [lints]
 workspace = true

@@ -314,7 +314,12 @@ mod tests {
                 continue;
             }
             // Defaults complete every placeholder; the call goes out verbatim.
-            let spec = match e.exec(id, &toml::Table::new()).unwrap() {
+            // `launcher.app` has no sensible default app, so it gets one here.
+            let args = match id.as_str() {
+                "launcher.app" => toml::toml! { app = "org.gnome.Nautilus" },
+                _ => toml::Table::new(),
+            };
+            let spec = match e.exec(id, &args).unwrap() {
                 Exec::Command(spec) => spec,
                 Exec::Dispatch(d) => {
                     assert!(d.starts_with("hl.dsp."), "{id}: {d}");
@@ -328,6 +333,8 @@ mod tests {
             assert!(line.starts_with(&e.run[0]), "{id}: {line}");
         }
         assert!(catalog.unavailable(&routes).is_empty());
+        let app = catalog.get("launcher.app").unwrap();
+        assert!(app.exec("launcher.app", &toml::Table::new()).is_err());
     }
 
     #[test]

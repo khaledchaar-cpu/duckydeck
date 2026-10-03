@@ -123,6 +123,13 @@ label = "Files"
 icon  = "files"
 run   = ["omarchy", "launch", "nautilus"]
 
+# Any installed app by desktop-entry id (`app = "org.gnome.Calculator"`),
+# started like the Omarchy app launcher does.
+[launcher.app]
+label = "App"
+icon  = "generic-app"
+run   = ["uwsm-app", "--", "gtk-launch", "{app}.desktop"]
+
 # ── Window management ─────────────────────────────────────────────────
 # `dispatch` entries are Hyprland Lua dispatchers sent over the IPC socket.
 # Their placeholder values may only contain letters, digits and `_+-:`.

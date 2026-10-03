@@ -93,7 +93,7 @@ profile you picked last in the panel or CLI.
 |---|---|
 | `system` | `lock`, `suspend`, `reboot`, `shutdown`, `logout`, `menu`, `theme`, `wallpaper`, `nightlight`, `idle`, `dnd`, `dismiss_notifications` |
 | `capture` | `screenshot`, `screenrecording`, `color_picker`, `ocr`, `qr` |
-| `launcher` | `terminal`, `browser`, `files` |
+| `launcher` | `terminal`, `browser`, `files`, `app` (`app = "<desktop-entry id>"`, e.g. `"omacalc"`) |
 | `window` | `workspace`, `move_to_workspace`, `close`, `float`, `fullscreen`, `tiled_fullscreen`, `pseudo`, `split`, `pop`, `focus`, `move`, `scratchpad`, `transparency`, `gaps`, `layout`, `to_monitor`, `monitor_internal`, `monitor_mirror`, `dispatch` |
 | `media` | `play_pause`, `next`, `previous` (keys); `volume`, `mic` (dials) |
 | `display` | `brightness` (dial) |
