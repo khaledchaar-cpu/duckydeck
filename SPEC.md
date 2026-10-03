@@ -55,3 +55,15 @@ Ein Schritt = etwa eine Claude-Sitzung. Fortschritt steht in [PROGRESS.md](PROGR
 | M7 | Shell-Plugins | Bar-Widget, Panel, Menüeintrag |
 | M8 | Kontext & Release | Auto-Profilwechsel, Multi-/Toggle-Actions, CI (GitHub Actions: fmt/clippy/test), PKGBUILD, Doku, Release-Paket auf GitHub (kein AUR) |
 | M9 | Editor (v2) | Schritte M9a–M9e siehe [docs/spec/ui.md](docs/spec/ui.md) |
+
+## Ideen (offen, noch nicht abgestimmt)
+
+Jede Idee wird vor der Umsetzung einzeln abgestimmt; Entscheidungen landen in der passenden `docs/spec/*.md`, Schritte als neue Milestones.
+
+| Idee | Notiz |
+|---|---|
+| Icon-Auswahl mit visueller Vorschau des Katalogs | Editor (`ui.md`, `assets.md`) |
+| Eigene Icons (Upload), freie Icon-Bibliotheken, ggf. KI-generiert | Netzwerk/KI nur per expliziter Nutzer-Action (Regel 6) |
+| Andere Stream-Deck-Modelle | Widerspricht Regel 1; nur Stream Deck + zum Testen vorhanden |
+| Lückenanalyse Controls (Audio-Ein-/Ausgabe, Bluetooth, …) | `actions.md` |
+| UX-Polishing allgemein | |
