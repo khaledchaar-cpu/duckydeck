@@ -59,6 +59,11 @@ Item {
   property string confirming: ""
   // App id of the window that was active before the editor opened.
   property string lastAppId: ""
+  // Bar shows the new-profile form; advanced regex field in the profile tab.
+  property bool creating: false
+  property bool showAdvanced: false
+  // `duckydeck profiles --json`: [{id, name}].
+  property var profileList: []
   // Runs after a profile create/delete and the following reload.
   property var afterManage: null
   // Payload of a running drag: {action} from the library or {at, kind, index}.
@@ -123,6 +128,8 @@ Item {
     root.lastAppId = top && top.appId ? top.appId : ""
     root.profileMode = false
     root.confirming = ""
+    root.creating = false
+    root.showAdvanced = false
     root.opened = true
     root.error = ""
     root.profileData = null
@@ -200,6 +207,8 @@ Item {
       exportProc.running = false
       exportProc.command = ["duckydeck", "export", root.profile, "--json"]
       exportProc.running = true
+      profilesProc.running = false
+      profilesProc.running = true
     }
     previewProc.running = false
     previewProc.command = ["duckydeck", "preview", root.profile,
@@ -618,9 +627,53 @@ Item {
       ? root.profileData.match.class : ""
   }
 
-  function createProfile(id, copy) {
-    if (id === "") return
-    root.manage(copy ? [id, "create", root.profile] : [id, "create"], function() { root.setProfile(id) })
+  function profileName(id) {
+    for (var i = 0; i < root.profileList.length; i++)
+      if (root.profileList[i].id === id) return root.profileList[i].name
+    return id
+  }
+
+  // The id (file name) follows from the name: "My Games" → my-games, unique.
+  function createProfile(name, copy) {
+    name = name.trim()
+    if (name === "" || root.busy) return
+    var base = name.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "profile"
+    var taken = root.status ? root.status.profiles : []
+    var id = base
+    for (var n = 2; taken.indexOf(id) >= 0; n++) id = base + "-" + n
+    var args = [id, "create", name]
+    if (copy) args.push(root.profile)
+    root.manage(args, function() {
+      root.creating = false
+      root.setProfile(id)
+      root.profileMode = true
+      root.focusDeck()
+    })
+  }
+
+  function escapeRegex(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  }
+
+  // Case-insensitive exact class match, as the app picker writes it.
+  function classMatch(cls) {
+    return "(?i)^" + root.escapeRegex(cls) + "$"
+  }
+
+  // Automatic switch choices: never, the window before the editor, apps;
+  // a hand-written regex shows as itself.
+  readonly property var autoOptions: {
+    var list = [{ value: "", label: strings.never }]
+    if (root.lastAppId !== "")
+      list.push({ value: root.classMatch(root.lastAppId), label: strings.currentWindow(root.lastAppId), description: root.lastAppId })
+    for (var i = 0; i < root.apps.length; i++) {
+      var cls = root.apps[i].wm_class || root.apps[i].id
+      list.push({ value: root.classMatch(cls), label: root.apps[i].name, description: cls })
+    }
+    var cur = root.matchClass()
+    if (cur !== "" && !list.some(function(o) { return o.value === cur }))
+      list.splice(1, 0, { value: cur, label: strings.custom(cur), description: cur })
+    return list
   }
 
   function deleteProfile() {
@@ -722,6 +775,17 @@ Item {
       // The daemon's file watcher may lag behind: reload first, then render.
       if (code === 0 && root.status) reloadProc.running = true
       else root.refresh(true)
+    }
+  }
+
+  Process {
+    id: profilesProc
+    command: ["duckydeck", "profiles", "--json"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try { root.profileList = JSON.parse(text).profiles || [] } catch (e) {}
+      }
     }
   }
 
@@ -1002,7 +1066,53 @@ Item {
           height: parent.height
           spacing: Style.space(16)
 
+          // New profile: name, empty or copy, create.
           Row {
+            visible: root.creating
+            width: parent.width
+            spacing: Style.space(12)
+
+            TextField {
+              id: newNameField
+              width: Style.space(200)
+              placeholderText: strings.newProfileName
+              foreground: root.foreground
+              accent: root.accent
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              onAccepted: root.createProfile(text, newKind.value === "copy")
+              Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Escape) { root.creating = false; root.focusDeck(); event.accepted = true }
+              }
+            }
+            ButtonGroup {
+              id: newKind
+              width: Style.space(260)
+              options: [{ value: "empty", label: strings.createEmpty },
+                        { value: "copy", label: strings.createCopy(root.profileName(root.profile)) }]
+              value: "empty"
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              onChanged: function(v) { newKind.value = v }
+            }
+            Button {
+              text: strings.create
+              bordered: true
+              enabled: !root.busy && newNameField.text.trim() !== ""
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              onClicked: root.createProfile(newNameField.text, newKind.value === "copy")
+            }
+            Button {
+              text: strings.cancel
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              onClicked: { root.creating = false; root.focusDeck() }
+            }
+          }
+
+          Row {
+            visible: !root.creating
             width: parent.width
             spacing: Style.space(12)
 
@@ -1010,11 +1120,23 @@ Item {
               id: profileDropdown
               width: Style.space(200)
               showLabel: false
-              options: root.status ? root.status.profiles : (root.profile ? [root.profile] : [])
+              options: (root.status ? root.status.profiles : (root.profile ? [root.profile] : []))
+                .map(function(id) { return { value: id, label: root.profileName(id) } })
+                .concat([{ value: "+new", label: strings.newProfile }])
               value: root.profile
               foreground: root.foreground
               fontFamily: root.fontFamily
-              onChanged: function(v) { root.setProfile(v); keyCatcher.forceActiveFocus() }
+              onChanged: function(v) {
+                if (v === "+new") {
+                  root.creating = true
+                  newNameField.text = ""
+                  newKind.value = "empty"
+                  newNameField.forceActiveFocus()
+                } else {
+                  root.setProfile(v)
+                  keyCatcher.forceActiveFocus()
+                }
+              }
             }
 
             ButtonGroup {
@@ -1038,14 +1160,6 @@ Item {
               foreground: root.foreground
               fontFamily: root.fontFamily
               onClicked: { root.addPage(); root.focusDeck() }
-            }
-
-            Button {
-              text: strings.profileSettings
-              bordered: root.profileMode
-              foreground: root.foreground
-              fontFamily: root.fontFamily
-              onClicked: { root.profileMode = !root.profileMode; root.confirming = ""; root.focusDeck() }
             }
           }
 
@@ -1232,11 +1346,27 @@ Item {
           }
         }
 
-        // Profile inspector: name, automatic switch, page order, profiles.
+        // Right column: tabs for the selected slot and the profile.
+        Column {
+          width: columns.sideWidth
+          height: parent.height
+          spacing: Style.space(12)
+
+          ButtonGroup {
+            id: inspectorTabs
+            width: parent.width
+            options: [{ value: "slot", label: strings.slotTab }, { value: "profile", label: strings.profileTab }]
+            value: root.profileMode ? "profile" : "slot"
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            onChanged: function(v) { root.profileMode = v === "profile"; root.confirming = ""; root.focusDeck() }
+          }
+
+        // Profile inspector: name, automatic switch, page order, delete.
         Flickable {
           visible: root.profileMode
           width: columns.sideWidth
-          height: parent.height
+          height: parent.height - inspectorTabs.height - parent.spacing
           clip: true
           contentHeight: profileInspector.implicitHeight
           boundsBehavior: Flickable.StopAtBounds
@@ -1246,11 +1376,6 @@ Item {
             width: columns.sideWidth
             spacing: Style.space(8)
 
-            PanelSectionHeader {
-              text: strings.profileHeader + " · " + root.profile
-              foreground: root.foreground
-              fontFamily: root.fontFamily
-            }
             Text {
               text: strings.name
               color: root.foreground
@@ -1259,7 +1384,6 @@ Item {
               font.pixelSize: Style.font.bodySmall
             }
             TextField {
-              id: nameField
               width: parent.width
               text: root.profileData ? root.profileData.name : ""
               foreground: root.foreground
@@ -1267,15 +1391,47 @@ Item {
               font.family: root.fontFamily
               font.pixelSize: Style.font.body
               onEditingFinished: if (root.profileData && text.trim() !== "") root.setProfileField("name", text.trim(), root.profileData.name)
+              Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Escape || event.key === Qt.Key_Tab) { root.focusDeck(); event.accepted = true }
+              }
             }
+
             Text {
+              width: parent.width
+              wrapMode: Text.Wrap
               text: strings.autoSwitch
               color: root.foreground
               opacity: 0.6
               font.family: root.fontFamily
               font.pixelSize: Style.font.bodySmall
             }
+            SearchableDropdown {
+              width: parent.width
+              showLabel: false
+              options: root.autoOptions
+              value: root.matchClass()
+              placeholderText: strings.searchApps
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              onChanged: function(v) { root.setProfileField("match", v, root.matchClass()); root.focusDeck() }
+            }
+            Text {
+              width: parent.width
+              wrapMode: Text.Wrap
+              text: strings.autoSwitchHint
+              color: root.foreground
+              opacity: 0.45
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+            }
+            Button {
+              text: root.showAdvanced ? strings.hideAdvanced : strings.showAdvanced
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              onClicked: root.showAdvanced = !root.showAdvanced
+            }
             TextField {
+              visible: root.showAdvanced
               width: parent.width
               text: root.matchClass()
               placeholderText: strings.matchPlaceholder
@@ -1285,19 +1441,9 @@ Item {
               font.pixelSize: Style.font.body
               onEditingFinished: if (root.profileData) root.setProfileField("match", text.trim(), root.matchClass())
             }
-            Button {
-              visible: root.lastAppId !== ""
-              text: strings.useWindow(root.lastAppId)
-              bordered: true
-              enabled: !root.busy
-              foreground: root.foreground
-              fontFamily: root.fontFamily
-              onClicked: root.setProfileField("match",
-                "^" + root.lastAppId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$", root.matchClass())
-            }
 
             PanelSectionHeader {
-              text: strings.pages + " " + root.page
+              text: strings.pages + " " + root.page + " / " + root.pageCount
               foreground: root.foreground
               fontFamily: root.fontFamily
             }
@@ -1330,40 +1476,19 @@ Item {
             }
 
             PanelSectionHeader {
-              text: strings.newProfile
+              text: strings.profileHeader
               foreground: root.foreground
               fontFamily: root.fontFamily
             }
-            TextField {
-              id: newIdField
+            Text {
               width: parent.width
-              placeholderText: strings.newProfileId
-              foreground: root.foreground
-              accent: root.accent
+              wrapMode: Text.Wrap
+              text: strings.linkHint
+              color: root.foreground
+              opacity: 0.45
               font.family: root.fontFamily
-              font.pixelSize: Style.font.body
-              readonly property string cleanId: text.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-")
+              font.pixelSize: Style.font.bodySmall
             }
-            Row {
-              spacing: Style.space(8)
-              Button {
-                text: strings.createEmpty
-                bordered: true
-                enabled: !root.busy && newIdField.cleanId !== ""
-                foreground: root.foreground
-                fontFamily: root.fontFamily
-                onClicked: { root.createProfile(newIdField.cleanId, false); newIdField.text = "" }
-              }
-              Button {
-                text: strings.createCopy
-                bordered: true
-                enabled: !root.busy && newIdField.cleanId !== ""
-                foreground: root.foreground
-                fontFamily: root.fontFamily
-                onClicked: { root.createProfile(newIdField.cleanId, true); newIdField.text = "" }
-              }
-            }
-
             Button {
               text: root.confirming === "profile" ? strings.confirm
                 : root.profile === "omarchy" ? strings.resetProfile : strings.deleteProfile
@@ -1380,7 +1505,7 @@ Item {
         Flickable {
           visible: !root.profileMode
           width: columns.sideWidth
-          height: parent.height
+          height: parent.height - inspectorTabs.height - parent.spacing
           clip: true
           contentHeight: inspector.implicitHeight
           boundsBehavior: Flickable.StopAtBounds
@@ -1790,6 +1915,7 @@ Item {
               onClicked: { root.clearSelected(); root.focusDeck() }
             }
           }
+        }
         }
         }
       }

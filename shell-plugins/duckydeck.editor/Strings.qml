@@ -35,25 +35,40 @@ QtObject {
   readonly property string openFolder: "Enter opens the folder"
   readonly property string pages: "Page"
   readonly property string addPage: "+ Page"
-  readonly property string profileSettings: "Profile…"
+  readonly property string slotTab: "Key / Dial"
+  readonly property string profileTab: "Profile"
   readonly property string profileHeader: "PROFILE"
   readonly property string name: "Name"
-  readonly property string autoSwitch: "Switch automatically for window class (regex)"
-  readonly property string matchPlaceholder: "off"
+  readonly property string autoSwitch: "Activate automatically when this app is focused"
+  readonly property string autoSwitchHint: "Profiles can also be switched with a key: Structure → Profile in the library."
+  readonly property string never: "Never"
+  readonly property string showAdvanced: "Advanced…"
+  readonly property string hideAdvanced: "Hide advanced"
+  readonly property string matchPlaceholder: "Window class regex"
   readonly property string moveLeft: "← Move"
   readonly property string moveRight: "Move →"
   readonly property string removePage: "Remove page"
   readonly property string confirm: "Click again to confirm"
-  readonly property string newProfile: "NEW PROFILE"
-  readonly property string newProfileId: "id, e.g. gaming"
-  readonly property string createEmpty: "Create empty"
-  readonly property string createCopy: "Copy this one"
+  readonly property string newProfile: "+ New profile…"
+  readonly property string newProfileName: "Name of the new profile"
+  readonly property string createEmpty: "Empty"
+  readonly property string create: "Create"
+  readonly property string cancel: "Cancel"
+  readonly property string linkHint: "Deleting is refused while a key switches to this profile."
   readonly property string deleteProfile: "Delete profile"
   readonly property string resetProfile: "Reset to default"
   readonly property string hints: "Arrows select · type or / searches · Tab switches · Enter assigns or opens a folder · Del clears · Ctrl+C/V copies · Ctrl+X/V moves · Ctrl+Z undo · Esc closes"
 
-  function useWindow(appId) {
-    return "Use current window (" + appId + ")"
+  function createCopy(name) {
+    return "Copy of " + name
+  }
+
+  function currentWindow(appId) {
+    return "Current window (" + appId + ")"
+  }
+
+  function custom(regex) {
+    return "Custom: " + regex
   }
 
   function waitMs(ms) {

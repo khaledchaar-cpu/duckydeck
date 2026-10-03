@@ -11,6 +11,9 @@ pub struct App {
     /// Desktop-entry id without `.desktop`, e.g. `com.mitchellh.ghostty`.
     pub id: String,
     pub name: String,
+    /// `StartupWMClass`: the window class when it differs from the id.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wm_class: Option<String>,
 }
 
 /// Application directories in lookup order: `$XDG_DATA_HOME`, then `$XDG_DATA_DIRS`.
@@ -44,8 +47,8 @@ pub fn scan(dirs: &[PathBuf]) -> Vec<App> {
             let Ok(text) = std::fs::read_to_string(&path) else {
                 continue;
             };
-            if let Some(name) = parse(&text) {
-                apps.push(App { id, name });
+            if let Some((name, wm_class)) = parse(&text) {
+                apps.push(App { id, name, wm_class });
             }
         }
     }
@@ -78,10 +81,12 @@ fn collect(root: &Path, dir: &Path, out: &mut Vec<(String, PathBuf)>) {
     }
 }
 
-/// Name of a shown application entry, `None` if it is hidden or no app.
-fn parse(text: &str) -> Option<String> {
+/// Name and window class of a shown application entry, `None` if it is
+/// hidden or no app.
+fn parse(text: &str) -> Option<(String, Option<String>)> {
     let mut in_entry = false;
     let mut name = None;
+    let mut wm_class = None;
     let mut is_app = false;
     for line in text.lines().map(str::trim) {
         if line.starts_with('[') {
@@ -96,12 +101,14 @@ fn parse(text: &str) -> Option<String> {
         };
         match (key.trim(), value.trim()) {
             ("Name", v) => name = Some(v.to_owned()),
+            ("StartupWMClass", v) if !v.is_empty() => wm_class = Some(v.to_owned()),
             ("Type", v) => is_app = v == "Application",
             ("NoDisplay" | "Hidden", "true") => return None,
             _ => {}
         }
     }
     name.filter(|n| is_app && !n.is_empty())
+        .map(|n| (n, wm_class))
 }
 
 #[cfg(test)]
@@ -118,7 +125,11 @@ mod tests {
 
     #[test]
     fn parses_shown_apps_only() {
-        assert_eq!(parse(GHOSTTY).as_deref(), Some("Ghostty"));
+        assert_eq!(parse(GHOSTTY), Some(("Ghostty".into(), None)));
+        assert_eq!(
+            parse("[Desktop Entry]\nType=Application\nName=X\nStartupWMClass=x-app\n"),
+            Some(("X".into(), Some("x-app".into())))
+        );
         assert_eq!(
             parse("[Desktop Entry]\nType=Application\nName=X\nNoDisplay=true\n"),
             None
@@ -151,11 +162,13 @@ mod tests {
             vec![
                 App {
                     id: "kde-calc".into(),
-                    name: "calc".into()
+                    name: "calc".into(),
+                    wm_class: None,
                 },
                 App {
                     id: "com.mitchellh.ghostty".into(),
-                    name: "Ghostty".into()
+                    name: "Ghostty".into(),
+                    wm_class: None,
                 },
             ]
         );

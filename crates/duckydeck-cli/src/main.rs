@@ -27,11 +27,12 @@ commands:
                         <json> = {action, args?, label?, icon?} as JSON)
   edit <profile> page add | page remove <n> | page move <from> <to>
   edit <profile> name <text> | match <class regex, empty = off>
-  edit <profile> create [<copy of>] | delete
+  edit <profile> create <name> [<copy of>] | delete
                         manage pages and profiles; deleting the default
                         profile resets it to the built-in one
   reload                re-read system font, theme and config
   actions               list every action (id, slot, label) for the editor
+  profiles              list profile ids and names (no daemon needed)
   icons                 list the built-in icon names (no daemon needed)
   apps                  list installed apps: desktop-entry id and name (no daemon needed)
   preview <profile> [<page>|<folder>]
@@ -70,6 +71,26 @@ async fn main() -> Result<()> {
             }
             return Ok(());
         }
+        ["profiles"] => {
+            let dir = config::dir().context("neither XDG_CONFIG_HOME nor HOME is set")?;
+            let loaded = config::Loaded::load(&dir)?;
+            if json {
+                let list: Vec<_> = loaded
+                    .profiles
+                    .iter()
+                    .map(|(id, p)| serde_json::json!({ "id": id, "name": p.name }))
+                    .collect();
+                println!(
+                    "{}",
+                    serde_json::json!({ "v": 1, "ok": true, "profiles": list })
+                );
+            } else {
+                for (id, p) in &loaded.profiles {
+                    println!("{id}\t{}", p.name);
+                }
+            }
+            return Ok(());
+        }
         ["apps"] => {
             let apps = duckydeck_core::apps::scan(&duckydeck_core::apps::dirs());
             if json {
@@ -93,7 +114,7 @@ async fn main() -> Result<()> {
             }
             return Ok(());
         }
-        ["check", ..] | ["export", ..] | ["icons", ..] | ["apps", ..] => {
+        ["check", ..] | ["export", ..] | ["icons", ..] | ["profiles", ..] | ["apps", ..] => {
             eprintln!("duckydeck: wrong arguments for {}\n\n{USAGE}", args[0]);
             std::process::exit(2);
         }
@@ -287,11 +308,11 @@ fn edit(args: &[&str]) -> Result<()> {
         [id, "match", class] => {
             edit::apply(&dir, id, &catalog, |src| edit::set_match(src, class))?;
         }
-        [id, "create"] => {
-            edit::create(&dir, id, None)?;
+        [id, "create", name] => {
+            edit::create(&dir, id, name, None)?;
         }
-        [id, "create", from] => {
-            edit::create(&dir, id, Some(from))?;
+        [id, "create", name, from] => {
+            edit::create(&dir, id, name, Some(from))?;
         }
         [id, "delete"] => edit::delete(&dir, id)?,
         _ => return Err(usage()),

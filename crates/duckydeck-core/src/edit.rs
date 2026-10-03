@@ -159,24 +159,25 @@ pub fn set_match(src: &str, class: &str) -> Result<String, EditError> {
     finish(doc)
 }
 
-/// Creates profile `id`, empty or as a copy of profile `from`.
-pub fn create(dir: &Path, id: &str, from: Option<&str>) -> Result<PathBuf, EditError> {
+/// Creates profile `id` named `name`, empty or as a copy of profile `from`.
+pub fn create(dir: &Path, id: &str, name: &str, from: Option<&str>) -> Result<PathBuf, EditError> {
     check_id(id)?;
+    if name.trim().is_empty() {
+        return Err(invalid("name must not be empty"));
+    }
     let path = profile_path(dir, id);
     if id == config::DEFAULT_PROFILE_ID || path.exists() {
         return Err(invalid(format!("profile {id:?} already exists")));
     }
     let src = match from {
         Some(f) => {
-            let mut doc = parse(&read(dir, f)?)?;
-            let name = doc.get("name").and_then(Item::as_str).unwrap_or(f);
-            let name = format!("{name} copy");
-            doc.insert("name", toml_edit::value(name));
+            let doc = parse(&read(dir, f)?)?;
+            let mut doc = parse(&set_name(&doc.to_string(), name)?)?;
             // Two profiles for the same windows would only shadow each other.
             doc.remove("match");
             doc.to_string()
         }
-        None => format!("name = \"{id}\"\n\n[[pages]]\n"),
+        None => set_name("[[pages]]\n", name)?,
     };
     Profile::parse(&src, &path)?;
     write(&path, &src)?;
@@ -666,14 +667,19 @@ keys = [{ action = "capture.qr" }]
     fn create_and_delete_profiles() {
         let dir = std::env::temp_dir().join(format!("duckydeck-profiles-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
-        create(&dir, "dev", None).unwrap();
-        create(&dir, "dev2", Some("omarchy")).unwrap();
-        assert!(create(&dir, "dev", None).is_err());
-        assert!(create(&dir, "omarchy", None).is_err());
-        assert!(create(&dir, "Bad Id", None).is_err());
+        create(&dir, "dev", "Dev", None).unwrap();
+        create(&dir, "dev2", "Dev 2", Some("omarchy")).unwrap();
+        assert!(create(&dir, "dev", "x", None).is_err());
+        assert!(create(&dir, "omarchy", "x", None).is_err());
+        assert!(create(&dir, "Bad Id", "x", None).is_err());
+        assert!(create(&dir, "dev3", " ", None).is_err());
         let loaded = Loaded::load(&dir).unwrap();
-        assert_eq!(loaded.profiles["dev"].name, "dev");
-        assert!(loaded.profiles["dev2"].name.ends_with(" copy"));
+        assert_eq!(loaded.profiles["dev"].name, "Dev");
+        assert_eq!(loaded.profiles["dev2"].name, "Dev 2");
+        assert_eq!(
+            loaded.profiles["dev2"].pages,
+            loaded.profiles["omarchy"].pages
+        );
         let catalog = Catalog::builtin().unwrap();
         apply(&dir, "dev2", &catalog, |src| {
             set(
