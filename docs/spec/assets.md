@@ -5,8 +5,8 @@ Jede eingebaute Action sieht ohne Zutun gut aus und passt zu jedem Omarchy-Theme
 ## Beschaffung (M3) – nicht von Hand zeichnen
 - **Quelle:** Tabler Icons (MIT, Outline, 24er Raster, 2 px Strich).
 - `scripts/fetch-icons.sh` lädt eine fest gepinnte Tabler-Version und kopiert die in `assets/icons.toml` gelisteten Icons nach `assets/icons/<kategorie>/<name>.svg`.
-- `assets/icons.toml` ist das Mapping `duckydeck-name → tabler-name` (+ Kategorie, optional Aktiv-/Inaktiv-Paar).
-- **Nur fehlende Motive** werden selbst erstellt, im Tabler-Stil (z. B. Omarchy-Logo, Workspace-Ziffern als Font-Glyphen statt SVG).
+- `assets/icons.toml`: `[tabler]` (Version + sha256 des npm-Tarballs), eine Tabelle je Kategorie mit `duckydeck-name = "tabler-name"`, `[pairs]` für Aktiv-/Inaktiv-Paare, `[custom]` für selbst erstellte Icons.
+- **Nur fehlende Motive** werden selbst erstellt, im Tabler-Stil, unter `assets/icons/custom/` (bisher: `omarchy-menu` = „o“ aus `/usr/share/omarchy/logo.svg`, `play-pause`). Workspace-Ziffern sind Font-Glyphen statt SVG.
 
 ## Gestaltung
 - Einfarbige SVGs mit `currentColor`, beim Rendern mit Theme-Tokens eingefärbt.
@@ -39,9 +39,10 @@ Jede eingebaute Action sieht ohne Zutun gut aus und passt zu jedem Omarchy-Theme
 assets/
   icons.toml                     # Mapping + Kategorien
   icons/<kategorie>/<name>.svg   # einfarbig, currentColor, viewBox 0 0 24 24
+  icons/custom/<name>.svg        # selbst erstellt, vom Script unberührt
   icons/LICENSE-tabler.txt
   strip/*.toml                   # Touchstrip-Layouts
   brand/logo.svg
 ```
-- Build-Validierung: viewBox, nur `currentColor`, keine Bitmaps; Icons per `include_bytes!` eingebettet.
-- Galerie aller Icons in allen Stock-Themes: `cargo run --example gallery` → ein PNG für Menschen/CI. Claude öffnet die Galerie nicht.
+- Build-Validierung (`duckydeck-core/build.rs`): viewBox, nur `currentColor`/`none`, keine Bitmaps/Styles; Icons per `include_bytes!` eingebettet (`icons::get`). Kontrasttest misst gerenderte Pixel in allen Stock-Themes.
+- Galerie aller Icons in allen Stock-Themes: `cargo run -p duckydeck-core --example gallery` (→ `target/gallery.png`) → ein PNG für Menschen/CI. Claude öffnet die Galerie nicht.
