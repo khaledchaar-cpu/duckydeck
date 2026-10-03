@@ -29,6 +29,7 @@ QtObject {
   readonly property string importIcon: "Import SVG/PNG…"
   readonly property string searchIconsLibraries: "Search icons and libraries"
   readonly property string allIcons: "All"
+  function loadMore(n) { return "Load more (" + n + " left)" }
   readonly property string noIcons: "No icons found"
   readonly property string useDefaultIcon: "Use default icon"
   readonly property string close: "Close"

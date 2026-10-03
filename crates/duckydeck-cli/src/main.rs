@@ -11,6 +11,8 @@ use tokio::net::unix::OwnedReadHalf;
 
 /// Hits of `icons search`; enough for a picker, small enough for QML.
 const SEARCH_LIMIT: usize = 60;
+/// Page size of `icons browse`.
+const BROWSE_LIMIT: usize = 200;
 
 const USAGE: &str = "\
 usage: duckydeck <command> [--json]
@@ -48,6 +50,8 @@ commands:
   icons library [install|remove <id>]
                         list the free icon libraries (Tabler, Lucide) or
                         download one (network!) / delete it
+  icons browse <library> [<offset>] [--color #rrggbb]
+                        one page (200) of a downloaded library as JSON
   icons search <query> [--color #rrggbb]
                         search downloaded libraries (max. 60 hits); import a
                         hit with icons add <path> <library>-<name>
@@ -197,6 +201,39 @@ async fn main() -> Result<()> {
                 Ok(msg) => println!("{msg}"),
                 Err(e) => fail(json, &e.to_string()),
             }
+            return Ok(());
+        }
+        ["icons", "browse", id] | ["icons", "browse", id, _] => {
+            let base = icon_libraries::dir().context("neither XDG_DATA_HOME nor HOME is set")?;
+            let lib = match icon_libraries::get(id) {
+                Ok(l) => l,
+                Err(e) => fail(json, &e.to_string()),
+            };
+            let offset = match args.get(3).map(|o| o.parse::<usize>()) {
+                None => 0,
+                Some(Ok(o)) => o,
+                Some(Err(_)) => fail(json, "offset must be a number"),
+            };
+            let color = color.as_deref().unwrap_or("#ffffff");
+            let (hits, total) = icon_libraries::browse(&base, lib, offset, BROWSE_LIMIT);
+            let list: Vec<_> = hits
+                .iter()
+                .map(|h| {
+                    let svg = std::fs::read(&h.path)
+                        .ok()
+                        .and_then(|d| duckydeck_core::icons::data_url(&d, color));
+                    serde_json::json!({
+                        "library": h.library,
+                        "name": h.name,
+                        "path": h.path,
+                        "svg": svg,
+                    })
+                })
+                .collect();
+            println!(
+                "{}",
+                serde_json::json!({ "v": 1, "ok": true, "total": total, "icons": list })
+            );
             return Ok(());
         }
         ["icons", "search", query] => {

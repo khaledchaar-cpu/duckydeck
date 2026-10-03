@@ -28,6 +28,10 @@ Rectangle {
   property var libraryHits: []
   property string downloading: ""
   property string libraryError: ""
+  // Pages of the library chosen in the sidebar ("lib:<id>" categories).
+  property var browseHits: []
+  property int browseTotal: 0
+  readonly property string browseLibrary: category.indexOf("lib:") === 0 ? category.slice(4) : ""
 
   signal picked(string name)
   signal importRequested()
@@ -45,7 +49,7 @@ Rectangle {
     for (var i = 0; i < icons.length; i++) m[icons[i].name] = icons[i]
     return m
   }
-  // Categories that have icons, for the sidebar.
+  // Categories that have icons, then the installed libraries, for the sidebar.
   readonly property var categories: {
     var out = []
     for (var o = 0; o < order.length; o++) {
@@ -53,12 +57,41 @@ Rectangle {
         if (icons[i].category === order[o]) { out.push(order[o]); break }
       }
     }
+    for (var l = 0; l < libraries.length; l++) {
+      if (libraries[l].installed) out.push("lib:" + libraries[l].id)
+    }
     return out
+  }
+
+  function categoryLabel(c) {
+    if (c === "") return strings.allIcons
+    if (c.indexOf("lib:") === 0) {
+      for (var l = 0; l < libraries.length; l++) {
+        if ("lib:" + libraries[l].id === c) return libraries[l].name
+      }
+      return c.slice(4)
+    }
+    return strings.groups[c] || c
+  }
+
+  function loadPage(offset) {
+    browseProc.running = false
+    browseProc.offset = offset
+    browseProc.command = ["duckydeck", "icons", "browse", browseLibrary, String(offset), "--color", colorArg]
+    browseProc.running = true
+  }
+
+  onCategoryChanged: {
+    browseHits = []
+    browseTotal = 0
+    if (browseLibrary !== "") loadPage(0)
   }
   // Groups shown in the grid: a search spans everything incl. libraries,
   // otherwise only the chosen category (all when none is chosen).
   readonly property var groups: {
     var q = filter.trim().toLowerCase()
+    if (q === "" && browseLibrary !== "")
+      return browseHits.length > 0 ? [{ category: category, icons: browseHits }] : []
     var out = []
     for (var o = 0; o < order.length; o++) {
       if (q === "" && category !== "" && order[o] !== category) continue
@@ -131,6 +164,20 @@ Rectangle {
       waitForEnd: true
       onStreamFinished: {
         try { browser.libraries = JSON.parse(text).libraries || [] } catch (e) {}
+      }
+    }
+  }
+
+  Process {
+    id: browseProc
+    property int offset: 0
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var msg
+        try { msg = JSON.parse(text) } catch (e) { return }
+        browser.browseTotal = msg.total || 0
+        browser.browseHits = browseProc.offset === 0 ? (msg.icons || []) : browser.browseHits.concat(msg.icons || [])
       }
     }
   }
@@ -237,8 +284,7 @@ Rectangle {
             Text {
               anchors.verticalCenter: parent.verticalCenter
               x: Style.space(8)
-              text: cat.modelData === "" ? browser.strings.allIcons
-                : (browser.strings.groups[cat.modelData] || cat.modelData)
+              text: browser.categoryLabel(cat.modelData)
               color: cat.current ? browser.accent : browser.foreground
               font.family: browser.fontFamily
               font.pixelSize: Style.font.body
@@ -296,7 +342,7 @@ Rectangle {
             spacing: Style.space(6)
 
             Text {
-              text: browser.strings.groups[group.modelData.category] || group.modelData.category
+              text: browser.categoryLabel(group.modelData.category)
               color: browser.foreground
               opacity: 0.6
               font.family: browser.fontFamily
@@ -338,6 +384,16 @@ Rectangle {
               }
             }
           }
+        }
+
+        Button {
+          visible: browser.filter.trim() === "" && browser.browseLibrary !== ""
+            && browser.browseHits.length < browser.browseTotal
+          text: browser.strings.loadMore(browser.browseTotal - browser.browseHits.length)
+          foreground: browser.foreground
+          accent: browser.accent
+          fontFamily: browser.fontFamily
+          onClicked: browser.loadPage(browser.browseHits.length)
         }
       }
     }

@@ -228,6 +228,38 @@ pub fn search(base: &Path, query: &str, limit: usize) -> Vec<Hit> {
     hits.into_iter().take(limit).map(|(_, h)| h).collect()
 }
 
+/// Icons of installed library `lib` sorted by name: `limit` hits from
+/// `offset`, plus the total count.
+pub fn browse(base: &Path, lib: &Library, offset: usize, limit: usize) -> (Vec<Hit>, usize) {
+    if !installed(base, lib) {
+        return (Vec::new(), 0);
+    }
+    let Ok(entries) = std::fs::read_dir(base.join(lib.id)) else {
+        return (Vec::new(), 0);
+    };
+    let mut paths: Vec<PathBuf> = entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|e| e == "svg"))
+        .collect();
+    paths.sort();
+    let total = paths.len();
+    let hits = paths
+        .into_iter()
+        .skip(offset)
+        .take(limit)
+        .filter_map(|path| {
+            let name = path.file_stem()?.to_str()?.to_owned();
+            Some(Hit {
+                library: lib.id,
+                name,
+                path,
+            })
+        })
+        .collect();
+    (hits, total)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -269,6 +301,17 @@ mod tests {
         );
         assert_eq!(search(&base, "smart home", 10).len(), 1);
         assert!(search(&base, " ", 10).is_empty());
+    }
+
+    #[test]
+    fn browse_pages_sorted() {
+        let base = tmp("browse");
+        fake_install(&base, "lucide", "1.51.0", &["c", "a", "b"]);
+        let lib = get("lucide").unwrap();
+        let (hits, total) = browse(&base, lib, 1, 5);
+        assert_eq!(total, 3);
+        let names: Vec<_> = hits.iter().map(|h| h.name.as_str()).collect();
+        assert_eq!(names, ["b", "c"]);
     }
 
     #[test]
