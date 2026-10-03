@@ -1,1 +1,3 @@
-  "duckydeck": {"icon":"󰕮","label":"Stream Deck","description":"Stream Deck + profile, page and brightness","action":"omarchy-shell duckydeck.widget toggle"},
+  "duckydeck": {"icon":"󰕮","label":"Stream Deck","description":"Stream Deck + profile, page, brightness and layout editor"},
+  "duckydeck.panel": {"icon":"󰕮","label":"Panel","description":"Profile, page and brightness","action":"omarchy-shell duckydeck.widget toggle"},
+  "duckydeck.edit": {"icon":"󰏫","label":"Edit","description":"Edit keys, dials and profiles","action":"omarchy-shell shell summon duckydeck.editor"},

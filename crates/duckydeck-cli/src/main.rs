@@ -20,6 +20,7 @@ commands:
   check                 validate config and profiles (no daemon needed)
   export <profile>      print a profile as TOML (also the built-in one); with
                         --json: parsed, 8 keys and 4 dials per page (empty = null)
+  edit                  open the layout editor
   edit <profile> set <page|folder> key|dial <n> <json>
   edit <profile> clear <page|folder> key|dial <n>
   edit <profile> swap <page|folder> key|dial <n> <page|folder> <n>
@@ -109,6 +110,7 @@ async fn main() -> Result<()> {
         }
         ["export", id] if json => return export_json(id),
         ["export", id] => return export(id),
+        ["edit"] => return open_editor().await,
         ["edit", ref rest @ ..] => {
             if let Err(e) = edit(rest) {
                 eprintln!("duckydeck: {e:#}");
@@ -241,6 +243,19 @@ impl std::fmt::Display for Usage {
 }
 
 impl std::error::Error for Usage {}
+
+/// `duckydeck edit` without arguments opens the editor overlay in the shell.
+async fn open_editor() -> Result<()> {
+    use duckydeck_core::command::{CommandRunner, CommandSpec, TokioRunner};
+
+    let spec = CommandSpec::new("omarchy-shell").args(["shell", "summon", "duckydeck.editor"]);
+    let out = TokioRunner
+        .run(&spec)
+        .await
+        .context("could not run omarchy-shell")?;
+    anyhow::ensure!(out.success(), "omarchy-shell failed: {}", out.stderr.trim());
+    Ok(())
+}
 
 fn edit(args: &[&str]) -> Result<()> {
     use duckydeck_core::edit::{self, Kind, Location, SlotRef};
