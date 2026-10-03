@@ -53,16 +53,26 @@ run   = ["omarchy", "theme", "bg", "next"]
 label = "Night light"
 icon  = { on = "nightlight", off = "nightlight-off" }
 run   = ["omarchy", "toggle", "nightlight"]
+# hyprsunset has no change event: checked at startup and after each press.
+state = { command = ["omarchy", "toggle", "nightlight", "--status"], json = "enabled" }
 
 [system.idle]
 label = "Stay awake"
 icon  = { on = "idle-inhibit", off = "idle-inhibit-off" }
 run   = ["omarchy", "toggle", "idle"]
+state = { file = "~/.local/state/omarchy/indicators/stay-awake" }
 
 [system.dnd]
 label = "Silence"
-icon  = "dnd"
+icon  = { on = "dnd", off = "notifications" }
 run   = ["omarchy", "toggle", "notification", "silencing"]
+state = { file = "~/.local/state/omarchy/notifications.json", json = "dnd" }
+
+# No omarchy route; the shell's own IPC target.
+[system.dismiss_notifications]
+label = "Dismiss"
+icon  = "notifications-dismiss"
+run   = ["omarchy-shell", "notifications", "dismissAll"]
 
 # ── Capture ───────────────────────────────────────────────────────────
 [capture.screenshot]
@@ -70,6 +80,22 @@ label    = "Screenshot"
 icon     = "screenshot-region"
 run      = ["omarchy", "capture", "screenshot", "{mode}"]
 defaults = { mode = "smart" }
+
+# The script toggles itself and writes the file while recording; its mtime
+# is the start time. `opts` passes one script option instead of the default
+# "--fullscreen" (e.g. "--with-microphone-audio" records a picked region).
+[capture.screenrecording]
+label    = "Record"
+icon     = { on = "record-stop", off = "record" }
+run      = ["omarchy", "capture", "screenrecording", "{opts}"]
+defaults = { opts = "--fullscreen" }
+state    = { file = "/tmp/omarchy-screenrecord-filename", elapsed = true }
+
+# Same as Omarchy's Super+Print binding (no omarchy route).
+[capture.color_picker]
+label = "Color"
+icon  = "color-picker"
+run   = ["hyprpicker", "-a"]
 
 [capture.ocr]
 label = "OCR"

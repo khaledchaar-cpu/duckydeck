@@ -34,6 +34,7 @@ idle-inhibit = "coffee"
 idle-inhibit-off = "coffee-off"
 notifications = "bell"
 dnd = "bell-off"
+notifications-dismiss = "bell-x"
 settings = "settings"
 terminal-command = "terminal-2"
 

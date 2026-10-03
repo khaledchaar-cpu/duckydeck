@@ -2,18 +2,18 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M5c – Actions: System & Capture (M5b abgeschlossen)
+**Aktueller Milestone:** M6 – IPC & CLI (M5c abgeschlossen)
 
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
-- M5b fertig: `window.move` (swap in Richtung), `window.to_monitor`, `window.monitor_internal`/`window.monitor_mirror`, `window.dispatch`
-- Katalogfeld `raw`: ganzer `hl.dsp.…`-Ausdruck aus dem Profil (einzeilig, Präfix geprüft)
-- Fix: Änderung von `profile` in `config.toml` wechselt beim Live-Reload das Profil
-- Am Gerät abgenommen (außer Multi-Monitor-Actions)
+- M5c: Katalogfeld `state` (`file` per inotify / `command` nach Druck, `json`, `elapsed`), Task `toggles.rs`
+- Toggle-Icons für Nachtlicht, Wach bleiben, Nicht stören; unbekannter Status = `off`
+- Neu: `capture.screenrecording` mit Laufzeit, `capture.color_picker` (hyprpicker), `system.dismiss_notifications` (Icon `bell-x`)
+- Am Gerät abgenommen (OCR/QR nur angetippt)
 
 ## Nächster Schritt
-- M5c: Toggle-`state` (Katalogfeld, Status-Events statt Polling) und fehlende System-/Capture-Einträge laut `docs/spec/actions.md` (Bildschirmaufnahme mit Laufzeitanzeige)
+- M6: Unix-Socket-Protokoll (JSON-Lines) im Daemon + `duckydeck`-CLI-Grundgerüst laut `docs/spec/`
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
@@ -24,7 +24,9 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - `scripts/check.sh` findet `cargo` nur mit `PATH=$HOME/.cargo/bin:$PATH`
 - RSS ~27 MB (Debug) statt < 15 MB – laut Nutzer unkritisch; Release-Build noch nicht gemessen
 - Strip zeigt immer den automatisch gewählten Player, Tasten mit `player = …` ggf. einen anderen
-- Catalog-Actions per `spawn` – Fehler von `omarchy` werden nicht gemeldet (ggf. M5c)
+- Catalog-Actions per `spawn` – Fehler von `omarchy` werden nicht gemeldet
+- Nachtlicht-Status ohne Event: Änderung per Tastatur erst beim nächsten Druck sichtbar
+- Aufnahme-Zeit läuft während des Nachbearbeitens (ffmpeg) nach dem Stopp kurz weiter
 - Long-Press-Bestätigung (Power off) und mehrseitige Profile/Swipe noch nicht am Gerät geprüft
 - Erstanbieter-Panels sind `bar-widget`-Plugins (`entryPoints.barWidget`) – bei M7 beachten
 - Hyprland-Zugriff noch nicht hinter Trait (Spec architecture.md: Fake für Tests) – Logik ist in Core testbar, I/O nicht

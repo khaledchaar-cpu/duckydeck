@@ -10,6 +10,7 @@ mod mpris;
 mod screen;
 mod surface;
 mod themewatch;
+mod toggles;
 
 use std::time::{Duration, Instant};
 
@@ -75,20 +76,33 @@ async fn main() -> Result<()> {
     tokio::spawn(mpris::run(media_rx, tx.clone()));
     let (hypr_tx, hypr_rx) = mpsc::unbounded_channel();
     tokio::spawn(hyprland::run(hypr_rx, tx.clone()));
+    let (toggle_tx, toggle_rx) = mpsc::unbounded_channel();
+    {
+        let (catalog, tx) = (catalog.clone(), tx.clone());
+        tokio::spawn(async move {
+            if let Err(e) = toggles::run(catalog, toggle_rx, tx).await {
+                tracing::warn!(error = %e, "toggle watcher stopped");
+            }
+        });
+    }
     let mut painter = screen::Screen::new(
         font,
         store,
         catalog,
         unavailable,
-        jobs_tx,
-        media_tx,
-        hypr_tx,
+        screen::Tasks {
+            jobs: jobs_tx,
+            media: media_tx,
+            hypr: hypr_tx,
+            toggles: toggle_tx,
+        },
     )?;
     let mut deck = try_connect(&mut painter, &tx);
     let mut gestures = Recognizer::default();
     loop {
         let deadline = gestures.deadline();
         let strip_deadline = deck.as_ref().and_then(|_| painter.strip_deadline());
+        let key_deadline = deck.as_ref().and_then(|_| painter.key_deadline());
         let ev = tokio::select! {
             ev = rx.recv() => match ev {
                 Some(ev) => ev,
@@ -105,6 +119,14 @@ async fn main() -> Result<()> {
                     && let Err(e) = painter.draw_strip(d)
                 {
                     tracing::warn!(error = %e, "strip redraw failed");
+                }
+                continue;
+            }
+            () = sleep_until(key_deadline) => {
+                if let Some(d) = &mut deck
+                    && let Err(e) = painter.draw_keys(d)
+                {
+                    tracing::warn!(error = %e, "key redraw failed");
                 }
                 continue;
             }
@@ -166,6 +188,14 @@ async fn main() -> Result<()> {
                     && let Err(e) = painter.draw_keys(d).and_then(|()| painter.draw_strip(d))
                 {
                     tracing::warn!(error = %e, "redraw after workspace change failed");
+                }
+            }
+            DeckEvent::Toggles(t) => {
+                if painter.set_toggles(t)
+                    && let Some(d) = &mut deck
+                    && let Err(e) = painter.draw_keys(d)
+                {
+                    tracing::warn!(error = %e, "redraw after toggle change failed");
                 }
             }
             DeckEvent::Disconnected => {

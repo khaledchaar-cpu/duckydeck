@@ -5,7 +5,7 @@
 //! [`levels`](crate::levels) worker.
 
 use std::collections::BTreeSet;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use anyhow::{Context, Result};
 use duckydeck_core::catalog::{Catalog, Confirm, Exec};
@@ -17,6 +17,7 @@ use duckydeck_core::media::{self, MediaKey, Players, Status};
 use duckydeck_core::nav::{BACK_ACTION, Nav, PAGE_ACTION, Press};
 use duckydeck_core::render::{GlyphView, KeyView, MediaView, Renderer, SegmentView};
 use duckydeck_core::theme::{Role, Theme};
+use duckydeck_core::toggle;
 use duckydeck_core::{CommandRunner, TokioRunner};
 use image::RgbImage;
 use tokio::sync::mpsc::UnboundedSender;
@@ -26,6 +27,7 @@ use crate::gesture::{Control, Gesture};
 use crate::levels::Job;
 use crate::mpris;
 use crate::surface::{KEY_SIZE, STRIP_H};
+use crate::toggles::Toggles;
 
 const FALLBACK_THEME: &str =
     "background = \"#121212\"\nforeground = \"#bebebe\"\naccent = \"#e68e0d\"";
@@ -38,6 +40,14 @@ const MEDIA_TICK: Duration = Duration::from_secs(1);
 /// The media view stays this long after playback stops: players report a
 /// short pause while seeking.
 const MEDIA_HOLD: Duration = Duration::from_millis(1500);
+
+/// Channels to the background tasks.
+pub struct Tasks {
+    pub jobs: UnboundedSender<Job>,
+    pub media: UnboundedSender<mpris::Press>,
+    pub hypr: UnboundedSender<String>,
+    pub toggles: UnboundedSender<String>,
+}
 
 pub struct Screen {
     renderer: Renderer,
@@ -60,6 +70,9 @@ pub struct Screen {
     /// Lua dispatchers for the [`hyprland`](crate::hyprland) task.
     hypr_tx: UnboundedSender<String>,
     workspaces: Workspaces,
+    toggles: Toggles,
+    /// Pressed toggle actions for the [`toggles`](crate::toggles) task.
+    toggle_tx: UnboundedSender<String>,
 }
 
 impl Screen {
@@ -68,9 +81,7 @@ impl Screen {
         store: Store,
         catalog: Catalog,
         unavailable: BTreeSet<String>,
-        jobs: UnboundedSender<Job>,
-        media_tx: UnboundedSender<mpris::Press>,
-        hypr_tx: UnboundedSender<String>,
+        tasks: Tasks,
     ) -> Result<Self> {
         let theme = match load_theme() {
             Some(t) => t,
@@ -84,15 +95,17 @@ impl Screen {
             nav,
             catalog,
             unavailable,
-            jobs,
+            jobs: tasks.jobs,
             levels: Levels::default(),
-            media_tx,
+            media_tx: tasks.media,
             players: Players::default(),
             overlay_until: None,
             media_tick: None,
             media_hold: None,
-            hypr_tx,
+            hypr_tx: tasks.hypr,
             workspaces: Workspaces::default(),
+            toggles: Toggles::new(),
+            toggle_tx: tasks.toggles,
         })
     }
 
@@ -247,6 +260,33 @@ impl Screen {
         changed
     }
 
+    /// Returns whether a shown key changed.
+    pub fn set_toggles(&mut self, t: Toggles) -> bool {
+        let keys = self.nav.keys(&self.store.current);
+        let changed = keys
+            .iter()
+            .flatten()
+            .any(|b| self.toggles.get(&b.action) != t.get(&b.action));
+        self.toggles = t;
+        changed
+    }
+
+    /// Next full second of a shown recording time, if any.
+    pub fn key_deadline(&self) -> Option<Instant> {
+        let now = SystemTime::now();
+        self.nav
+            .keys(&self.store.current)
+            .iter()
+            .flatten()
+            .filter_map(|b| self.toggles.get(&b.action)?.since)
+            .map(|since| {
+                let elapsed = now.duration_since(since).unwrap_or_default();
+                Instant::now() + Duration::from_secs(1)
+                    - Duration::from_nanos(elapsed.subsec_nanos().into())
+            })
+            .min()
+    }
+
     /// Returns whether a shown dial changed.
     pub fn set_levels(&mut self, levels: Levels) -> bool {
         let old = std::mem::replace(&mut self.levels, levels);
@@ -375,6 +415,9 @@ impl Screen {
                     Ok(())
                 }
             });
+        if entry.state.as_ref().is_some_and(|s| !s.command.is_empty()) {
+            let _ = self.toggle_tx.send(b.action.clone());
+        }
         match res {
             Ok(()) => tracing::info!(action = %b.action, "action started"),
             Err(e) => tracing::warn!(action = %b.action, error = %e, "action failed"),
@@ -473,6 +516,10 @@ impl Screen {
     /// empty for other structure actions (the icon says it all), else the
     /// action name without its group.
     fn label(&self, b: &Binding) -> String {
+        if let Some(since) = self.toggles.get(&b.action).and_then(|t| t.since) {
+            let d = SystemTime::now().duration_since(since).unwrap_or_default();
+            return toggle::elapsed_text(d);
+        }
         if let Some(l) = &b.label {
             return l.clone();
         }
@@ -520,7 +567,7 @@ impl Screen {
             return icons::get(dir);
         }
         if let Some(e) = self.catalog.get(&b.action) {
-            return icons::get(e.icon.default_name());
+            return icons::get(e.icon.name(self.toggles.get(&b.action).map(|t| t.on)));
         }
         let name = match b.action.as_str() {
             BACK_ACTION => "back".to_owned(),

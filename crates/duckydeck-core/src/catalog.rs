@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use serde::Deserialize;
 
 use crate::command::CommandSpec;
+use crate::toggle::StateSource;
 
 /// The built-in catalog, embedded at build time.
 pub const CATALOG: &str = include_str!("../../../actions/catalog.toml");
@@ -25,6 +26,12 @@ pub enum CatalogError {
     BadArg { action: String, arg: String },
     #[error("action `{action}`: argument `{arg}` may only contain letters, digits and `_+-:`")]
     UnsafeArg { action: String, arg: String },
+    #[error(
+        "action `{0}`: `state` needs exactly one of `file` and `command`; `elapsed` needs `file`"
+    )]
+    BadState(String),
+    #[error("action `{0}`: `state` needs an `{{ on, off }}` icon")]
+    StateIcon(String),
     #[error("invalid output of `omarchy commands --json`: {0}")]
     Routes(#[from] serde_json::Error),
 }
@@ -38,11 +45,12 @@ pub enum Icon {
 }
 
 impl Icon {
-    /// Icon shown while the state is unknown.
-    pub fn default_name(&self) -> &str {
+    /// Icon for a toggle state; `off` while the state is unknown.
+    pub fn name(&self, on: Option<bool>) -> &str {
         match self {
             Self::Single(n) => n,
-            Self::Toggle { on, .. } => on,
+            Self::Toggle { on: n, .. } if on == Some(true) => n,
+            Self::Toggle { off, .. } => off,
         }
     }
 
@@ -80,6 +88,8 @@ pub struct Entry {
     /// Placeholder values used when the binding does not set them.
     #[serde(default)]
     pub defaults: toml::Table,
+    /// Where the toggle state comes from; needs an `{ on, off }` icon.
+    pub state: Option<StateSource>,
 }
 
 impl Entry {
@@ -200,6 +210,15 @@ impl Catalog {
             .find(|(_, e)| e.run.is_empty() == e.dispatch.is_none())
         {
             return Err(CatalogError::EmptyRun(id.clone()));
+        }
+        for (id, e) in &entries {
+            let Some(st) = &e.state else { continue };
+            if !st.is_valid() {
+                return Err(CatalogError::BadState(id.clone()));
+            }
+            if !matches!(e.icon, Icon::Toggle { .. }) {
+                return Err(CatalogError::StateIcon(id.clone()));
+            }
         }
         Ok(Self { entries })
     }
@@ -354,6 +373,21 @@ mod tests {
             Catalog::parse("[x.y]\nlabel = \"Y\"\nicon = \"a\"\nrun = [\"a\"]\ndispatch = \"b\"")
                 .is_err()
         );
+    }
+
+    #[test]
+    fn state_needs_one_source_and_toggle_icon() {
+        let entry = |extra: &str| format!("[x.y]\nlabel = \"Y\"\nrun = [\"a\"]\n{extra}");
+        let toggle = "icon = { on = \"a\", off = \"b\" }";
+        assert!(Catalog::parse(&entry(&format!("{toggle}\nstate = {{ file = \"/x\" }}"))).is_ok());
+        assert!(matches!(
+            Catalog::parse(&entry(&format!("{toggle}\nstate = {{ json = \"k\" }}"))),
+            Err(CatalogError::BadState(_))
+        ));
+        assert!(matches!(
+            Catalog::parse(&entry("icon = \"a\"\nstate = { file = \"/x\" }")),
+            Err(CatalogError::StateIcon(_))
+        ));
     }
 
     #[test]

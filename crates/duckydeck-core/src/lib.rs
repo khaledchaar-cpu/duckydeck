@@ -15,3 +15,4 @@ pub use command::{
 };
 pub mod render;
 pub mod theme;
+pub mod toggle;

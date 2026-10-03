@@ -36,6 +36,8 @@ pub enum DeckEvent {
     Media(duckydeck_core::media::Players),
     /// The focused workspace or workspace occupancy changed.
     Workspaces(duckydeck_core::hypr::Workspaces),
+    /// A catalog toggle (night light, recording …) changed state.
+    Toggles(crate::toggles::Toggles),
 }
 
 /// Handle used for output (images, brightness). Input runs on a separate

@@ -24,7 +24,7 @@ confirm = "long-press"
 label = "Night light"
 icon  = { on = "nightlight", off = "nightlight-off" }
 run   = ["omarchy", "toggle", "nightlight"]
-state = { kind = "command", check = ["…"] }   # optional, nur wenn es ein Event/Status gibt
+state = { command = ["omarchy", "toggle", "nightlight", "--status"], json = "enabled" }
 ```
 
 - `dispatch = 'hl.dsp.window.close()'` statt `run`: Hyprland-Dispatcher als Lua-Ausdruck (Hyprland ≥ 0.55 mit Lua-Config), direkt über `.socket.sock` gesendet. Platzhalterwerte dürfen nur Buchstaben, Ziffern und `_+-:` enthalten (bleiben im Lua-String); `{ … }` ohne Bezeichner ist eine Lua-Tabelle, kein Platzhalter. `raw = ["expr"]` erlaubt für diesen Platzhalter einen ganzen Ausdruck aus dem Profil (muss mit `hl.dsp.` beginnen, einzeilig).
@@ -32,7 +32,10 @@ state = { kind = "command", check = ["…"] }   # optional, nur wenn es ein Even
 - Parameter aus dem Profil per Platzhalter als **eigenes Argument** (`"{n}"`, auch innerhalb eines Arguments wie `"--size={n}"`), nie String-Verkettung in einer Shell. `defaults = { mode = "smart" }` liefert Werte, die das Profil nicht setzt.
 - `confirm = "long-press"`: Tap tut nichts, nur Long-Press führt aus (Herunterfahren, Neustart, Abmelden). Andere Actions laufen bei Tap und Long-Press.
 - Ohne passende `omarchy`-Route (z. B. Suspend: `systemctl suspend`) entfällt die Routenprüfung.
-- `state` (Toggle-Status) kommt erst mit M5c; bis dahin zeigt ein `{ on, off }`-Icon immer `on`.
+- `state` (Toggle-Status, braucht ein `{ on, off }`-Icon; unbekannt = `off`), genau eine Quelle:
+  - `file = "~/…"`: per inotify beobachtet (nächstes existierendes Verzeichnis); existiert = an, mit `json = "key"` zählt ein boolescher Schlüssel darin.
+  - `command = [...]`: läuft beim Start und 0,3 s/2,5 s nach jedem Druck der Action, kein Polling (Nachtlicht: Änderungen per Tastatur erst beim nächsten Druck sichtbar). Ohne `json` zählt der Exit-Code.
+  - `elapsed = true` (nur mit `file`): solange an, zeigt die Taste statt des Labels die Zeit seit mtime (`m:ss`); Neuzeichnen sekündlich nur dann.
 - Ein einziger Test prüft den ganzen Katalog: Icons existieren, Routen sind gültig, Platzhalter vollständig, Aufrufe über `RecordingRunner` korrekt.
 
 **Eigener Rust-Code nur für Actions mit Logik:** Regler (Lautstärke, Mikrofon, Helligkeit, Workspace-Scroll), MPRIS/Medien-Strip, Workspace-Status, Fokussieren-oder-Starten, App-läuft-Badge, Aufnahme-Laufzeit, Struktur-Actions (Seite, Ordner, Profil, Multi, Toggle).
@@ -43,7 +46,7 @@ Unten steht bei jeder Kategorie, was Katalog (K) und was Rust (R) ist.
 - Sperren, Suspend, Neustart, Herunterfahren (`omarchy system …`; Ausschalten nur per Long-Press)
 - Omarchy-Menü öffnen, Theme wechseln, Hintergrund wechseln (`omarchy theme bg next`)
 - Schalter über `omarchy toggle …` (Nachtlicht, Idle-Inhibitor …)
-- „Nicht stören“ / Benachrichtigungen verwerfen (Shell)
+- „Nicht stören“ / Benachrichtigungen verwerfen (Shell: `omarchy-shell notifications dismissAll`, keine `omarchy`-Route)
 - WLAN-/Bluetooth-/Audio-Panel der Shell öffnen; `omarchy bluetooth power toggle`
 - Erinnerung (`omarchy reminder <min>`), Coding-Agent (`omarchy agent`)
 - Beliebiger Befehl (Argumentliste, keine Shell-Interpolation)
@@ -51,7 +54,7 @@ Unten steht bei jeder Kategorie, was Katalog (K) und was Rust (R) ist.
 ## Capture (M5c) – K, Aufnahme-Laufzeit R
 - Screenshot Bereich/Fenster/Vollbild (`omarchy capture screenshot …`)
 - Aufnahme starten/stoppen mit Laufzeitanzeige (`omarchy capture screenrecording …`)
-- OCR, QR-Code, Farbwähler
+- OCR, QR-Code, Farbwähler (`hyprpicker -a` wie Omarchys Super+Print, keine Route)
 
 ## Multimedia (M5a) – R, Ausgabegerät wechseln K
 - **Regler:** Lautstärke (`omarchy audio output volume ±N`, Druck = Mute), Mikrofon (Druck = `omarchy audio input mute`), Helligkeit (`omarchy brightness display ±N%`), Tastaturbeleuchtung
