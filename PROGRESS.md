@@ -2,21 +2,22 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** alle Milestones (M1–M9) fertig, v0.1.0 auf GitHub veröffentlicht
+**Aktueller Milestone:** alle Milestones (M1–M9) fertig, v0.1.2 auf GitHub; v2 „Lautstärke pro App“ fertig (unveröffentlicht)
 
-Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
+Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Lokales Paket 0.1.2 mit App-Lautstärke installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- Release v0.1.1 und v0.1.2 (Idee 3) auf GitHub
-- Idee 3: eigene Icons (`~/.config/duckydeck/icons`, `icons add/remove`, Import im Editor über `omarchy file select`)
-- Freie Bibliotheken Tabler/Lucide: Download auf Klick (gepinnt + sha256), `icons library/search/browse`
-- Editor: großer Icon-Browser über Aktionsliste/Deck (Kategorien, Suche, Bibliotheken seitenweise); vom Nutzer getestet
+- Release v0.1.2 (Idee 3) auf GitHub; Idee 4 auf späteres Release zurückgestellt
+- Erinnerungs-Text live über systemd-User-Manager-Signale (`UnitNew`/`UnitRemoved`)
+- Regler `media.app_volume`: Drehen = Lautstärke, Drücken = Mute, gedrückt drehen = App wählen; Fokus-Modus verworfen (fragil)
+- `duckydeck audio apps --json`, Editor-Auswahlfeld `app` (Kind `audio_app`), Beispielprofil Seite 2; vom Nutzer am Gerät getestet
 
 ## Nächster Schritt
-- Offen: nächstes Thema mit Nutzer abstimmen (Idee 4 „weitere Modelle“ auf späteres Release zurückgestellt, Entscheidung 2026-10-03)
+- Release 0.1.3 mit Erinnerung live + App-Lautstärke (Version erhöhen, Paket, push/Release nach Nutzer-OK)
 
 ## Offene Probleme / Notizen
-- Tastaturlicht-Text nur nach Druck und Start aktuell (kein Event); Erinnerung live über systemd-Signale
+- Tastaturlicht-Text nur nach Druck und Start aktuell (kein Event)
+- App-Lautstärke: gewählte App gilt nur bis Daemon-Neustart (bewusst, kein Zustand gespeichert)
 - Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)
 - Multi-Monitor-Actions nur mit DP-1 geprüft; Bar-Tooltip noch nicht angesehen
 - Profil-Dropdown zeigte einmal alten Wert nach Laufzeit-Profilwechsel; nicht reproduzierbar
