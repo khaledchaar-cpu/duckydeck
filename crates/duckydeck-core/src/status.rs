@@ -24,6 +24,9 @@ pub struct TextSource {
     /// Events that re-read the text, besides startup and presses.
     #[serde(default)]
     pub refresh: Vec<Trigger>,
+    /// Placeholder name: instead of showing the text, the key is highlighted
+    /// when the text equals the binding's value (e.g. the active profile).
+    pub active: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -31,16 +34,33 @@ pub struct TextSource {
 pub enum Builtin {
     /// Short name of the default audio sink.
     AudioOutput,
+    /// Name of the connected Bluetooth device ("Name +1" for more).
+    BluetoothDevice,
 }
 
 /// Event that re-reads a status text.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Trigger {
     /// A sink, source or the server changed (`pactl subscribe`).
     Audio,
     /// An MPRIS player appeared, left or changed its playback status.
     Media,
+    /// A BlueZ property changed (adapter power, device connection).
+    Bluetooth,
+    /// power-profiles-daemon changed a property (active profile).
+    PowerProfile,
+}
+
+impl Trigger {
+    /// System-bus service whose `PropertiesChanged` signals fire it.
+    pub fn system_bus_service(self) -> Option<&'static str> {
+        match self {
+            Self::Bluetooth => Some("org.bluez"),
+            Self::PowerProfile => Some("net.hadess.PowerProfiles"),
+            Self::Audio | Self::Media => None,
+        }
+    }
 }
 
 impl TextSource {
@@ -69,8 +89,10 @@ impl TextSource {
 
     /// Reads the current text.
     pub async fn read(&self, runner: &dyn CommandRunner) -> Option<String> {
-        if let Some(Builtin::AudioOutput) = self.builtin {
-            return audio_output(runner).await;
+        match self.builtin {
+            Some(Builtin::AudioOutput) => return audio_output(runner).await,
+            Some(Builtin::BluetoothDevice) => return bluetooth_device(runner).await,
+            None => {}
         }
         let (program, args) = self.command.split_first()?;
         let spec = CommandSpec::new(program.clone()).args(args.to_vec());
@@ -99,6 +121,35 @@ pub async fn audio_output(runner: &dyn CommandRunner) -> Option<String> {
         .ok()
         .filter(|o| o.success())?;
     sink_name(&list.stdout, &name)
+}
+
+/// Connected Bluetooth devices, via `bluetoothctl devices Connected`.
+pub async fn bluetooth_device(runner: &dyn CommandRunner) -> Option<String> {
+    let out = runner
+        .run(&CommandSpec::new("bluetoothctl").args(["devices", "Connected"]))
+        .await
+        .ok()
+        .filter(|o| o.success())?;
+    connected_devices(&out.stdout)
+}
+
+/// "Name" or "Name +N" from `bluetoothctl devices` lines
+/// (`Device AA:BB:CC:DD:EE:FF Name`).
+pub fn connected_devices(stdout: &str) -> Option<String> {
+    let names: Vec<&str> = stdout
+        .lines()
+        .filter_map(|l| {
+            l.strip_prefix("Device ")?
+                .split_once(' ')
+                .map(|(_, n)| n.trim())
+        })
+        .filter(|n| !n.is_empty())
+        .collect();
+    let first = names.first()?;
+    Some(match names.len() {
+        1 => (*first).to_owned(),
+        n => format!("{first} +{}", n - 1),
+    })
 }
 
 /// Short name of sink `name` in `pactl -f json list sinks` output.
@@ -166,6 +217,15 @@ mod tests {
         assert_eq!(sink_name(SINKS, "bare"), Some("Bare Sink".into()));
         assert_eq!(sink_name(SINKS, "gone"), None);
         assert_eq!(sink_name("nope", "usb"), None);
+    }
+
+    #[test]
+    fn bluetooth_names() {
+        assert_eq!(connected_devices(""), None);
+        let one = "Device 11:22:33:44:55:66 WH-1000XM4\n";
+        assert_eq!(connected_devices(one), Some("WH-1000XM4".into()));
+        let two = "Device 11:22:33:44:55:66 WH-1000XM4\nDevice AA:BB:CC:DD:EE:FF MX Keys\n";
+        assert_eq!(connected_devices(two), Some("WH-1000XM4 +1".into()));
     }
 
     #[tokio::test]

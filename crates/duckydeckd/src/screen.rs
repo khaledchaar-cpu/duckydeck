@@ -837,6 +837,7 @@ impl Screen {
                 .and_then(|b| Some((MediaKey::from_binding(b)?, b)))
             {
                 Some((k, b)) if !enabled(&self.players, k, b) => Role::Muted,
+                _ if binding.as_ref().is_some_and(|b| self.is_active(b)) => Role::Accent,
                 _ => Role::Foreground,
             },
             bg: if pressed {
@@ -913,7 +914,13 @@ impl Screen {
             let d = SystemTime::now().duration_since(since).unwrap_or_default();
             return toggle::elapsed_text(d);
         }
-        if let Some(t) = self.texts.get(&b.action) {
+        if let Some(t) = self.texts.get(&b.action)
+            && self
+                .catalog
+                .get(&b.action)
+                .and_then(|e| e.text.as_ref()?.active.as_ref())
+                .is_none()
+        {
             return t.clone();
         }
         if let Some(l) = &b.label {
@@ -950,6 +957,19 @@ impl Screen {
             name = format!("{name} {n}");
         }
         name
+    }
+
+    /// Whether the status text equals the binding's value of the entry's
+    /// `active` placeholder (e.g. the active power profile).
+    fn is_active(&self, b: &Binding) -> bool {
+        let Some(e) = self.catalog.get(&b.action) else {
+            return false;
+        };
+        let Some(name) = e.text.as_ref().and_then(|t| t.active.as_ref()) else {
+            return false;
+        };
+        let value = b.args.get(name).or_else(|| e.defaults.get(name));
+        value.and_then(|v| v.as_str()) == self.texts.get(&b.action).map(String::as_str)
     }
 
     /// The app's own icon for `launcher.app`, else the built-in icon.

@@ -90,7 +90,8 @@ label = "Bluetooth"
 icon  = { on = "bluetooth", off = "bluetooth-off" }
 run   = ["omarchy", "bluetooth", "power", "toggle"]
 # No change event; the exit code of `is-on` is the state.
-state = { command = ["omarchy", "bluetooth", "power", "is-on"] }
+state = { command = ["omarchy", "bluetooth", "power", "is-on"], refresh = ["bluetooth"] }
+text  = { builtin = "bluetooth-device", refresh = ["bluetooth"] }
 
 [system.power_profile]
 label    = "Power profile"
@@ -98,6 +99,9 @@ icon     = "power-profile"
 run      = ["omarchy", "powerprofiles", "set", "autodetect", "{profile}"]
 defaults = { profile = "balanced" }
 choices  = { profile = ["power-saver", "balanced", "performance"] }
+choice_icons = { profile = { "power-saver" = "power-saver", "balanced" = "power-profile", "performance" = "power-performance" } }
+# No omarchy getter for the active profile; the key lights up when active.
+text     = { command = ["powerprofilesctl", "get"], refresh = ["power-profile"], active = "profile" }
 
 [system.touchpad]
 label = "Touchpad"

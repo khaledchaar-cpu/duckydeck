@@ -1,6 +1,7 @@
 //! DuckyDeck daemon: owns the Stream Deck +, renders keys and runs actions.
 
 mod configwatch;
+mod dbuswatch;
 mod device;
 mod gesture;
 mod hyprland;
@@ -91,6 +92,11 @@ async fn main() -> Result<()> {
             }
         });
     }
+    tokio::spawn(dbuswatch::run(
+        catalog.clone(),
+        text_tx.clone(),
+        toggle_tx.clone(),
+    ));
     duckydeck_core::check::notify_problems(&store.current, &catalog, &runner);
     let mut painter = screen::Screen::new(
         font,

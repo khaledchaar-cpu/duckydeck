@@ -40,6 +40,8 @@ terminal-command = "terminal-2"
 
 reminder = "alarm"
 power-profile = "gauge"
+power-saver = "leaf"
+power-performance = "rocket"
 touchpad = "hand-click"
 shell-panel = "adjustments-horizontal"
 

@@ -38,7 +38,7 @@ pub const STRIP_W: u32 = 800;
 const MEDIA_ICON: f32 = 40.0;
 const MEDIA_TITLE_PX: f32 = 26.0;
 const MEDIA_ARTIST_PX: f32 = 20.0;
-const MEDIA_TIME_W: f32 = 140.0;
+const MEDIA_TIME_W: f32 = 180.0;
 const MEDIA_BAR_TOP: f32 = 80.0;
 const MEDIA_BAR_H: f32 = 6.0;
 
