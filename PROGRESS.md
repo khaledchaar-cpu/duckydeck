@@ -7,7 +7,7 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
-- Repo auf GitHub (privat; fürs AUR öffentlich machen) (`khaledchaar-cpu/duckydeck`), History auf noreply-Adresse umgeschrieben; CI erster Lauf grün
+- Repo auf GitHub (privat) (`khaledchaar-cpu/duckydeck`), History auf noreply-Adresse umgeschrieben; CI erster Lauf grün
 - `README.md` (Englisch): Installation, Bedienung, Config, Action-Tabelle, Multi/Toggle, Entfernen; Beispiele mit `duckydeck check` validiert
 - Shell-Benachrichtigung „Stream Deck + connected“ beim Einstecken (und nach Erst-Setup) – vom Nutzer am Gerät bestätigt
 - M8: `packaging/PKGBUILD`, `duckydeck.service`, udev-Regel startet den Dienst beim Einstecken, `LICENSE` (MIT); Paket installiert und am Gerät geprüft: Einstecken startet den Dienst, Setup automatisch, RSS 13,5 MB
@@ -16,7 +16,8 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - M8: Auto-Profilwechsel (`duckydeck_core::context`, Event `activewindow` + `j/activewindow` beim Verbinden) – mit Fake-Device gegen echtes Hyprland geprüft
 
 ## Nächster Schritt
-- Tag `v0.1.0` + GitHub-Release, dann `sha256sums` im PKGBUILD + `.SRCINFO`, AUR-Upload (Nutzer braucht AUR-Account mit SSH-Key)
+- M8 bis auf Release fertig. AUR zurückgestellt (Nutzer: Repo bleibt vorerst privat). Bis dahin: offene Punkte unten abarbeiten oder Paket lokal per `makepkg -d` neu bauen
+- Später: Repo öffentlich, Tag `v0.1.0`, `sha256sums` + `.SRCINFO`, AUR (Account + SSH-Key nötig)
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
