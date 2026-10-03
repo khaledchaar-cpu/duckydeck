@@ -1,14 +1,19 @@
-//! Dial actions with state: output volume, microphone, display brightness.
+//! Dial actions with state: output volume, microphone, display brightness,
+//! per-app volume.
 //!
 //! Turning and pressing map to `omarchy` routes (which also show the OSD);
 //! the shown level is read back from `pactl` and `omarchy brightness display`.
+//! App volume needs the current streams, see [`crate::app_audio`].
 
+use crate::app_audio;
 use crate::command::{CommandError, CommandRunner, CommandSpec};
 use crate::config::Binding;
 
 const DEFAULT_STEP: i64 = 5;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub const APP_VOLUME_ACTION: &str = "media.app_volume";
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Dial {
     /// Turn = `omarchy audio output volume ±N`, press = mute toggle.
     Volume { step: u8 },
@@ -16,6 +21,10 @@ pub enum Dial {
     Mic,
     /// Turn = `omarchy brightness display ±N%`, press does nothing.
     Brightness { step: u8 },
+    /// Turn = volume of the app's streams, press = their mute, pressed
+    /// turn = pick another playing app. `app`: the picked app (from the
+    /// profile: the app to start with; `None` = first playing app).
+    AppVolume { app: Option<String>, step: u8 },
 }
 
 impl Dial {
@@ -33,19 +42,30 @@ impl Dial {
             "media.volume" => Some(Self::Volume { step: step() }),
             "media.mic" => Some(Self::Mic),
             "display.brightness" => Some(Self::Brightness { step: step() }),
+            APP_VOLUME_ACTION => Some(Self::AppVolume {
+                app: b
+                    .args
+                    .get("app")
+                    .and_then(|v| v.as_str())
+                    .map(str::trim)
+                    .filter(|a| !a.is_empty())
+                    .map(str::to_owned),
+                step: step(),
+            }),
             _ => None,
         }
     }
 
-    /// Command for `delta` detents (negative = counter-clockwise).
-    pub fn twist(self, delta: i32) -> Option<CommandSpec> {
+    /// Command for `delta` detents (negative = counter-clockwise); `None`
+    /// for app volume, which depends on the current streams.
+    pub fn twist(&self, delta: i32) -> Option<CommandSpec> {
         if delta == 0 {
             return None;
         }
         let sign = if delta > 0 { '+' } else { '-' };
         match self {
             Self::Volume { step } => {
-                let n = u32::from(step) * delta.unsigned_abs();
+                let n = u32::from(*step) * delta.unsigned_abs();
                 Some(CommandSpec::omarchy([
                     "audio".into(),
                     "output".into(),
@@ -53,9 +73,9 @@ impl Dial {
                     format!("{sign}{n}"),
                 ]))
             }
-            Self::Mic => None,
+            Self::Mic | Self::AppVolume { .. } => None,
             Self::Brightness { step } => {
-                let n = (u32::from(step) * delta.unsigned_abs()).min(100);
+                let n = (u32::from(*step) * delta.unsigned_abs()).min(100);
                 let arg = if delta > 0 {
                     format!("+{n}%")
                 } else {
@@ -70,7 +90,7 @@ impl Dial {
         }
     }
 
-    pub fn press(self) -> Option<CommandSpec> {
+    pub fn press(&self) -> Option<CommandSpec> {
         match self {
             Self::Volume { .. } => Some(CommandSpec::omarchy([
                 "audio",
@@ -79,25 +99,31 @@ impl Dial {
                 "mute-toggle",
             ])),
             Self::Mic => Some(CommandSpec::omarchy(["audio", "input", "mute"])),
-            Self::Brightness { .. } => None,
+            Self::Brightness { .. } | Self::AppVolume { .. } => None,
         }
     }
 }
 
 /// Last known levels; `None` = unknown (not shown).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Levels {
     pub volume: Option<u8>,
     pub muted: Option<bool>,
     pub mic_volume: Option<u8>,
     pub mic_muted: Option<bool>,
     pub brightness: Option<u8>,
+    /// All playback streams, for app volume dials.
+    pub streams: Vec<app_audio::Stream>,
 }
 
 impl Levels {
     /// What a dial shows: level in percent and whether it is muted.
-    pub fn of(&self, dial: Dial) -> (Option<u8>, bool) {
+    pub fn of(&self, dial: &Dial) -> (Option<u8>, bool) {
         match dial {
+            Dial::AppVolume { app: Some(app), .. } => {
+                app_audio::level(&app_audio::matching(&self.streams, app))
+            }
+            Dial::AppVolume { app: None, .. } => (None, false),
             Dial::Volume { .. } => (self.volume, self.muted == Some(true)),
             Dial::Mic => (self.mic_volume, self.mic_muted == Some(true)),
             Dial::Brightness { .. } => (self.brightness, false),
@@ -120,6 +146,7 @@ pub async fn read_audio(runner: &dyn CommandRunner, levels: &mut Levels) {
     levels.mic_muted = stdout(runner, &pactl(["get-source-mute", "@DEFAULT_SOURCE@"]))
         .await
         .and_then(|s| parse_mute(&s));
+    levels.streams = app_audio::read_streams(runner).await;
 }
 
 /// Brightness of the focused display in percent.
@@ -201,6 +228,17 @@ mod tests {
         assert_eq!(
             Dial::from_binding(&binding("media.mic", "")),
             Some(Dial::Mic)
+        );
+        assert_eq!(
+            Dial::from_binding(&binding("media.app_volume", r#"app = " mpv ""#)),
+            Some(Dial::AppVolume {
+                app: Some("mpv".into()),
+                step: 5
+            })
+        );
+        assert_eq!(
+            Dial::from_binding(&binding("media.app_volume", "app = ''")),
+            Some(Dial::AppVolume { app: None, step: 5 })
         );
         assert_eq!(Dial::from_binding(&binding("system.lock", "")), None);
     }

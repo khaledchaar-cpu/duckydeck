@@ -1,5 +1,6 @@
 //! Shared library for the DuckyDeck daemon and CLI.
 
+pub mod app_audio;
 pub mod appicon;
 pub mod apps;
 pub mod catalog;

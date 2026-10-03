@@ -10,11 +10,12 @@ use std::rc::Rc;
 use std::time::{Duration, Instant, SystemTime};
 
 use anyhow::{Context, Result};
+use duckydeck_core::app_audio;
 use duckydeck_core::catalog::{Catalog, Confirm, Exec};
 use duckydeck_core::compound::{self, MULTI_ACTION, PROFILE_ACTION, Step, TOGGLE_ACTION};
 use duckydeck_core::config::{Binding, FOLDER_ACTION, Store};
 use duckydeck_core::context::Context as WindowContext;
-use duckydeck_core::dial::{Dial, Levels};
+use duckydeck_core::dial::{APP_VOLUME_ACTION, Dial, Levels};
 use duckydeck_core::hypr::{self, WorkspaceState, Workspaces};
 use duckydeck_core::icons;
 use duckydeck_core::ipc;
@@ -95,6 +96,11 @@ pub struct Screen {
     app_names: RefCell<HashMap<String, Option<String>>>,
     jobs: UnboundedSender<Job>,
     levels: Levels,
+    /// App picked per app-volume dial (pressed turn); kept while the app
+    /// is silent.
+    app_picks: HashMap<ToggleSlot, String>,
+    /// Encoder held while picking an app: its segment shows "‹ app ›".
+    picking: Option<u8>,
     media_tx: UnboundedSender<mpris::Press>,
     players: Players,
     /// Dial values are shown instead of the media view until then.
@@ -150,6 +156,8 @@ impl Screen {
             unavailable,
             jobs: tasks.jobs,
             levels: Levels::default(),
+            app_picks: HashMap::new(),
+            picking: None,
             media_tx: tasks.media,
             players: Players::default(),
             overlay_until: None,
@@ -537,12 +545,17 @@ impl Screen {
     /// Returns whether a shown dial changed.
     pub fn set_levels(&mut self, levels: Levels) -> bool {
         let old = std::mem::replace(&mut self.levels, levels);
-        self.nav
-            .dials(&self.store.current)
+        let dials = self.nav.dials(&self.store.current);
+        let apps = dials
             .iter()
             .flatten()
-            .filter_map(Dial::from_binding)
-            .any(|d| old.of(d) != levels.of(d))
+            .any(|b| b.action == APP_VOLUME_ACTION);
+        (apps && old.streams != self.levels.streams)
+            || dials
+                .iter()
+                .flatten()
+                .filter_map(Dial::from_binding)
+                .any(|d| old.of(&d) != self.levels.of(&d))
     }
 
     pub fn learn_ended(&mut self) {
@@ -587,15 +600,22 @@ impl Screen {
             Gesture::Down(Control::Encoder(i)) => self
                 .touch_dials(deck)
                 .and_then(|()| self.segment(deck, i, true)),
-            Gesture::Up(Control::Encoder(i)) => self
-                .touch_dials(deck)
-                .and_then(|()| self.segment(deck, i, false)),
+            Gesture::Up(Control::Encoder(i)) => {
+                self.picking = None;
+                self.touch_dials(deck)
+                    .and_then(|()| self.segment(deck, i, false))
+            }
             Gesture::Tap(Control::Key(i)) => self.press(deck, i, false),
             Gesture::LongPress(Control::Key(i)) => self.press(deck, i, true),
             Gesture::Tap(Control::Encoder(i)) if self.dial_is(i, PAGE_SCROLL_ACTION) => {
                 let press = self.nav.first_page();
                 self.handle(deck, press, false)
             }
+            Gesture::Twist {
+                encoder,
+                delta,
+                pressed: true,
+            } if self.dial_is(encoder, APP_VOLUME_ACTION) => self.pick_app(deck, encoder, delta),
             Gesture::Twist { encoder, delta, .. } if self.dial_is(encoder, PAGE_SCROLL_ACTION) => {
                 let press = self.nav.step_page(&self.store.current, isize::from(delta));
                 self.handle(deck, press, false)
@@ -631,10 +651,43 @@ impl Screen {
         }
     }
 
+    /// Dial on encoder `seg`; an app-volume dial carries its picked app.
     fn dial(&self, seg: u8) -> Option<Dial> {
-        self.nav.dials(&self.store.current)[usize::from(seg % 4)]
+        let d = self.nav.dials(&self.store.current)[usize::from(seg % 4)]
             .as_ref()
-            .and_then(Dial::from_binding)
+            .and_then(Dial::from_binding)?;
+        Some(self.with_pick(seg, d))
+    }
+
+    /// App of an app-volume dial: picked on the deck, else from the
+    /// profile, else the first playing app.
+    fn with_pick(&self, seg: u8, d: Dial) -> Dial {
+        match d {
+            Dial::AppVolume { app, step } => Dial::AppVolume {
+                app: self
+                    .app_picks
+                    .get(&toggle_slot(&self.nav, seg))
+                    .cloned()
+                    .or(app)
+                    .or_else(|| app_audio::apps(&self.levels.streams).into_iter().next()),
+                step,
+            },
+            d => d,
+        }
+    }
+
+    /// Pressed turn on an app-volume dial: picks the next playing app.
+    fn pick_app(&mut self, deck: &mut Deck, seg: u8, delta: i8) -> Result<()> {
+        let Some(Dial::AppVolume { app, .. }) = self.dial(seg) else {
+            return Ok(());
+        };
+        let apps = app_audio::apps(&self.levels.streams);
+        if let Some(next) = app_audio::select(&apps, app.as_deref(), i32::from(delta)) {
+            self.app_picks.insert(toggle_slot(&self.nav, seg), next);
+        }
+        self.picking = Some(seg);
+        self.touch_dials(deck)
+            .and_then(|()| self.segment(deck, seg, true))
     }
 
     fn is_scroll(&self, seg: u8) -> bool {
@@ -861,10 +914,28 @@ impl Screen {
 
     fn segment_image(&mut self, nav: &Nav, seg: u8, pressed: bool) -> Result<RgbImage> {
         let binding = nav.dials(&self.store.current)[usize::from(seg % 4)].take();
-        let level = binding
-            .as_ref()
-            .and_then(Dial::from_binding)
-            .map(|d| (d, self.levels.of(d)));
+        let level = binding.as_ref().and_then(Dial::from_binding).map(|d| {
+            let d = self.with_pick(seg, d);
+            let l = self.levels.of(&d);
+            (d, l)
+        });
+        // App volume: app name, dimmed with "–" while it plays nothing.
+        let app = level.as_ref().and_then(|(d, (pct, muted))| match d {
+            Dial::AppVolume { app: Some(app), .. } => {
+                let streams = app_audio::matching(&self.levels.streams, app);
+                let label = streams.first().and_then(|s| s.label()).unwrap_or(app);
+                if self.picking == Some(seg) {
+                    return Some((format!("‹ {label} ›"), !streams.is_empty()));
+                }
+                Some(match (pct, muted) {
+                    (_, true) => (format!("{label} muted"), true),
+                    (Some(p), false) => (format!("{label} {p}%"), true),
+                    (None, false) => (format!("{label} –"), false),
+                })
+            }
+            Dial::AppVolume { app: None, .. } => Some(("No audio".to_owned(), false)),
+            _ => None,
+        });
         let scroll = binding
             .as_ref()
             .filter(|b| b.action == hypr::SCROLL_ACTION)
@@ -874,16 +945,17 @@ impl Screen {
             .filter(|b| b.action == PAGE_SCROLL_ACTION)
             .and_then(|_| self.store.current.profiles.get(&nav.profile))
             .map(|p| format!("{}/{}", nav.page + 1, p.pages.len()));
-        let text = match level {
+        let text = match &level {
+            _ if app.is_some() => app.as_ref().map(|(t, _)| t.clone()),
             _ if scroll.is_some() => scroll.map(|n| n.to_string()),
             _ if pages.is_some() => pages,
             Some((_, (_, true))) => Some("Muted".to_owned()),
             Some((_, (Some(pct), false))) => Some(format!("{pct}%")),
             _ => binding.as_ref().map(|b| self.label(b)),
         };
-        let icon = match (&binding, level) {
+        let icon = match (&binding, &level) {
             (Some(b), Some((d, (pct, muted)))) if b.icon.is_none() => {
-                icons::get(dial_icon(d, pct, muted)).map(Icon::Builtin)
+                icons::get(dial_icon(d, *pct, *muted)).map(Icon::Builtin)
             }
             (b, _) => b.as_ref().and_then(|b| self.icon(b)),
         };
@@ -891,9 +963,14 @@ impl Screen {
             icon: icon.as_deref(),
             text: text.as_deref(),
             level: level
-                .and_then(|(_, (pct, _))| pct)
+                .as_ref()
+                .and_then(|(_, (pct, _))| *pct)
                 .map(|p| f32::from(p) / 100.0),
-            fg: Role::Accent,
+            fg: if app.as_ref().is_some_and(|(_, playing)| !playing) {
+                Role::Muted
+            } else {
+                Role::Accent
+            },
             bg: if pressed {
                 Role::LighterBackground
             } else {
@@ -1045,12 +1122,12 @@ fn enabled(players: &Players, k: MediaKey, b: &Binding) -> bool {
     k.enabled(players.active(media::wanted_player(b)))
 }
 
-fn dial_icon(d: Dial, pct: Option<u8>, muted: bool) -> &'static str {
+fn dial_icon(d: &Dial, pct: Option<u8>, muted: bool) -> &'static str {
     let low = pct.is_some_and(|p| p < 34);
     match d {
-        Dial::Volume { .. } if muted => "volume-off",
-        Dial::Volume { .. } if low => "volume-low",
-        Dial::Volume { .. } => "volume",
+        Dial::Volume { .. } | Dial::AppVolume { .. } if muted => "volume-off",
+        Dial::Volume { .. } | Dial::AppVolume { .. } if low => "volume-low",
+        Dial::Volume { .. } | Dial::AppVolume { .. } => "volume",
         Dial::Mic if muted => "mic-off",
         Dial::Mic => "mic",
         Dial::Brightness { .. } if low => "brightness-low",

@@ -80,6 +80,8 @@ type BuiltinParam = (
 );
 
 const PLAYER: BuiltinParam = ("player", ParamKind::Text, None, true, &[]);
+/// Empty = the focused window's app.
+const APP: BuiltinParam = ("app", ParamKind::Text, None, true, &[]);
 const STEP: BuiltinParam = ("step", ParamKind::Integer, Some(5), false, &[]);
 
 const BUILTINS: &[Builtin] = &[
@@ -100,6 +102,13 @@ const BUILTINS: &[Builtin] = &[
     ),
     ("media.volume", "Volume", "volume", Slot::Dial, &[STEP]),
     ("media.mic", "Microphone", "mic", Slot::Dial, &[]),
+    (
+        "media.app_volume",
+        "App volume",
+        "app-volume",
+        Slot::Dial,
+        &[APP, STEP],
+    ),
     (
         "display.brightness",
         "Brightness",
