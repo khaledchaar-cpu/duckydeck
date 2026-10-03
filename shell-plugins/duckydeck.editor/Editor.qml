@@ -185,7 +185,10 @@ Item {
       root.showProfile(msg.status.profile, msg.status.page)
       return
     }
-    if (msg.event === "slot_pressed" && msg.slot) {
+    if (msg.event === "config_changed") {
+      // Edited outside the editor; our own edits refresh after their reload.
+      if (!root.busy) root.refresh(true)
+    } else if (msg.event === "slot_pressed" && msg.slot) {
       root.select(msg.slot.kind, msg.slot.index - 1)
     } else if (msg.status.profile === root.profile && !msg.status.folder
                && msg.status.page !== root.page && root.folders.length === 0) {

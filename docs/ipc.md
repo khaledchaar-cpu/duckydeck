@@ -36,7 +36,7 @@ Der Daemon bricht den Start ab, wenn schon ein Daemon auf dem Socket lauscht; ei
 {"v":1,"event":"profile_changed","status":{…}}
 ```
 
-`device_connected`, `device_disconnected`, `profile_changed` (Profil, Seite, Ordner oder Helligkeit), nur bei `learn`: `slot_pressed`. Jedes Event enthält den vollständigen Status – Clients müssen nichts zusammensetzen. Langsame Clients verlieren ältere Events (Puffer 32), das nächste Event ist trotzdem vollständig.
+`device_connected`, `device_disconnected`, `profile_changed` (Profil, Seite, Ordner oder Helligkeit), `config_changed` (Config-Dateien geändert und neu geladen, z. B. extern bearbeitet), nur bei `learn`: `slot_pressed`. Jedes Event enthält den vollständigen Status – Clients müssen nichts zusammensetzen. Langsame Clients verlieren ältere Events (Puffer 32), das nächste Event ist trotzdem vollständig.
 Noch nicht umgesetzt: `key_state`, `config_error`; erst v2 (Editor): `get_config`.
 
 ## CLI

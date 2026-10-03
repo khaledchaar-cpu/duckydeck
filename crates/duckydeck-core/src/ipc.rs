@@ -155,6 +155,8 @@ pub enum EventKind {
     ProfileChanged,
     /// Learn mode only.
     SlotPressed,
+    /// The config files changed and were reloaded.
+    ConfigChanged,
 }
 
 impl Event {
@@ -172,6 +174,15 @@ impl Event {
             status: new.clone(),
             slot: None,
         })
+    }
+
+    pub fn config_changed(status: Status) -> Self {
+        Self {
+            v: VERSION,
+            event: EventKind::ConfigChanged,
+            status,
+            slot: None,
+        }
     }
 
     pub fn slot_pressed(status: Status, slot: SlotPress) -> Self {

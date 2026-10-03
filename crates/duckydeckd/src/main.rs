@@ -185,11 +185,13 @@ async fn main() -> Result<()> {
                 }
             }
             DeckEvent::ConfigChanged => {
-                if painter.reload_config(&runner)
-                    && let Some(d) = &mut deck
-                    && let Err(e) = painter.draw(d)
-                {
-                    tracing::warn!(error = %e, "redraw after config change failed");
+                if painter.reload_config(&runner) {
+                    if let Some(d) = &mut deck
+                        && let Err(e) = painter.draw(d)
+                    {
+                        tracing::warn!(error = %e, "redraw after config change failed");
+                    }
+                    config_changed(&painter, deck.as_ref(), &events);
                 }
             }
             DeckEvent::Levels(l) => {
@@ -250,12 +252,15 @@ async fn main() -> Result<()> {
                 tracing::info!("reload requested");
                 painter.set_font(duckydeck_core::font::system_font(&runner).await);
                 painter.reload_theme();
-                painter.reload_config(&runner);
+                let changed = painter.reload_config(&runner);
                 let resp = match deck.as_mut().map(|d| painter.draw(d)) {
                     Some(Err(e)) => duckydeck_core::ipc::Response::error(format!("redraw: {e}")),
                     _ => duckydeck_core::ipc::Response::ok(painter.status(deck.as_ref())),
                 };
                 let _ = reply.send(resp);
+                if changed {
+                    config_changed(&painter, deck.as_ref(), &events);
+                }
             }
             DeckEvent::Ipc(cmd, reply) => {
                 let resp = match painter.command(deck.as_mut(), &cmd) {
@@ -340,6 +345,15 @@ async fn unavailable_actions(
             Default::default()
         }
     }
+}
+
+/// Tells subscribers (the editor) to re-read the profiles.
+fn config_changed(
+    p: &screen::Screen,
+    deck: Option<&Deck>,
+    events: &broadcast::Sender<duckydeck_core::ipc::Event>,
+) {
+    let _ = events.send(duckydeck_core::ipc::Event::config_changed(p.status(deck)));
 }
 
 fn on_gesture(
