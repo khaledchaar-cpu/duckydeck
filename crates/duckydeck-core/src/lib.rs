@@ -8,6 +8,7 @@ pub mod command;
 pub mod compound;
 pub mod config;
 pub mod context;
+pub mod custom_icons;
 pub mod dial;
 pub mod edit;
 pub mod font;

@@ -4,7 +4,7 @@
 use anyhow::{Context, Result, bail};
 use duckydeck_core::catalog::Catalog;
 use duckydeck_core::ipc::{self, Command, Request, Response, Status};
-use duckydeck_core::{check, config, setup};
+use duckydeck_core::{check, config, custom_icons, setup};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::net::UnixStream;
 use tokio::net::unix::OwnedReadHalf;
@@ -37,7 +37,11 @@ commands:
   profiles              list profile ids and names (no daemon needed)
   icons [--color #rrggbb]
                         list the built-in icon names (no daemon needed); with
-                        --color as JSON with category and SVG data URL
+                        --color as JSON with category and SVG data URL, plus
+                        user icons (category \"user\")
+  icons add <file.svg|png> [<name>] | icons remove <name>
+                        import or delete a user icon in ~/.config/duckydeck/icons
+                        (use it with icon = \"<name>\")
   apps                  list installed apps: desktop-entry id and name (no daemon needed)
   preview <profile> [<page>|<folder>]
                         render a page or folder to PNG files (paths printed)
@@ -73,7 +77,7 @@ async fn main() -> Result<()> {
                     eprintln!("duckydeck: --color needs #rrggbb");
                     std::process::exit(2);
                 }
-                let icons: Vec<_> = duckydeck_core::icons::all()
+                let mut icons: Vec<_> = duckydeck_core::icons::all()
                     .map(|(name, category, svg)| {
                         serde_json::json!({
                             "name": name,
@@ -82,6 +86,14 @@ async fn main() -> Result<()> {
                         })
                     })
                     .collect();
+                let dir = custom_icons::dir().unwrap_or_default();
+                icons.extend(custom_icons::all(&dir).into_iter().map(|(name, data)| {
+                    serde_json::json!({
+                        "name": name,
+                        "category": "user",
+                        "svg": custom_icons::data_url(&data, color),
+                    })
+                }));
                 println!(
                     "{}",
                     serde_json::json!({ "v": 1, "ok": true, "icons": icons })
@@ -98,6 +110,39 @@ async fn main() -> Result<()> {
                 println!("{}", names.join("\n"));
             }
             return Ok(());
+        }
+        ["icons", "add", path] | ["icons", "add", path, _] => {
+            let dir = custom_icons::dir().context("neither XDG_CONFIG_HOME nor HOME is set")?;
+            let name = args.get(3).map(String::as_str);
+            match custom_icons::add(&dir, std::path::Path::new(path), name) {
+                Ok(name) => {
+                    reload_quietly().await;
+                    if json {
+                        println!(
+                            "{}",
+                            serde_json::json!({ "v": 1, "ok": true, "name": name })
+                        );
+                    } else {
+                        println!("{name}");
+                    }
+                    return Ok(());
+                }
+                Err(e) => fail(json, &e.to_string()),
+            }
+        }
+        ["icons", "remove", name] => {
+            let dir = custom_icons::dir().context("neither XDG_CONFIG_HOME nor HOME is set")?;
+            match custom_icons::remove(&dir, name) {
+                Ok(true) => {
+                    reload_quietly().await;
+                    if json {
+                        println!("{}", serde_json::json!({ "v": 1, "ok": true }));
+                    }
+                    return Ok(());
+                }
+                Ok(false) => fail(json, &format!("no user icon {name:?}")),
+                Err(e) => fail(json, &e.to_string()),
+            }
         }
         ["profiles"] => {
             let dir = config::dir().context("neither XDG_CONFIG_HOME nor HOME is set")?;
@@ -439,6 +484,36 @@ async fn setup(remove: bool) -> Result<()> {
         println!("{line}");
     }
     Ok(())
+}
+
+/// Exits with an error as JSON (`--json`) or on stderr.
+fn fail(json: bool, msg: &str) -> ! {
+    if json {
+        println!(
+            "{}",
+            serde_json::json!({ "v": 1, "ok": false, "error": msg })
+        );
+    } else {
+        eprintln!("duckydeck: {msg}");
+    }
+    std::process::exit(1);
+}
+
+/// Asks a running daemon to reload so changed user icons show up; a
+/// missing daemon is fine.
+async fn reload_quietly() {
+    let Some(path) = ipc::socket_path() else {
+        return;
+    };
+    let Ok(mut stream) = UnixStream::connect(&path).await else {
+        return;
+    };
+    if let Ok(mut req) = serde_json::to_vec(&Request::new(Command::Reload)) {
+        req.push(b'\n');
+        let _ = stream.write_all(&req).await;
+        let mut buf = [0u8; 256];
+        let _ = tokio::io::AsyncReadExt::read(&mut stream, &mut buf).await;
+    }
 }
 
 async fn run(cmd: Command, json: bool) -> Result<()> {

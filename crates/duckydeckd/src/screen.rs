@@ -65,7 +65,7 @@ pub struct Tasks {
 
 const APP_ACTION: &str = "launcher.app";
 
-/// A built-in icon or an app icon from the icon theme (SVG or PNG).
+/// A built-in icon, or an app or user icon loaded from disk (SVG or PNG).
 enum Icon {
     Builtin(&'static [u8]),
     App(Rc<[u8]>),
@@ -972,8 +972,23 @@ impl Screen {
         value.and_then(|v| v.as_str()) == self.texts.get(&b.action).map(String::as_str)
     }
 
-    /// The app's own icon for `launcher.app`, else the built-in icon.
+    /// A user icon for unknown explicit names, the app's own icon for
+    /// `launcher.app`, else the built-in icon.
     fn icon(&self, b: &Binding) -> Option<Icon> {
+        if let Some(name) = &b.icon
+            && icons::get(name).is_none()
+        {
+            return self
+                .app_icons
+                .borrow_mut()
+                .entry(format!("custom:{name}"))
+                .or_insert_with(|| {
+                    let dir = duckydeck_core::custom_icons::dir()?;
+                    duckydeck_core::custom_icons::load(&dir, name).map(Rc::from)
+                })
+                .clone()
+                .map(Icon::App);
+        }
         if b.icon.is_none()
             && b.action == APP_ACTION
             && !self.unavailable.contains(&b.action)
