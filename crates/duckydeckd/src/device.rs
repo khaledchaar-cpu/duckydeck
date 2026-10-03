@@ -38,6 +38,8 @@ pub enum DeckEvent {
     Workspaces(duckydeck_core::hypr::Workspaces),
     /// The focused window changed (class, title); may switch the profile.
     Window(String, String),
+    /// A step of a running multi action (binding, long press).
+    RunStep(duckydeck_core::config::Binding, bool),
     /// A catalog toggle (night light, recording …) changed state.
     Toggles(crate::toggles::Toggles),
     /// A CLI request; answered on the channel.

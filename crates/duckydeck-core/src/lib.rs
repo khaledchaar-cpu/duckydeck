@@ -3,6 +3,7 @@
 pub mod catalog;
 pub mod check;
 pub mod command;
+pub mod compound;
 pub mod config;
 pub mod context;
 pub mod dial;

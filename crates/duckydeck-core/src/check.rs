@@ -3,6 +3,7 @@
 //! are already checked by [`Loaded::load`](crate::config::Loaded::load).
 
 use crate::catalog::Catalog;
+use crate::compound::{self, MULTI_ACTION, PROFILE_ACTION, Step, TOGGLE_ACTION};
 use crate::config::{Binding, FOLDER_ACTION, Loaded, Page};
 use crate::dial::Dial;
 use crate::hypr::SCROLL_ACTION;
@@ -23,7 +24,7 @@ pub fn problems(loaded: &Loaded, catalog: &Catalog) -> Vec<String> {
             .iter()
             .map(|(n, p)| (format!("folder {n:?}"), p));
         for (what, page) in pages.chain(folders) {
-            check_page(catalog, page, &mut |slot, msg| {
+            check_page(loaded, catalog, page, &mut |slot, msg| {
                 out.push(format!("profile {id:?}, {what}, {slot}: {msg}"));
             });
         }
@@ -31,9 +32,14 @@ pub fn problems(loaded: &Loaded, catalog: &Catalog) -> Vec<String> {
     out
 }
 
-fn check_page(catalog: &Catalog, page: &Page, report: &mut impl FnMut(String, String)) {
+fn check_page(
+    loaded: &Loaded,
+    catalog: &Catalog,
+    page: &Page,
+    report: &mut impl FnMut(String, String),
+) {
     for (i, b) in bindings(&page.keys) {
-        if let Err(msg) = check_key(catalog, b) {
+        if let Err(msg) = check_key(loaded, catalog, b) {
             report(format!("key {i}"), msg);
         }
     }
@@ -52,8 +58,33 @@ fn bindings(slots: &[crate::config::Slot]) -> impl Iterator<Item = (usize, &Bind
         .filter_map(|(i, s)| s.0.as_ref().map(|b| (i + 1, b)))
 }
 
-fn check_key(catalog: &Catalog, b: &Binding) -> Result<(), String> {
+fn check_key(loaded: &Loaded, catalog: &Catalog, b: &Binding) -> Result<(), String> {
     let a = b.action.as_str();
+    // Structure is validated by the parser.
+    match a {
+        PROFILE_ACTION => {
+            let p = compound::profile(b)?;
+            return match loaded.profiles.contains_key(p) {
+                true => Ok(()),
+                false => Err(format!("unknown profile {p:?}")),
+            };
+        }
+        MULTI_ACTION => {
+            for s in compound::steps(b)? {
+                if let Step::Run(n) = s {
+                    check_key(loaded, catalog, &n)?;
+                }
+            }
+            return Ok(());
+        }
+        TOGGLE_ACTION => {
+            for n in compound::states(b)? {
+                check_key(loaded, catalog, &n)?;
+            }
+            return Ok(());
+        }
+        _ => {}
+    }
     if MediaKey::from_binding(b).is_some() || [FOLDER_ACTION, BACK_ACTION, PAGE_ACTION].contains(&a)
     {
         return Ok(());
@@ -113,7 +144,9 @@ mod tests {
             r#"
             name = "T"
             [[pages]]
-            keys = [{}, { action = "nope" }, { action = "media.volume" }, { action = "system.lock" }]
+            keys = [{}, { action = "nope" }, { action = "media.volume" }, { action = "system.lock" },
+              { action = "structure.profile", args = { profile = "gone" } },
+              { action = "structure.multi", args = { steps = [{ action = "system.lock" }, { action = "nope2" }] } }]
             dials = [{ action = "media.volume" }, { action = "system.lock" }]
             "#,
         );
@@ -122,6 +155,8 @@ mod tests {
             [
                 r#"profile "t", page 1, key 2: unknown action "nope""#,
                 r#"profile "t", page 1, key 3: "media.volume" cannot be used on a key"#,
+                r#"profile "t", page 1, key 5: unknown profile "gone""#,
+                r#"profile "t", page 1, key 6: unknown action "nope2""#,
                 r#"profile "t", page 1, dial 2: "system.lock" cannot be used on a dial"#,
             ]
         );

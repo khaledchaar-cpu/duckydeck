@@ -197,7 +197,7 @@ impl Profile {
                 return Err(format!("unknown folder {name:?}"));
             }
         }
-        Ok(())
+        crate::compound::validate(b)
     }
 }
 

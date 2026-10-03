@@ -17,6 +17,10 @@ Profil: kommentiertes Referenzbeispiel = Default-Profil [`examples/profiles/omar
 - Slot: `{ action, args = {…}, label, icon }`; `{}` = leer. Parameter wie `step` immer in `args`.
 - Ordner: `[folders.<name>]` mit ≤ 7 Tasten (letzte Taste = automatisches Zurück), geöffnet per `{ action = "structure.folder", args = { folder = "<name>" } }`.
 - Seiten: `{ action = "structure.page", args = { n = 2 } }` bzw. `args = { to = "next" | "prev" }`; Swipe auf dem Touchstrip (≥ 100 px) wechselt ebenfalls die Seite (nach links = nächste, zyklisch).
+- Profil: `{ action = "structure.profile", args = { profile = "<id>" } }` (zählt als manuelle Wahl, siehe Kontextwechsel).
+- Multi: `{ action = "structure.multi", args = { steps = [{ action = "…", args = {…} }, { delay_ms = 300 }, …] } }` – Schritte nacheinander, `delay_ms` 0–10000. Ein langer Druck gilt für alle Schritte (Long-Press-Bestätigung).
+- Toggle: `{ action = "structure.toggle", args = { states = [{ action, args, label, icon }, { … }] } }` – genau 2 Zustände, abwechselnd ausgeführt; die Taste zeigt den Zustand, den der nächste Druck ausführt. Zustand nur im Speicher (Reset bei Config-Reload/Neustart).
+- In Multi/Toggle sind keine Struktur-Actions erlaubt außer `structure.profile`. `duckydeck check` prüft verschachtelte Actions und Profil-Ids.
 - Ohne `label` zeigt eine Ordner-Taste den Ordnernamen, andere Struktur-Tasten nur ihr Icon.
 - Unbekannte Felder sind Fehler; ob eine Action-Id existiert, prüft der Katalog (M5).
 

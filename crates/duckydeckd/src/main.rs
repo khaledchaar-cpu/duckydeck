@@ -97,6 +97,7 @@ async fn main() -> Result<()> {
             media: media_tx,
             hypr: hypr_tx,
             toggles: toggle_tx,
+            events: tx.clone(),
         },
     )?;
     let (events, _) = broadcast::channel(32);
@@ -213,6 +214,14 @@ async fn main() -> Result<()> {
                     && let Err(e) = painter.draw(d)
                 {
                     tracing::warn!(error = %e, "redraw after profile switch failed");
+                }
+            }
+            DeckEvent::RunStep(b, long) => {
+                if let Some(d) = &mut deck {
+                    painter.run_step(d, b, long);
+                    if let Err(e) = d.out.flush() {
+                        tracing::warn!(error = %e, "deck update failed");
+                    }
                 }
             }
             DeckEvent::Toggles(t) => {

@@ -4,11 +4,12 @@
 //! action id. Catalog actions run detached; dial actions go to the
 //! [`levels`](crate::levels) worker.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::time::{Duration, Instant, SystemTime};
 
 use anyhow::{Context, Result};
 use duckydeck_core::catalog::{Catalog, Confirm, Exec};
+use duckydeck_core::compound::{self, MULTI_ACTION, PROFILE_ACTION, Step, TOGGLE_ACTION};
 use duckydeck_core::config::{Binding, FOLDER_ACTION, Store};
 use duckydeck_core::context::Context as WindowContext;
 use duckydeck_core::dial::{Dial, Levels};
@@ -24,7 +25,7 @@ use duckydeck_core::{CommandRunner, TokioRunner};
 use image::RgbImage;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::device::Deck;
+use crate::device::{Deck, DeckEvent};
 use crate::gesture::{Control, Gesture};
 use crate::levels::Job;
 use crate::mpris;
@@ -44,11 +45,16 @@ const MEDIA_TICK: Duration = Duration::from_secs(1);
 const MEDIA_HOLD: Duration = Duration::from_millis(1500);
 
 /// Channels to the background tasks.
+/// Profile, page, folder and key of a toggle.
+type ToggleSlot = (String, usize, Option<String>, u8);
+
 pub struct Tasks {
     pub jobs: UnboundedSender<Job>,
     pub media: UnboundedSender<mpris::Press>,
     pub hypr: UnboundedSender<String>,
     pub toggles: UnboundedSender<String>,
+    /// Delayed multi-action steps back into the main loop.
+    pub events: UnboundedSender<DeckEvent>,
 }
 
 pub struct Screen {
@@ -77,6 +83,9 @@ pub struct Screen {
     toggle_tx: UnboundedSender<String>,
     /// Automatic profile switching by active window.
     context: WindowContext,
+    /// Next state index of toggle keys, until the config reloads.
+    toggled: HashMap<ToggleSlot, usize>,
+    events_tx: UnboundedSender<DeckEvent>,
     /// IPC `set_brightness` override until the next config change.
     brightness: Option<u8>,
 }
@@ -114,6 +123,8 @@ impl Screen {
             toggles: Toggles::new(),
             toggle_tx: tasks.toggles,
             context,
+            toggled: HashMap::new(),
+            events_tx: tasks.events,
             brightness: None,
         })
     }
@@ -139,6 +150,7 @@ impl Screen {
             return false;
         }
         self.brightness = None;
+        self.toggled.clear();
         let reset = self.store.current.config.profile != configured;
         self.context.reload(&self.store.current, reset);
         let wanted = self.context.wanted().to_owned();
@@ -405,14 +417,8 @@ impl Screen {
             Gesture::Up(Control::Encoder(i)) => self
                 .touch_dials(deck)
                 .and_then(|()| self.segment(deck, i, false)),
-            Gesture::Tap(Control::Key(i)) => {
-                let press = self.nav.press_key(&self.store.current, usize::from(i));
-                self.handle(deck, press, false)
-            }
-            Gesture::LongPress(Control::Key(i)) => {
-                let press = self.nav.press_key(&self.store.current, usize::from(i));
-                self.handle(deck, press, true)
-            }
+            Gesture::Tap(Control::Key(i)) => self.press(deck, i, false),
+            Gesture::LongPress(Control::Key(i)) => self.press(deck, i, true),
             Gesture::Tap(Control::Encoder(i)) => {
                 if self.is_scroll(i) {
                     self.dispatch(hypr::SCROLL_PRESS.to_owned());
@@ -469,8 +475,83 @@ impl Screen {
         }
     }
 
+    fn press(&mut self, deck: &mut Deck, i: u8, long: bool) -> Result<()> {
+        let mut press = self.nav.press_key(&self.store.current, usize::from(i));
+        if let Press::Run(b) = &press
+            && b.action == TOGGLE_ACTION
+        {
+            // Validated by the parser.
+            let Ok(states) = compound::states(b) else {
+                return Ok(());
+            };
+            let n = self.toggled.entry(self.toggle_slot(i)).or_default();
+            press = Press::Run(states[*n].clone());
+            *n = (*n + 1) % states.len();
+            self.key(deck, i, false)?;
+        }
+        self.handle(deck, press, long)
+    }
+
+    fn toggle_slot(&self, i: u8) -> ToggleSlot {
+        let n = &self.nav;
+        (n.profile.clone(), n.page, n.folder.clone(), i)
+    }
+
+    /// A toggle key shows the binding its next press runs.
+    fn shown(&self, i: u8, b: Binding) -> Binding {
+        if b.action != TOGGLE_ACTION {
+            return b;
+        }
+        let n = self.toggled.get(&self.toggle_slot(i)).copied().unwrap_or(0);
+        match compound::states(&b) {
+            Ok(states) => states[n].clone(),
+            Err(_) => b,
+        }
+    }
+
+    /// A delayed step of a multi action.
+    pub fn run_step(&mut self, deck: &mut Deck, b: Binding, long: bool) {
+        if let Err(e) = self.handle(deck, Press::Run(b), long) {
+            tracing::warn!(error = %e, "multi action step failed");
+        }
+    }
+
     fn handle(&mut self, deck: &mut Deck, press: Press, long: bool) -> Result<()> {
         match press {
+            Press::Run(b) if b.action == PROFILE_ACTION => {
+                let Ok(profile) = compound::profile(&b) else {
+                    return Ok(());
+                };
+                match self.nav.set_profile(&self.store.current, profile) {
+                    Ok(_) => {
+                        self.context.set_manual(profile);
+                        self.draw(deck)
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "profile action failed");
+                        Ok(())
+                    }
+                }
+            }
+            Press::Run(b) if b.action == MULTI_ACTION => {
+                let Ok(steps) = compound::steps(&b) else {
+                    return Ok(());
+                };
+                let tx = self.events_tx.clone();
+                tokio::spawn(async move {
+                    for s in steps {
+                        match s {
+                            Step::Delay(d) => tokio::time::sleep(d).await,
+                            Step::Run(b) => {
+                                if tx.send(DeckEvent::RunStep(b, long)).is_err() {
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                });
+                Ok(())
+            }
             Press::Navigated => {
                 tracing::debug!(page = self.nav.page, folder = ?self.nav.folder, "navigated");
                 self.draw(deck)
@@ -522,7 +603,9 @@ impl Screen {
     }
 
     fn key(&mut self, deck: &mut Deck, i: u8, pressed: bool) -> Result<()> {
-        let binding = self.nav.keys(&self.store.current)[usize::from(i % 8)].take();
+        let binding = self.nav.keys(&self.store.current)[usize::from(i % 8)]
+            .take()
+            .map(|b| self.shown(i, b));
         let bg = if pressed {
             Role::LighterBackground
         } else {
@@ -668,6 +751,7 @@ impl Screen {
         }
         let name = match b.action.as_str() {
             BACK_ACTION => "back".to_owned(),
+            MULTI_ACTION => "multi-action".to_owned(),
             PAGE_ACTION => match b.args.get("to").and_then(|v| v.as_str()) {
                 Some("prev") => "page-prev".to_owned(),
                 _ => "page-next".to_owned(),
