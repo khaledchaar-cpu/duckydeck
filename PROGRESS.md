@@ -2,18 +2,17 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** alle Milestones (M1–M9) fertig, v0.1.2 auf GitHub; v2 „Lautstärke pro App“ fertig (unveröffentlicht)
+**Aktueller Milestone:** alle Milestones (M1–M9) fertig, v0.1.3 auf GitHub (inkl. Lautstärke pro App)
 
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Lokales Paket 0.1.2 mit App-Lautstärke installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- Release v0.1.2 (Idee 3) auf GitHub; Idee 4 auf späteres Release zurückgestellt
-- Erinnerungs-Text live über systemd-User-Manager-Signale (`UnitNew`/`UnitRemoved`)
-- Regler `media.app_volume`: Drehen = Lautstärke, Drücken = Mute, gedrückt drehen = App wählen; Fokus-Modus verworfen (fragil)
-- `duckydeck audio apps --json`, Editor-Auswahlfeld `app` (Kind `audio_app`), Beispielprofil Seite 2; vom Nutzer am Gerät getestet
+- Release v0.1.3 (Erinnerung live, App-Lautstärke) auf GitHub, Paket per CI gebaut
+- README aufgefrischt: Highlights, Badges, Deck-Screenshots (`docs/screenshots/`, Fake-Device-Renders)
 
 ## Nächster Schritt
-- Release 0.1.3 mit Erinnerung live + App-Lautstärke (Version erhöhen, Paket, push/Release nach Nutzer-OK)
+- Screenshots von Panel und Editor fürs README (vom Nutzer, echte Shell)
+- Danach nächstes v2-Feature nach Absprache (SPEC.md)
 
 ## Offene Probleme / Notizen
 - Tastaturlicht-Text nur nach Druck und Start aktuell (kein Event)
