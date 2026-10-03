@@ -1,9 +1,10 @@
 //! Temporary demo screen until profiles exist (M4): keys are drawn by the
-//! real renderer with theme colors; pressed keys switch to the lighter
+//! real renderer with built-in icons and theme colors; pressed keys switch to the lighter
 //! background, long-pressed ones turn red. Strip segments show a fake level
 //! per encoder (twist to change it).
 
 use anyhow::{Context, Result};
+use duckydeck_core::icons;
 use duckydeck_core::render::{KeyView, Renderer, SegmentView};
 use duckydeck_core::theme::{Role, Theme};
 use image::RgbImage;
@@ -12,17 +13,18 @@ use crate::device::Deck;
 use crate::gesture::{Control, Gesture};
 use crate::surface::{KEY_SIZE, STRIP_H};
 
-const DEMO_ICON: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"/><path d="M6 6a9 9 0 1 0 12 0"/></svg>"#;
-const LABELS: [&str; 8] = [
-    "Power",
-    "",
-    "Label",
-    "Long label text",
-    "Accent",
-    "Muted",
-    "Red",
-    "Icon only",
+/// Key demo: (icon, label, foreground).
+const KEYS: [(&str, &str, Role); 8] = [
+    ("omarchy-menu", "Menu", Role::Foreground),
+    ("lock", "", Role::Foreground),
+    ("screenshot-region", "Screenshot", Role::Foreground),
+    ("play-pause", "Long label text", Role::Foreground),
+    ("nightlight", "Nightlight", Role::Accent),
+    ("mic-off", "Mic off", Role::Muted),
+    ("record", "Record", Role::Red),
+    ("terminal", "", Role::Foreground),
 ];
+const SEGMENT_ICONS: [&str; 4] = ["volume", "mic", "brightness", "play"];
 const FALLBACK_THEME: &str =
     "background = \"#121212\"\nforeground = \"#bebebe\"\naccent = \"#e68e0d\"";
 
@@ -51,17 +53,14 @@ impl Painter {
     }
 
     fn key(&mut self, deck: &mut Deck, i: u8, state: KeyState) -> Result<()> {
-        let idx = usize::from(i % 8);
-        let fg = match (state, idx) {
-            (KeyState::Long, _) => Role::Red,
-            (_, 4) => Role::Accent,
-            (_, 5) => Role::Muted,
-            (_, 6) => Role::Red,
-            _ => Role::Foreground,
+        let (icon, label, fg) = KEYS[usize::from(i % 8)];
+        let fg = match state {
+            KeyState::Long => Role::Red,
+            _ => fg,
         };
         let view = KeyView {
-            icon: (idx != 1).then_some(DEMO_ICON),
-            label: (idx != 7).then_some(LABELS[idx]).filter(|l| !l.is_empty()),
+            icon: icons::get(icon),
+            label: Some(label).filter(|l| !l.is_empty()),
             fg,
             bg: match state {
                 KeyState::Up => Role::Background,
@@ -80,7 +79,7 @@ impl Painter {
         let level = deck.levels.get(usize::from(seg)).copied().unwrap_or(50);
         let text = format!("{level}%");
         let view = SegmentView {
-            icon: Some(DEMO_ICON),
+            icon: icons::get(SEGMENT_ICONS[usize::from(seg % 4)]),
             text: Some(&text),
             level: Some(f32::from(level) / 100.0),
             fg: match state {
