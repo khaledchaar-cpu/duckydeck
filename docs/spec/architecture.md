@@ -13,7 +13,7 @@ DuckyDeck richtet sich nach den Standards, die Omarchy selbst verwendet:
 | **OSD** | Plugin `omarchy.osd`, ausgelöst z. B. von `omarchy audio output volume` | Kein eigenes OSD |
 | **Benachrichtigungen** | `omarchy.notifications` (freedesktop) | Meldungen via `notify-send` |
 | **Themes** | `~/.local/state/omarchy/current/theme/colors.toml` (`accent`, `background`, `foreground`, `red` …, `mode`) | Einzige Farbquelle |
-| **Hooks** | `~/.config/omarchy/hooks/<event>.d/` (`theme-set`, `font-set`, `post-boot`) | Neu-Rendern bei Theme-/Font-Wechsel |
+| **Hooks** | `~/.config/omarchy/hooks/<event>.d/` (`theme-set`, `font-set`, `post-boot`) | Theme: kein Hook, der Daemon beobachtet `current/` per inotify (`omarchy theme set` ersetzt `theme/` per `mv`). Font: Hook `font-set.d/duckydeck` ruft `duckydeck reload` (ab M6), bis dahin wird die Schrift beim Start geladen |
 | **Fonts** | `omarchy font set`, Standard JetBrainsMono Nerd Font | Label-Schrift folgt der Systemschrift |
 | **Hyprland** | Lua-Config, IPC-Sockets (`.socket.sock` für Befehle, `.socket2.sock` für Events) | Window Management, Kontext-Erkennung – direkt angesprochen, ohne `hyprland`-Crate |
 
@@ -89,7 +89,7 @@ Genauso wird der Hyprland-Zugriff hinter einem Trait gekapselt (Fake mit vorgege
 2. `duckydeck setup` (beim ersten Daemon-Start automatisch, idempotent):
    - Plugins nach `~/.config/omarchy/plugins/duckydeck.*` verlinken, Widget per `omarchy bar put duckydeck.widget` einhängen
    - Menüeintrag in `omarchy-menu.jsonc` (eigener, markierter Block)
-   - Hooks `theme-set.d/duckydeck`, `font-set.d/duckydeck` per `omarchy hook install`
+   - Hook `font-set.d/duckydeck` per `omarchy hook install` (Theme-Wechsel erkennt der Daemon selbst)
    - `duckydeck setup --remove` macht alles rückgängig
 3. Einstecken → Hotplug (auch nach Suspend/Resume) → Default-Profil, Shell-Benachrichtigung „Stream Deck + connected“. Ziel: < 1 s.
 

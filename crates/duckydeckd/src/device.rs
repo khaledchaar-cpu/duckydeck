@@ -23,6 +23,8 @@ pub enum DeckEvent {
     Added,
     /// The firmware has finished booting after a plug-in; redraw the strip.
     BootDone,
+    /// `omarchy theme set` replaced the current theme; reload and redraw.
+    ThemeChanged,
     /// The input thread lost the device.
     Disconnected,
     Input(Input),

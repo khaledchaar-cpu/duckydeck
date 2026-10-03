@@ -33,17 +33,21 @@ pub struct Painter {
 
 impl Painter {
     pub fn new(font: Option<Vec<u8>>) -> Result<Self> {
-        let theme = match Theme::current_path().map(|p| Theme::load(&p)) {
-            Some(Ok(t)) => t,
-            other => {
-                tracing::warn!(error = ?other.map(|r| r.err()), "theme unavailable, using fallback");
-                Theme::parse(FALLBACK_THEME).context("fallback theme")?
-            }
+        let theme = match load_theme() {
+            Some(t) => t,
+            None => Theme::parse(FALLBACK_THEME).context("fallback theme")?,
         };
         Ok(Self {
             renderer: Renderer::new(font.into_iter().collect()),
             theme,
         })
+    }
+
+    /// Keeps the previous theme if the new one cannot be read.
+    pub fn reload_theme(&mut self) {
+        if let Some(t) = load_theme() {
+            self.theme = t;
+        }
     }
 
     fn key(&mut self, deck: &mut Deck, i: u8, state: KeyState) -> Result<()> {
@@ -93,6 +97,16 @@ impl Painter {
             .context("renderer returned a malformed image")?;
         debug_assert_eq!(img.height(), STRIP_H);
         deck.out.set_strip(u16::from(seg) * 200, &img)
+    }
+}
+
+fn load_theme() -> Option<Theme> {
+    match Theme::current_path().map(|p| Theme::load(&p)) {
+        Some(Ok(t)) => Some(t),
+        other => {
+            tracing::warn!(error = ?other.map(|r| r.err()), "theme unavailable");
+            None
+        }
     }
 }
 

@@ -5,6 +5,7 @@ mod gesture;
 mod input;
 mod surface;
 mod testpattern;
+mod themewatch;
 
 use std::time::{Duration, Instant};
 
@@ -35,6 +36,15 @@ async fn main() -> Result<()> {
     let (tx, mut rx) = mpsc::unbounded_channel();
     if !device::fake_enabled() {
         spawn_hotplug(tx.clone())?;
+    }
+
+    if let Some(colors) = duckydeck_core::theme::Theme::current_path() {
+        let tx = tx.clone();
+        tokio::spawn(async move {
+            if let Err(e) = themewatch::watch(&colors, tx).await {
+                tracing::warn!(error = %e, "theme watcher stopped");
+            }
+        });
     }
 
     let font = duckydeck_core::font::system_font(&duckydeck_core::TokioRunner).await;
@@ -72,6 +82,14 @@ async fn main() -> Result<()> {
                     && let Err(e) = testpattern::draw_strip(&mut painter, d)
                 {
                     tracing::warn!(error = %e, "strip redraw failed");
+                }
+            }
+            DeckEvent::ThemeChanged => {
+                painter.reload_theme();
+                if let Some(d) = &mut deck
+                    && let Err(e) = testpattern::draw(&mut painter, d)
+                {
+                    tracing::warn!(error = %e, "redraw after theme change failed");
                 }
             }
             DeckEvent::Disconnected => {
