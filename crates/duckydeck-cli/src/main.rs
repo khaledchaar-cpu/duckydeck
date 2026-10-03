@@ -21,6 +21,8 @@ commands:
   export <profile>      print a profile as TOML (also the built-in one)
   reload                re-read system font, theme and config
   actions               list every action (id, slot, label) for the editor
+  preview <profile> [<page>|<folder>]
+                        render a page or folder to PNG files (paths printed)
   subscribe             print status events as JSON lines until killed
   setup [--remove]      link shell plugins, add menu entry and font hook (or undo)
   version               print the version";
@@ -100,6 +102,20 @@ fn parse(args: &[String]) -> Result<Option<Command>> {
         "status" if args.len() == 1 => Command::Status,
         "subscribe" if args.len() == 1 => Command::Subscribe,
         "actions" if args.len() == 1 => Command::ListActions,
+        "preview" if (2..=3).contains(&args.len()) => {
+            let (page, folder) = match args.get(2) {
+                None => (None, None),
+                Some(a) => match a.parse::<usize>() {
+                    Ok(n) => (Some(n), None),
+                    Err(_) => (None, Some(a.clone())),
+                },
+            };
+            Command::Preview {
+                profile: args[1].clone(),
+                page,
+                folder,
+            }
+        }
         "reload" if args.len() == 1 => Command::Reload,
         "profile" => Command::SetProfile {
             profile: arg("<name>")?.clone(),
@@ -195,6 +211,11 @@ async fn run(cmd: Command, json: bool) -> Result<()> {
         match (json, &resp.status) {
             (true, _) => println!("{line}"),
             (false, _) if resp.actions.is_some() => print_actions(resp.actions.as_deref()),
+            (false, _) if let Some(p) = &resp.preview => {
+                for path in p.keys.iter().chain(&p.dials) {
+                    println!("{}", path.display());
+                }
+            }
             (false, Some(s)) => print_status(s),
             (false, None) => {}
         }
@@ -253,6 +274,14 @@ mod tests {
         assert_eq!(p(&[])?, Some(Command::Status));
         assert_eq!(p(&["version"])?, None);
         assert_eq!(p(&["actions"])?, Some(Command::ListActions));
+        assert_eq!(
+            p(&["preview", "dev", "f"])?,
+            Some(Command::Preview {
+                profile: "dev".into(),
+                page: None,
+                folder: Some("f".into())
+            })
+        );
         assert_eq!(p(&["reload"])?, Some(Command::Reload));
         assert_eq!(p(&["page", "2"])?, Some(Command::SetPage { page: 2 }));
         assert_eq!(

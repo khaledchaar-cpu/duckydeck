@@ -89,6 +89,7 @@ pub struct Screen {
     events_tx: UnboundedSender<DeckEvent>,
     /// IPC `set_brightness` override until the next config change.
     brightness: Option<u8>,
+    preview_rev: u64,
 }
 
 impl Screen {
@@ -127,6 +128,7 @@ impl Screen {
             toggled: HashMap::new(),
             events_tx: tasks.events,
             brightness: None,
+            preview_rev: 0,
         })
     }
 
@@ -206,6 +208,60 @@ impl Screen {
         duckydeck_core::library::items(&self.catalog, &self.unavailable)
     }
 
+    /// Renders a page or folder of any profile into `dir`, replacing the
+    /// previous preview.
+    pub fn preview(
+        &mut self,
+        dir: &std::path::Path,
+        profile: &str,
+        page: Option<usize>,
+        folder: Option<String>,
+    ) -> Result<ipc::Preview> {
+        let p = self
+            .store
+            .current
+            .profiles
+            .get(profile)
+            .with_context(|| format!("unknown profile {profile:?}"))?;
+        if let Some(f) = &folder
+            && !p.folders.contains_key(f)
+        {
+            anyhow::bail!("unknown folder {f:?}");
+        }
+        let page = match page.unwrap_or(1).checked_sub(1) {
+            Some(n) if n < p.pages.len() => n,
+            _ => anyhow::bail!("profile {profile:?} has {} page(s)", p.pages.len()),
+        };
+        let nav = Nav {
+            profile: profile.to_owned(),
+            page,
+            folder,
+        };
+        self.preview_rev += 1;
+        let rev = self.preview_rev;
+        std::fs::create_dir_all(dir).context("create preview dir")?;
+        for e in std::fs::read_dir(dir)?.flatten() {
+            let _ = std::fs::remove_file(e.path());
+        }
+        let write = |name: String, img: RgbImage| -> Result<std::path::PathBuf> {
+            let path = dir.join(format!("{name}-{rev}.png"));
+            img.save_with_format(&path, image::ImageFormat::Png)
+                .with_context(|| format!("write {}", path.display()))?;
+            Ok(path)
+        };
+        let mut keys = Vec::new();
+        for i in 0..8 {
+            let img = self.key_image(&nav, i, false)?;
+            keys.push(write(format!("key{i}"), img)?);
+        }
+        let mut dials = Vec::new();
+        for i in 0..4 {
+            let img = self.segment_image(&nav, i, false)?;
+            dials.push(write(format!("dial{i}"), img)?);
+        }
+        Ok(ipc::Preview { rev, keys, dials })
+    }
+
     /// Applies an IPC command; `Status` and `Subscribe` change nothing,
     /// `Reload` is handled by the main loop (it needs async font lookup).
     pub fn command(
@@ -217,7 +273,8 @@ impl Screen {
             ipc::Command::Status
             | ipc::Command::Subscribe
             | ipc::Command::Reload
-            | ipc::Command::ListActions => {
+            | ipc::Command::ListActions
+            | ipc::Command::Preview { .. } => {
                 return Ok(());
             }
             ipc::Command::SetProfile { profile } => {

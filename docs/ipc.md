@@ -13,6 +13,7 @@ Der Daemon bricht den Start ab, wenn schon ein Daemon auf dem Socket lauscht; ei
 | `set_brightness` | `brightness` (0–100) | Helligkeit bis zur nächsten Config-Änderung |
 | `reload` | – | Systemschrift, Theme und Config neu laden, neu zeichnen (Font-Hook) |
 | `subscribe` | – | Antwort wie `status`, danach Events bis der Client trennt |
+| `preview` | `profile`, `page` (ab 1, Default 1) oder `folder` | rendert die Seite ohne das Gerät zu ändern: Status plus `preview` = `{rev, keys[8], dials[4]}` (PNG-Pfade unter `$XDG_RUNTIME_DIR/duckydeck/preview/`, `rev` im Dateinamen; ältere Bilder werden gelöscht) |
 | `list_actions` | – | Status plus `actions`: alle Actions für den Editor (`library::Item`: `id`, `group`, `label`, `icon`, `slot` `key`/`dial`, `params` mit `name`/`default`/`optional`, `long_press`, `available` = Omarchy-Route vorhanden) |
 
 ```json
@@ -39,4 +40,4 @@ Noch nicht umgesetzt: `key_state`, `config_error`; erst v2 (Editor): `get_config
 
 ## CLI
 
-`duckydeck check | export <profil>` arbeiten ohne Daemon direkt auf den Dateien. `duckydeck status | actions | reload | profile <name> | page <n> | brightness <0-100> | subscribe | version`, jeweils mit `--json` (Antwort-Zeile unverändert). `subscribe` gibt immer JSON-Zeilen aus, die erste ist die Status-Antwort. Exit-Code 1 bei Fehlern des Daemons, 2 bei falscher Bedienung.
+`duckydeck check | export <profil>` arbeiten ohne Daemon direkt auf den Dateien. `duckydeck status | actions | preview <profil> [<seite>|<ordner>] | reload | profile <name> | page <n> | brightness <0-100> | subscribe | version`, jeweils mit `--json` (Antwort-Zeile unverändert). `subscribe` gibt immer JSON-Zeilen aus, die erste ist die Status-Antwort. Exit-Code 1 bei Fehlern des Daemons, 2 bei falscher Bedienung.

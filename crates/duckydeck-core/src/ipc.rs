@@ -48,6 +48,25 @@ pub enum Command {
     Subscribe,
     /// Status plus every action the editor offers (`Response::actions`).
     ListActions,
+    /// Renders a page (1-based) or folder of any profile to PNG files
+    /// (`Response::preview`); the deck itself does not change.
+    Preview {
+        profile: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        page: Option<usize>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        folder: Option<String>,
+    },
+}
+
+/// Images of one page: 8 keys and 4 strip segments, left to right.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Preview {
+    /// Grows with every render; part of the file names so viewers never
+    /// show a cached old image.
+    pub rev: u64,
+    pub keys: Vec<PathBuf>,
+    pub dials: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -60,6 +79,8 @@ pub struct Response {
     pub error: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub actions: Option<Vec<crate::library::Item>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview: Option<Preview>,
 }
 
 impl Response {
@@ -70,6 +91,7 @@ impl Response {
             status: Some(status),
             error: None,
             actions: None,
+            preview: None,
         }
     }
 
@@ -80,6 +102,7 @@ impl Response {
             status: None,
             error: Some(msg.into()),
             actions: None,
+            preview: None,
         }
     }
 }

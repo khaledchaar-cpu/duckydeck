@@ -261,8 +261,23 @@ async fn main() -> Result<()> {
                     Ok(()) => {
                         let mut r =
                             duckydeck_core::ipc::Response::ok(painter.status(deck.as_ref()));
-                        if cmd == duckydeck_core::ipc::Command::ListActions {
-                            r.actions = Some(painter.actions());
+                        match cmd {
+                            duckydeck_core::ipc::Command::ListActions => {
+                                r.actions = Some(painter.actions());
+                            }
+                            duckydeck_core::ipc::Command::Preview {
+                                profile,
+                                page,
+                                folder,
+                            } => match preview_dir()
+                                .and_then(|dir| painter.preview(&dir, &profile, page, folder))
+                            {
+                                Ok(p) => r.preview = Some(p),
+                                Err(e) => {
+                                    r = duckydeck_core::ipc::Response::error(format!("{e:#}"))
+                                }
+                            },
+                            _ => {}
                         }
                         r
                     }
@@ -279,6 +294,13 @@ async fn main() -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// `$XDG_RUNTIME_DIR/duckydeck/preview`, next to the socket.
+fn preview_dir() -> Result<std::path::PathBuf> {
+    duckydeck_core::ipc::socket_path()
+        .and_then(|p| Some(p.parent()?.join("preview")))
+        .ok_or_else(|| anyhow::anyhow!("XDG_RUNTIME_DIR is not set"))
 }
 
 fn log_config(store: &duckydeck_core::config::Store) {
