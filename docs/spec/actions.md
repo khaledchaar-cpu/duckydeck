@@ -28,7 +28,10 @@ state = { kind = "command", check = ["…"] }   # optional, nur wenn es ein Even
 ```
 
 - `requires = "omarchy capture screenshot"`: Route, die beim Start gegen `omarchy commands --json` geprüft wird (Default: aus `run` abgeleitet).
-- Parameter aus dem Profil per Platzhalter als **eigenes Argument** (`"{n}"`), nie String-Verkettung in einer Shell.
+- Parameter aus dem Profil per Platzhalter als **eigenes Argument** (`"{n}"`, auch innerhalb eines Arguments wie `"--size={n}"`), nie String-Verkettung in einer Shell. `defaults = { mode = "smart" }` liefert Werte, die das Profil nicht setzt.
+- `confirm = "long-press"`: Tap tut nichts, nur Long-Press führt aus (Herunterfahren, Neustart, Abmelden). Andere Actions laufen bei Tap und Long-Press.
+- Ohne passende `omarchy`-Route (z. B. Suspend: `systemctl suspend`) entfällt die Routenprüfung.
+- `state` (Toggle-Status) kommt erst mit M5c; bis dahin zeigt ein `{ on, off }`-Icon immer `on`.
 - Ein einziger Test prüft den ganzen Katalog: Icons existieren, Routen sind gültig, Platzhalter vollständig, Aufrufe über `RecordingRunner` korrekt.
 
 **Eigener Rust-Code nur für Actions mit Logik:** Regler (Lautstärke, Mikrofon, Helligkeit, Workspace-Scroll), MPRIS/Medien-Strip, Workspace-Status, Fokussieren-oder-Starten, App-läuft-Badge, Aufnahme-Laufzeit, Struktur-Actions (Seite, Ordner, Profil, Multi, Toggle).

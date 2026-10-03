@@ -1,16 +1,19 @@
 //! Draws the active profile and turns gestures into navigation.
 //!
-//! Until the action catalog exists (M5), label and icon come from the
-//! binding or are derived from the action id, and regular actions are
-//! only logged.
+//! Label and icon come from the binding, else the action catalog, else the
+//! action id. Catalog actions run detached; Rust actions (M5a+) are only
+//! logged for now.
+
+use std::collections::BTreeSet;
 
 use anyhow::{Context, Result};
-use duckydeck_core::CommandRunner;
+use duckydeck_core::catalog::{Catalog, Confirm};
 use duckydeck_core::config::{Binding, FOLDER_ACTION, Store};
 use duckydeck_core::icons;
 use duckydeck_core::nav::{BACK_ACTION, Nav, PAGE_ACTION, Press};
 use duckydeck_core::render::{KeyView, Renderer, SegmentView};
 use duckydeck_core::theme::{Role, Theme};
+use duckydeck_core::{CommandRunner, TokioRunner};
 use image::RgbImage;
 
 use crate::device::Deck;
@@ -27,10 +30,18 @@ pub struct Screen {
     theme: Theme,
     store: Store,
     nav: Nav,
+    catalog: Catalog,
+    /// Catalog ids whose omarchy route is missing; shown with a warning icon.
+    unavailable: BTreeSet<String>,
 }
 
 impl Screen {
-    pub fn new(font: Option<Vec<u8>>, store: Store) -> Result<Self> {
+    pub fn new(
+        font: Option<Vec<u8>>,
+        store: Store,
+        catalog: Catalog,
+        unavailable: BTreeSet<String>,
+    ) -> Result<Self> {
         let theme = match load_theme() {
             Some(t) => t,
             None => Theme::parse(FALLBACK_THEME).context("fallback theme")?,
@@ -41,6 +52,8 @@ impl Screen {
             theme,
             store,
             nav,
+            catalog,
+            unavailable,
         })
     }
 
@@ -88,13 +101,17 @@ impl Screen {
             Gesture::Up(Control::Encoder(i)) => self.segment(deck, i, false),
             Gesture::Tap(Control::Key(i)) => {
                 let press = self.nav.press_key(&self.store.current, usize::from(i));
-                self.handle(deck, press)
+                self.handle(deck, press, false)
+            }
+            Gesture::LongPress(Control::Key(i)) => {
+                let press = self.nav.press_key(&self.store.current, usize::from(i));
+                self.handle(deck, press, true)
             }
             Gesture::StripSwipe((x0, _), (x1, _)) if x0.abs_diff(x1) >= SWIPE_MIN => {
                 let press = self
                     .nav
                     .step_page(&self.store.current, if x1 < x0 { 1 } else { -1 });
-                self.handle(deck, press)
+                self.handle(deck, press, false)
             }
             _ => return,
         };
@@ -103,25 +120,49 @@ impl Screen {
         }
     }
 
-    fn handle(&mut self, deck: &mut Deck, press: Press) -> Result<()> {
+    fn handle(&mut self, deck: &mut Deck, press: Press, long: bool) -> Result<()> {
         match press {
             Press::Navigated => {
                 tracing::debug!(page = self.nav.page, folder = ?self.nav.folder, "navigated");
                 self.draw(deck)
             }
             Press::Run(b) => {
-                tracing::info!(action = %b.action, "action (not implemented before M5)");
+                self.run(&b, long);
                 Ok(())
             }
             Press::Nothing => Ok(()),
         }
     }
 
+    /// Runs a catalog action detached. Failures are logged, never fatal.
+    fn run(&self, b: &Binding, long: bool) {
+        let Some(entry) = self.catalog.get(&b.action) else {
+            tracing::info!(action = %b.action, "action not implemented yet");
+            return;
+        };
+        if self.unavailable.contains(&b.action) {
+            tracing::warn!(action = %b.action, "action disabled: omarchy route missing");
+            return;
+        }
+        if entry.confirm == Some(Confirm::LongPress) && !long {
+            tracing::debug!(action = %b.action, "needs a long press");
+            return;
+        }
+        let res = entry
+            .command(&b.action, &b.args)
+            .map_err(anyhow::Error::from)
+            .and_then(|spec| Ok(TokioRunner.spawn(&spec)?));
+        match res {
+            Ok(()) => tracing::info!(action = %b.action, "action started"),
+            Err(e) => tracing::warn!(action = %b.action, error = %e, "action failed"),
+        }
+    }
+
     fn key(&mut self, deck: &mut Deck, i: u8, pressed: bool) -> Result<()> {
         let binding = self.nav.keys(&self.store.current)[usize::from(i % 8)].take();
-        let label = binding.as_ref().map(label);
+        let label = binding.as_ref().map(|b| self.label(b));
         let view = KeyView {
-            icon: binding.as_ref().and_then(icon),
+            icon: binding.as_ref().and_then(|b| self.icon(b)),
             label: label.as_deref(),
             fg: Role::Foreground,
             bg: if pressed {
@@ -138,9 +179,9 @@ impl Screen {
     /// Strip segment above encoder `seg`: icon and label of its dial.
     fn segment(&mut self, deck: &mut Deck, seg: u8, pressed: bool) -> Result<()> {
         let binding = self.nav.dials(&self.store.current)[usize::from(seg % 4)].take();
-        let label = binding.as_ref().map(label);
+        let label = binding.as_ref().map(|b| self.label(b));
         let view = SegmentView {
-            icon: binding.as_ref().and_then(icon),
+            icon: binding.as_ref().and_then(|b| self.icon(b)),
             text: label.as_deref(),
             level: None,
             fg: Role::Accent,
@@ -154,46 +195,58 @@ impl Screen {
         debug_assert_eq!(img.height(), STRIP_H);
         deck.out.set_strip(u16::from(seg) * 200, &img)
     }
-}
 
-/// Explicit label, else the folder name, else empty for other structure
-/// actions (the icon says it all), else the action name without its group.
-fn label(b: &Binding) -> String {
-    if let Some(l) = &b.label {
-        return l.clone();
+    /// Explicit label, else the catalog label, else the folder name, else
+    /// empty for other structure actions (the icon says it all), else the
+    /// action name without its group.
+    fn label(&self, b: &Binding) -> String {
+        if let Some(l) = &b.label {
+            return l.clone();
+        }
+        if let Some(e) = self.catalog.get(&b.action) {
+            return e.label.clone();
+        }
+        if b.action == FOLDER_ACTION {
+            return b
+                .args
+                .get("folder")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_owned();
+        }
+        if b.action.starts_with("structure.") {
+            return String::new();
+        }
+        let name = b.action.rsplit('.').next().unwrap_or(&b.action);
+        let mut name = name.replace('_', " ");
+        if let Some(n) = b.args.get("n").and_then(|v| v.as_integer()) {
+            name = format!("{name} {n}");
+        }
+        name
     }
-    if b.action == FOLDER_ACTION {
-        return b
-            .args
-            .get("folder")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default()
-            .to_owned();
-    }
-    if b.action.starts_with("structure.") {
-        return String::new();
-    }
-    let name = b.action.rsplit('.').next().unwrap_or(&b.action);
-    let mut name = name.replace('_', " ");
-    if let Some(n) = b.args.get("n").and_then(|v| v.as_integer()) {
-        name = format!("{name} {n}");
-    }
-    name
-}
 
-fn icon(b: &Binding) -> Option<&'static [u8]> {
-    if let Some(name) = &b.icon {
-        return icons::get(name);
+    /// Explicit icon, else a warning for disabled actions, else the catalog
+    /// icon, else one derived from the action id.
+    fn icon(&self, b: &Binding) -> Option<&'static [u8]> {
+        if let Some(name) = &b.icon {
+            return icons::get(name);
+        }
+        if self.unavailable.contains(&b.action) {
+            return icons::get("warning");
+        }
+        if let Some(e) = self.catalog.get(&b.action) {
+            return icons::get(e.icon.default_name());
+        }
+        let name = match b.action.as_str() {
+            BACK_ACTION => "back".to_owned(),
+            PAGE_ACTION => match b.args.get("to").and_then(|v| v.as_str()) {
+                Some("prev") => "page-prev".to_owned(),
+                _ => "page-next".to_owned(),
+            },
+            a => a.rsplit('.').next().unwrap_or(a).replace('_', "-"),
+        };
+        icons::get(&name)
     }
-    let name = match b.action.as_str() {
-        BACK_ACTION => "back".to_owned(),
-        PAGE_ACTION => match b.args.get("to").and_then(|v| v.as_str()) {
-            Some("prev") => "page-prev".to_owned(),
-            _ => "page-next".to_owned(),
-        },
-        a => a.rsplit('.').next().unwrap_or(a).replace('_', "-"),
-    };
-    icons::get(&name)
 }
 
 fn to_image(img: duckydeck_core::render::RgbImage) -> Result<RgbImage> {

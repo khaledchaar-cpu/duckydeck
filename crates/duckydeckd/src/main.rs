@@ -63,7 +63,9 @@ async fn main() -> Result<()> {
     }
 
     let font = duckydeck_core::font::system_font(&duckydeck_core::TokioRunner).await;
-    let mut painter = screen::Screen::new(font, store)?;
+    let catalog = duckydeck_core::catalog::Catalog::builtin()?;
+    let unavailable = unavailable_actions(&catalog, &runner).await;
+    let mut painter = screen::Screen::new(font, store, catalog, unavailable)?;
     let mut deck = try_connect(&mut painter, &tx);
     let mut gestures = Recognizer::default();
     loop {
@@ -139,6 +141,34 @@ fn log_config(store: &duckydeck_core::config::Store) {
         profiles = c.profiles.len(),
         "config loaded"
     );
+}
+
+/// Catalog actions whose omarchy route is missing; empty if the check fails.
+async fn unavailable_actions(
+    catalog: &duckydeck_core::catalog::Catalog,
+    runner: &dyn duckydeck_core::CommandRunner,
+) -> std::collections::BTreeSet<String> {
+    let spec = duckydeck_core::CommandSpec::omarchy(["commands", "--json"]);
+    let routes = match runner.run(&spec).await {
+        Ok(out) if out.success() => duckydeck_core::catalog::parse_routes(&out.stdout),
+        other => {
+            tracing::warn!(result = ?other, "route check skipped");
+            return Default::default();
+        }
+    };
+    match routes {
+        Ok(r) => {
+            let missing = catalog.unavailable(&r);
+            if !missing.is_empty() {
+                tracing::warn!(actions = ?missing, "actions disabled: omarchy route missing");
+            }
+            missing
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "route check skipped");
+            Default::default()
+        }
+    }
 }
 
 fn on_gesture(p: &mut screen::Screen, deck: &mut Option<Deck>, g: gesture::Gesture) {
