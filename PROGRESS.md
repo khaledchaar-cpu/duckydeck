@@ -9,7 +9,7 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 ## Erledigt
 - `duckydeck setup [--remove]` (`core::setup`): Plugin-Symlinks `duckydeck.*`, `omarchy bar put duckydeck.widget`, markierter Menüblock, Hook `font-set.d/duckydeck`
 - Daemon führt Setup einmal pro Version aus (Marker `~/.local/state/duckydeck/setup`)
-- `duckydeck reload` (IPC `reload`): Systemschrift, Theme, Config neu laden + neu zeichnen; am Gerät geprüft
+- `duckydeck reload` (IPC `reload`): Systemschrift, Theme, Config neu laden + neu zeichnen; am Gerät geprüft, auch über den Font-Hook (`omarchy font set`)
 - Am echten System geprüft: Menüeintrag „Stream Deck“ erscheint und öffnet den Editor
 
 ## Nächster Schritt
@@ -30,3 +30,4 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - Hyprland-Zugriff noch nicht hinter Trait (I/O nicht testbar)
 - Socket-Pfad (SUN_LEN): Tests mit kurzem `XDG_RUNTIME_DIR` unter `/tmp/claude-1000`
 - `duckydeck.service` fehlt noch (Packaging); Kontrasttest braucht `/usr/share/omarchy/themes`
+- Hook ruft `duckydeck` über PATH: in der Entwicklung `~/.local/bin/duckydeck` → `target/debug/duckydeck` verlinkt
