@@ -2,17 +2,20 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M9 – Editor (v2): M9b fertig, nächster Schritt M9c. M8 fertig bis auf AUR (zurückgestellt, Repo bleibt vorerst privat)
+**Aktueller Milestone:** M9 – Editor (v2): M9c fertig bis auf Apps, nächster Schritt M9d. M8 fertig bis auf AUR (zurückgestellt, Repo bleibt vorerst privat)
 
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- M9b: Overlay-Plugin `duckydeck.editor` (`Editor.qml`): Profil-/Seitenleiste, Gerätevorschau aus `preview`, Auswahl per Klick, Pfeiltasten/hjkl und Gerät (`learn`), schließt nur per Esc, Ordner per Enter/Doppelklick mit Breadcrumb, Inspector nur lesend – am Gerät geprüft
+- M9b: Overlay-Plugin `duckydeck.editor` (`Editor.qml`): Profil-/Seitenleiste, Gerätevorschau aus `preview`, Auswahl per Klick, Pfeiltasten und Gerät (`learn`), schließt nur per Esc, Ordner per Enter/Doppelklick mit Breadcrumb, Inspector nur lesend – am Gerät geprüft
 - Panel: Knopf „Edit layout“ (`omarchy-shell shell summon duckydeck.editor`)
 - `setup` aktiviert verlinkte Overlays per `omarchy plugin enable` (sonst verweigert die Shell `summon`); PKGBUILD kopiert das Editor-Plugin
 
+- M9c: Bibliothek (`actions --json`, gruppiert, Suche – Tippen sucht sofort, daher kein hjkl mehr), unpassende/fehlende Actions ausgegraut; Belegen per Enter/Doppelklick/Drag & Drop, Slot→Slot tauschen per Drag oder Strg+X/V, Entf leert, Undo/Redo (Strg+Z / Strg+Umschalt+Z); nach jedem Edit `duckydeck reload`, dann Vorschau – am Gerät geprüft (Suche, Enter, Drag & Drop)
+
 ## Nächster Schritt
-- M9c: Action-Bibliothek links (`duckydeck actions --json`, Suche, nur passende Slots aktiv), Belegen per Enter/Drag & Drop über `duckydeck edit`, Undo
+- M9d: Inspector mit Parametern (z. B. `n` bei `window.workspace`), Label, Icon, Multi/Toggle
+- Offen aus M9c: Gruppe „Apps“ (.desktop-Einträge) – `actions --json` liefert sie noch nicht
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
