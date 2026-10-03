@@ -90,6 +90,10 @@ pub struct Screen {
     /// IPC `set_brightness` override until the next config change.
     brightness: Option<u8>,
     preview_rev: u64,
+    /// Open `learn` connections; while > 0 the deck only selects slots.
+    learners: usize,
+    /// Slot touched in learn mode, picked up by the main loop.
+    learned: Option<ipc::SlotPress>,
 }
 
 impl Screen {
@@ -129,6 +133,8 @@ impl Screen {
             events_tx: tasks.events,
             brightness: None,
             preview_rev: 0,
+            learners: 0,
+            learned: None,
         })
     }
 
@@ -277,6 +283,11 @@ impl Screen {
             | ipc::Command::Preview { .. } => {
                 return Ok(());
             }
+            ipc::Command::Learn => {
+                self.learners += 1;
+                tracing::info!("learn mode on");
+                return Ok(());
+            }
             ipc::Command::SetProfile { profile } => {
                 let press = self.nav.set_profile(&self.store.current, profile)?;
                 self.context.set_manual(profile);
@@ -310,6 +321,9 @@ impl Screen {
     /// A window got focus; returns whether the profile changed.
     pub fn focus(&mut self, class: &str, title: &str) -> bool {
         let wanted = self.context.focus(class, title);
+        if self.learners > 0 {
+            return false;
+        }
         if wanted == self.nav.profile {
             return false;
         }
@@ -474,7 +488,42 @@ impl Screen {
             .any(|d| old.of(d) != levels.of(d))
     }
 
+    pub fn learn_ended(&mut self) {
+        self.learners = self.learners.saturating_sub(1);
+        if self.learners == 0 {
+            tracing::info!("learn mode off");
+        }
+    }
+
+    /// The slot touched in learn mode since the last call.
+    pub fn take_learned(&mut self) -> Option<ipc::SlotPress> {
+        self.learned.take()
+    }
+
+    /// Learn mode: presses select slots instead of running actions.
+    fn learn(&mut self, g: &Gesture) -> bool {
+        use duckydeck_core::library::Slot;
+        let slot = match *g {
+            Gesture::Tap(Control::Key(i)) | Gesture::LongPress(Control::Key(i)) => (Slot::Key, i),
+            Gesture::Tap(Control::Encoder(i))
+            | Gesture::LongPress(Control::Encoder(i))
+            | Gesture::Twist { encoder: i, .. } => (Slot::Dial, i),
+            Gesture::StripTap(x, _) | Gesture::StripLongPress(x, _) => {
+                (Slot::Dial, u8::try_from(x / 200).unwrap_or(3).min(3))
+            }
+            _ => return false,
+        };
+        self.learned = Some(ipc::SlotPress {
+            kind: slot.0,
+            index: usize::from(slot.1) + 1,
+        });
+        true
+    }
+
     pub fn on_gesture(&mut self, deck: &mut Deck, g: Gesture) {
+        if self.learners > 0 && self.learn(&g) {
+            return;
+        }
         let res = match g {
             Gesture::Down(Control::Key(i)) => self.key(deck, i, true),
             Gesture::Up(Control::Key(i)) => self.key(deck, i, false),

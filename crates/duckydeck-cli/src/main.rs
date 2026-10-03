@@ -29,6 +29,8 @@ commands:
   preview <profile> [<page>|<folder>]
                         render a page or folder to PNG files (paths printed)
   subscribe             print status events as JSON lines until killed
+  learn                 like subscribe, plus slot_pressed events; the deck runs
+                        no actions until this command ends (editor learn mode)
   setup [--remove]      link shell plugins, add menu entry and font hook (or undo)
   version               print the version";
 
@@ -114,6 +116,7 @@ fn parse(args: &[String]) -> Result<Option<Command>> {
         "status" if args.len() == 1 => Command::Status,
         "subscribe" if args.len() == 1 => Command::Subscribe,
         "actions" if args.len() == 1 => Command::ListActions,
+        "learn" if args.len() == 1 => Command::Learn,
         "preview" if (2..=3).contains(&args.len()) => {
             let (page, folder) = match args.get(2) {
                 None => (None, None),
@@ -277,7 +280,7 @@ async fn run(cmd: Command, json: bool) -> Result<()> {
         .with_context(|| format!("daemon not running? cannot connect to {}", path.display()))?;
     let (read, mut write) = stream.into_split();
     let mut lines = BufReader::new(read).lines();
-    let subscribe = cmd == Command::Subscribe;
+    let subscribe = matches!(cmd, Command::Subscribe | Command::Learn);
     let mut req = serde_json::to_vec(&Request::new(cmd))?;
     req.push(b'\n');
     write.write_all(&req).await?;

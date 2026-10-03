@@ -133,7 +133,7 @@ async fn main() -> Result<()> {
             },
             () = sleep_until(deadline) => {
                 for g in gestures.tick(Instant::now()) {
-                    on_gesture(&mut painter, &mut deck, g);
+                    on_gesture(&mut painter, &mut deck, g, &events);
                 }
                 continue;
             }
@@ -245,6 +245,7 @@ async fn main() -> Result<()> {
                 deck = None;
                 gestures = Recognizer::default();
             }
+            DeckEvent::LearnEnded => painter.learn_ended(),
             DeckEvent::Ipc(duckydeck_core::ipc::Command::Reload, reply) => {
                 tracing::info!("reload requested");
                 painter.set_font(duckydeck_core::font::system_font(&runner).await);
@@ -288,7 +289,7 @@ async fn main() -> Result<()> {
             DeckEvent::Input(i) => {
                 tracing::debug!(input = ?i, "input");
                 for g in gestures.input(i, Instant::now()) {
-                    on_gesture(&mut painter, &mut deck, g);
+                    on_gesture(&mut painter, &mut deck, g, &events);
                 }
             }
         }
@@ -341,10 +342,19 @@ async fn unavailable_actions(
     }
 }
 
-fn on_gesture(p: &mut screen::Screen, deck: &mut Option<Deck>, g: gesture::Gesture) {
+fn on_gesture(
+    p: &mut screen::Screen,
+    deck: &mut Option<Deck>,
+    g: gesture::Gesture,
+    events: &broadcast::Sender<duckydeck_core::ipc::Event>,
+) {
     tracing::info!(gesture = ?g, "gesture");
     if let Some(d) = deck {
         p.on_gesture(d, g);
+        if let Some(slot) = p.take_learned() {
+            let ev = duckydeck_core::ipc::Event::slot_pressed(p.status(Some(d)), slot);
+            let _ = events.send(ev);
+        }
     }
 }
 

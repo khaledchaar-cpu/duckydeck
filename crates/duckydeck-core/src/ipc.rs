@@ -46,6 +46,10 @@ pub enum Command {
     Reload,
     /// Answered with the status, then events until the client disconnects.
     Subscribe,
+    /// Editor learn mode while the connection stays open: answered like
+    /// `subscribe`, plus `slot_pressed` events; the deck runs no actions
+    /// and does not switch profiles by window.
+    Learn,
     /// Status plus every action the editor offers (`Response::actions`).
     ListActions,
     /// Renders a page (1-based) or folder of any profile to PNG files
@@ -129,6 +133,17 @@ pub struct Event {
     pub v: u32,
     pub event: EventKind,
     pub status: Status,
+    /// Only for `slot_pressed`; the page or folder is in `status`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slot: Option<SlotPress>,
+}
+
+/// A key or dial touched on the deck in learn mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SlotPress {
+    pub kind: crate::library::Slot,
+    /// 1-based, keys left to right, top row first.
+    pub index: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -138,6 +153,8 @@ pub enum EventKind {
     DeviceDisconnected,
     /// Profile, page, folder or brightness changed.
     ProfileChanged,
+    /// Learn mode only.
+    SlotPressed,
 }
 
 impl Event {
@@ -153,7 +170,17 @@ impl Event {
             v: VERSION,
             event,
             status: new.clone(),
+            slot: None,
         })
+    }
+
+    pub fn slot_pressed(status: Status, slot: SlotPress) -> Self {
+        Self {
+            v: VERSION,
+            event: EventKind::SlotPressed,
+            status,
+            slot: Some(slot),
+        }
     }
 }
 

@@ -42,6 +42,8 @@ pub enum DeckEvent {
     RunStep(duckydeck_core::config::Binding, bool),
     /// A catalog toggle (night light, recording …) changed state.
     Toggles(crate::toggles::Toggles),
+    /// A `learn` connection closed.
+    LearnEnded,
     /// A CLI request; answered on the channel.
     Ipc(duckydeck_core::ipc::Command, crate::ipc::Reply),
 }

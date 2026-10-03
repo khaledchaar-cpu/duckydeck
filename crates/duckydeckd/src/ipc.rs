@@ -79,13 +79,17 @@ async fn client(
             }
         };
         // Subscribe first so no change between status and stream is lost.
-        let sub = (req.cmd == Command::Subscribe).then(|| events.subscribe());
+        let streams = matches!(req.cmd, Command::Subscribe | Command::Learn);
+        let learn = req.cmd == Command::Learn;
+        let sub = streams.then(|| events.subscribe());
         let (reply, answer) = oneshot::channel();
         tx.send(DeckEvent::Ipc(req.cmd, reply))?;
         let resp = answer.await?;
         let ok = resp.ok;
         send(&mut write, &resp).await?;
         if let (Some(mut sub), true) = (sub, ok) {
+            // Learn mode ends with the connection, also when the editor crashes.
+            let _end = learn.then(|| LearnGuard(tx.clone()));
             loop {
                 tokio::select! {
                     ev = sub.recv() => match ev {
@@ -104,6 +108,14 @@ async fn client(
         }
     }
     Ok(())
+}
+
+struct LearnGuard(mpsc::UnboundedSender<DeckEvent>);
+
+impl Drop for LearnGuard {
+    fn drop(&mut self) {
+        let _ = self.0.send(DeckEvent::LearnEnded);
+    }
 }
 
 async fn send(
