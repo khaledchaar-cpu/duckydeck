@@ -1,0 +1,120 @@
+# Icon mapping: duckydeck name = "tabler name", grouped by category.
+# `scripts/fetch-icons.sh` copies each entry to icons/<category>/<name>.svg.
+# Custom icons (no Tabler motif) live in icons/custom/ and are listed under
+# [custom] with an empty value; the script leaves them alone.
+# Workspace digits are font glyphs, not SVGs.
+
+[tabler]
+version = "3.48.0"
+sha256 = "28447dcf6f0bb2b8d92c59a1b3d30900a180de2e97d7db4d267e6320dc68f449"
+
+# Toggle pairs: active icon = inactive icon.
+[pairs]
+nightlight = "nightlight-off"
+idle-inhibit = "idle-inhibit-off"
+notifications = "dnd"
+volume = "volume-off"
+mic = "mic-off"
+wifi = "wifi-off"
+bluetooth = "bluetooth-off"
+record = "record-stop"
+play = "pause"
+
+[system]
+lock = "lock"
+suspend = "zzz"
+reboot = "refresh"
+power = "power"
+logout = "logout"
+theme = "palette"
+wallpaper = "photo"
+nightlight = "moon"
+nightlight-off = "moon-off"
+idle-inhibit = "coffee"
+idle-inhibit-off = "coffee-off"
+notifications = "bell"
+dnd = "bell-off"
+settings = "settings"
+terminal-command = "terminal-2"
+
+[capture]
+screenshot-region = "crop"
+screenshot-window = "app-window"
+screenshot-full = "screenshot"
+record = "player-record"
+record-stop = "player-stop"
+ocr = "text-scan-2"
+qr = "qrcode"
+color-picker = "color-picker"
+
+[media]
+volume = "volume"
+volume-low = "volume-2"
+volume-off = "volume-off"
+mic = "microphone"
+mic-off = "microphone-off"
+headphones = "headphones"
+speaker = "device-speaker"
+play = "player-play"
+pause = "player-pause"
+next = "player-track-next"
+previous = "player-track-prev"
+stop = "player-stop"
+shuffle = "arrows-shuffle"
+repeat = "repeat"
+
+[display]
+brightness = "brightness-up"
+brightness-low = "brightness-down"
+monitor = "device-desktop"
+monitor-mirror = "devices"
+keyboard-backlight = "keyboard"
+
+[network]
+wifi = "wifi"
+wifi-off = "wifi-off"
+bluetooth = "bluetooth"
+bluetooth-off = "bluetooth-off"
+vpn = "shield-lock"
+
+[window]
+move-to-workspace = "arrow-move-right"
+close-window = "x"
+float = "layers-subtract"
+fullscreen = "maximize"
+pseudo = "box-padding"
+split = "layout-columns"
+focus-left = "arrow-left"
+focus-right = "arrow-right"
+focus-up = "arrow-up"
+focus-down = "arrow-down"
+scratchpad = "layout-board-split"
+gaps-toggle = "border-outer"
+layout-toggle = "layout-grid"
+transparency = "contrast"
+pop-out = "picture-in-picture"
+
+[launcher]
+launcher = "rocket"
+browser = "world"
+terminal = "terminal-2"
+files = "folders"
+editor = "code"
+agent = "sparkles"
+webapp = "app-window"
+url = "link"
+generic-app = "apps"
+
+[structure]
+folder = "folder"
+back = "arrow-back-up"
+page-next = "chevron-right"
+page-prev = "chevron-left"
+profile = "user-circle"
+multi-action = "stack-2"
+toggle = "toggle-right"
+warning = "alert-triangle"
+
+[custom]
+omarchy-menu = ""
+play-pause = ""

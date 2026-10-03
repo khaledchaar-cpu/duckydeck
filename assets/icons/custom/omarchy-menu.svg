@@ -1,0 +1,15 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+>
+  <!-- "o" glyph from /usr/share/omarchy/logo.svg, scaled to 20 px height -->
+  <path
+    transform="translate(6.375 0.75) scale(0.08333)"
+    fill="currentColor"
+    fill-rule="evenodd"
+    d="m105 30.002h15v14.997h15v180.001h-15v15h-15v15.002h-75v-15.002h-15v-15h-15v-180.001h15v-14.997h15v-15.002h75zm-60 194.998h45v-179.998h-45z"
+  />
+</svg>
