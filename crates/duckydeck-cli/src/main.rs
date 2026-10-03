@@ -35,7 +35,9 @@ commands:
   reload                re-read system font, theme and config
   actions               list every action (id, slot, label) for the editor
   profiles              list profile ids and names (no daemon needed)
-  icons                 list the built-in icon names (no daemon needed)
+  icons [--color #rrggbb]
+                        list the built-in icon names (no daemon needed); with
+                        --color as JSON with category and SVG data URL
   apps                  list installed apps: desktop-entry id and name (no daemon needed)
   preview <profile> [<page>|<folder>]
                         render a page or folder to PNG files (paths printed)
@@ -49,10 +51,13 @@ commands:
 async fn main() -> Result<()> {
     quiet_broken_pipe();
     let mut json = false;
+    let mut color = None;
     let mut args = Vec::new();
-    for a in std::env::args().skip(1) {
+    let mut argv = std::env::args().skip(1);
+    while let Some(a) = argv.next() {
         match a.as_str() {
             "--json" => json = true,
+            "--color" => color = argv.next(),
             "-h" | "--help" | "help" => {
                 println!("{USAGE}");
                 return Ok(());
@@ -63,6 +68,26 @@ async fn main() -> Result<()> {
     match args.iter().map(String::as_str).collect::<Vec<_>>()[..] {
         ["check"] => return check(),
         ["icons"] => {
+            if let Some(color) = &color {
+                if duckydeck_core::icons::data_url(b"", color).is_none() {
+                    eprintln!("duckydeck: --color needs #rrggbb");
+                    std::process::exit(2);
+                }
+                let icons: Vec<_> = duckydeck_core::icons::all()
+                    .map(|(name, category, svg)| {
+                        serde_json::json!({
+                            "name": name,
+                            "category": category,
+                            "svg": duckydeck_core::icons::data_url(svg, color),
+                        })
+                    })
+                    .collect();
+                println!(
+                    "{}",
+                    serde_json::json!({ "v": 1, "ok": true, "icons": icons })
+                );
+                return Ok(());
+            }
             let names: Vec<&str> = duckydeck_core::icons::names().collect();
             if json {
                 println!(

@@ -46,7 +46,7 @@ async fn main() -> anyhow::Result<()> {
             label: Some(name),
             ..KeyView::default()
         };
-        let keys = std::iter::once(header).chain(icons::ICONS.iter().map(|(n, svg)| KeyView {
+        let keys = std::iter::once(header).chain(icons::ICONS.iter().map(|(n, _, svg)| KeyView {
             icon: Some(svg),
             label: Some(n),
             ..KeyView::default()
