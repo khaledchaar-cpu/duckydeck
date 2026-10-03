@@ -6,6 +6,7 @@ Jede eingebaute Action sieht ohne Zutun gut aus und passt zu jedem Omarchy-Theme
 - **Quelle:** Tabler Icons (MIT, Outline, 24er Raster, 2 px Strich).
 - `scripts/fetch-icons.sh` lädt eine fest gepinnte Tabler-Version und kopiert die in `assets/icons.toml` gelisteten Icons nach `assets/icons/<kategorie>/<name>.svg`.
 - `assets/icons.toml`: `[tabler]` (Version + sha256 des npm-Tarballs), eine Tabelle je Kategorie mit `duckydeck-name = "tabler-name"`, `[pairs]` für Aktiv-/Inaktiv-Paare, `[custom]` für selbst erstellte Icons.
+- **Allgemeine Motive** für eigene Belegungen: Kategorien `[general]` (Alltag, Arbeit, Dev, Freizeit, Symbole …) und `[adult]` („Party & 18+“: Drinks, Rauchen, Casino, Flirt-Smileys) – Tabler-Name = DuckyDeck-Name, keine Action nutzt sie standardmäßig (Entscheidung 2026-10-03).
 - **Nur fehlende Motive** werden selbst erstellt, im Tabler-Stil, unter `assets/icons/custom/` (bisher: `omarchy-menu` = „o“ aus `/usr/share/omarchy/logo.svg`, `play-pause`). Workspace-Ziffern sind Font-Glyphen statt SVG.
 
 ## Gestaltung

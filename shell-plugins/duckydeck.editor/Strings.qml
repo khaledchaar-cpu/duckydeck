@@ -13,7 +13,7 @@ QtObject {
   readonly property var groups: ({
     system: "System", capture: "Capture", media: "Media", launcher: "Launcher",
     window: "Window", display: "Display", structure: "Structure", apps: "Apps",
-    network: "Network", custom: "Other"
+    network: "Network", custom: "Other", general: "General", adult: "Party & 18+"
   })
   readonly property string inspector: "SLOT"
   readonly property string empty: "Empty"

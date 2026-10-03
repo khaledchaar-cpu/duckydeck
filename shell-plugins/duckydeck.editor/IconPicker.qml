@@ -33,7 +33,7 @@ Column {
   readonly property string shown: value !== "" ? value : defaultName
   // Categories in a fixed order, each with its icons matching the filter.
   readonly property var groups: {
-    var order = ["system", "capture", "media", "display", "network", "window", "launcher", "structure", "custom"]
+    var order = ["system", "capture", "media", "display", "network", "window", "launcher", "structure", "general", "custom", "adult"]
     var q = filter.trim().toLowerCase()
     var out = []
     for (var o = 0; o < order.length; o++) {
