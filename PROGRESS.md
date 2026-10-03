@@ -13,10 +13,7 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 - App-Tasten zeigen den App-Namen aus dem Desktop-Eintrag statt „App“ (am Gerät geprüft)
 
 ## Nächster Schritt
-- Offen: Entscheidung zum geplanten Skill `add-action`; sonst nur Fehler aus der Nutzung
-
-## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
-- `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
+- Keiner geplant; Fehler aus der Nutzung beheben
 
 ## Offene Probleme / Notizen
 - Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)
