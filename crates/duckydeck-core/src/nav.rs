@@ -148,6 +148,34 @@ impl Nav {
         }
     }
 
+    /// Opens the 0-based `page` of the active profile (IPC `set_page`).
+    pub fn set_page(&mut self, loaded: &Loaded, page: usize) -> Result<Press, String> {
+        let count = loaded
+            .profiles
+            .get(&self.profile)
+            .map_or(0, |p| p.pages.len());
+        if page >= count {
+            return Err(format!("page {} out of range 1-{count}", page + 1));
+        }
+        Ok(self.go(page))
+    }
+
+    /// Switches to the first page of `profile` (IPC `set_profile`).
+    pub fn set_profile(&mut self, loaded: &Loaded, profile: &str) -> Result<Press, String> {
+        if !loaded.profiles.contains_key(profile) {
+            return Err(format!("unknown profile {profile:?}"));
+        }
+        if self.profile == profile && self.page == 0 && self.folder.is_none() {
+            return Ok(Press::Nothing);
+        }
+        *self = Self {
+            profile: profile.to_owned(),
+            page: 0,
+            folder: None,
+        };
+        Ok(Press::Navigated)
+    }
+
     fn go(&mut self, page: usize) -> Press {
         if self.page == page && self.folder.is_none() {
             return Press::Nothing;
@@ -243,6 +271,22 @@ mod tests {
         nav.profile = "gone".into();
         nav.reconcile(&smaller);
         assert_eq!(nav.profile, "t");
+        Ok(())
+    }
+
+    #[test]
+    fn ipc_page_and_profile() -> anyhow::Result<()> {
+        let l = loaded(SRC)?;
+        let mut nav = Nav::new(&l);
+        nav.press_key(&l, 0);
+        assert_eq!(nav.set_page(&l, 0), Ok(Press::Navigated));
+        assert_eq!(nav.folder, None);
+        assert_eq!(nav.set_page(&l, 1), Ok(Press::Navigated));
+        assert!(nav.set_page(&l, 2).is_err());
+        assert!(nav.set_profile(&l, "nope").is_err());
+        assert_eq!(nav.set_profile(&l, "t"), Ok(Press::Navigated));
+        assert_eq!(nav.page, 0);
+        assert_eq!(nav.set_profile(&l, "t"), Ok(Press::Nothing));
         Ok(())
     }
 }

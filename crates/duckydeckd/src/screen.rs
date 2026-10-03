@@ -13,6 +13,7 @@ use duckydeck_core::config::{Binding, FOLDER_ACTION, Store};
 use duckydeck_core::dial::{Dial, Levels};
 use duckydeck_core::hypr::{self, WorkspaceState, Workspaces};
 use duckydeck_core::icons;
+use duckydeck_core::ipc;
 use duckydeck_core::media::{self, MediaKey, Players, Status};
 use duckydeck_core::nav::{BACK_ACTION, Nav, PAGE_ACTION, Press};
 use duckydeck_core::render::{GlyphView, KeyView, MediaView, Renderer, SegmentView};
@@ -73,6 +74,8 @@ pub struct Screen {
     toggles: Toggles,
     /// Pressed toggle actions for the [`toggles`](crate::toggles) task.
     toggle_tx: UnboundedSender<String>,
+    /// IPC `set_brightness` override until the next config change.
+    brightness: Option<u8>,
 }
 
 impl Screen {
@@ -106,6 +109,7 @@ impl Screen {
             workspaces: Workspaces::default(),
             toggles: Toggles::new(),
             toggle_tx: tasks.toggles,
+            brightness: None,
         })
     }
 
@@ -122,6 +126,7 @@ impl Screen {
         if !self.store.reload(runner) {
             return false;
         }
+        self.brightness = None;
         if self.store.current.config.profile != configured {
             // `profile` in config.toml changed: switch to it.
             self.nav = Nav::new(&self.store.current);
@@ -138,10 +143,67 @@ impl Screen {
     }
 
     pub fn draw(&mut self, deck: &mut Deck) -> Result<()> {
-        deck.out
-            .set_brightness(self.store.current.config.brightness)?;
+        deck.out.set_brightness(self.brightness())?;
         self.draw_keys(deck)?;
         self.draw_strip(deck)
+    }
+
+    fn brightness(&self) -> u8 {
+        self.brightness
+            .unwrap_or(self.store.current.config.brightness)
+    }
+
+    pub fn status(&self, deck: Option<&Deck>) -> ipc::Status {
+        let c = &self.store.current;
+        ipc::Status {
+            connected: deck.is_some(),
+            serial: deck.map(|d| d.serial.clone()),
+            profile: self.nav.profile.clone(),
+            profiles: c.profiles.keys().cloned().collect(),
+            page: self.nav.page + 1,
+            pages: c
+                .profiles
+                .get(&self.nav.profile)
+                .map_or(0, |p| p.pages.len()),
+            folder: self.nav.folder.clone(),
+            brightness: self.brightness(),
+        }
+    }
+
+    /// Applies an IPC command; `Status` and `Subscribe` change nothing.
+    pub fn command(
+        &mut self,
+        deck: Option<&mut Deck>,
+        cmd: &ipc::Command,
+    ) -> std::result::Result<(), String> {
+        let press = match cmd {
+            ipc::Command::Status | ipc::Command::Subscribe => return Ok(()),
+            ipc::Command::SetProfile { profile } => {
+                self.nav.set_profile(&self.store.current, profile)?
+            }
+            ipc::Command::SetPage { page } => self.nav.set_page(
+                &self.store.current,
+                page.checked_sub(1).ok_or("pages start at 1")?,
+            )?,
+            ipc::Command::SetBrightness { brightness } => {
+                if *brightness > 100 {
+                    return Err("brightness must be 0-100".into());
+                }
+                self.brightness = Some(*brightness);
+                if let Some(d) = deck {
+                    d.out
+                        .set_brightness(*brightness)
+                        .map_err(|e| e.to_string())?;
+                }
+                return Ok(());
+            }
+        };
+        if press == Press::Navigated
+            && let Some(d) = deck
+        {
+            self.draw(d).map_err(|e| e.to_string())?;
+        }
+        Ok(())
     }
 
     pub fn draw_keys(&mut self, deck: &mut Deck) -> Result<()> {

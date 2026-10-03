@@ -38,6 +38,8 @@ pub enum DeckEvent {
     Workspaces(duckydeck_core::hypr::Workspaces),
     /// A catalog toggle (night light, recording …) changed state.
     Toggles(crate::toggles::Toggles),
+    /// A CLI request; answered on the channel.
+    Ipc(duckydeck_core::ipc::Command, crate::ipc::Reply),
 }
 
 /// Handle used for output (images, brightness). Input runs on a separate

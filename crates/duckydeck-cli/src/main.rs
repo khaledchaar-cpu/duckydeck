@@ -1,8 +1,168 @@
-//! `duckydeck` command line interface.
+//! `duckydeck` command line interface: talks to `duckydeckd` over its
+//! Unix socket (protocol: `docs/ipc.md`).
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
+use duckydeck_core::ipc::{self, Command, Request, Response, Status};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
+use tokio::net::UnixStream;
+use tokio::net::unix::OwnedReadHalf;
 
-fn main() -> Result<()> {
-    println!("duckydeck {}", env!("CARGO_PKG_VERSION"));
+const USAGE: &str = "\
+usage: duckydeck <command> [--json]
+
+commands:
+  status                show device, profile, page and brightness
+  profile <name>        switch to a profile (until the next config change)
+  page <n>              open page n (1-based) of the active profile
+  brightness <0-100>    set the brightness (until the next config change)
+  subscribe             print status events as JSON lines until killed
+  version               print the version";
+
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<()> {
+    let mut json = false;
+    let mut args = Vec::new();
+    for a in std::env::args().skip(1) {
+        match a.as_str() {
+            "--json" => json = true,
+            "-h" | "--help" | "help" => {
+                println!("{USAGE}");
+                return Ok(());
+            }
+            _ => args.push(a),
+        }
+    }
+    let cmd = match parse(&args) {
+        Ok(Some(cmd)) => cmd,
+        Ok(None) => {
+            println!("duckydeck {}", env!("CARGO_PKG_VERSION"));
+            return Ok(());
+        }
+        Err(e) => {
+            eprintln!("duckydeck: {e:#}\n\n{USAGE}");
+            std::process::exit(2);
+        }
+    };
+    if let Err(e) = run(cmd, json).await {
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string(&Response::error(format!("{e:#}")))?
+            );
+        } else {
+            eprintln!("duckydeck: {e:#}");
+        }
+        std::process::exit(1);
+    }
     Ok(())
+}
+
+/// `Ok(None)` means `version`.
+fn parse(args: &[String]) -> Result<Option<Command>> {
+    let arg = |name: &str| -> Result<&String> {
+        match args {
+            [_, v] => Ok(v),
+            _ => bail!("{} expects exactly one argument: {name}", args[0]),
+        }
+    };
+    let Some(first) = args.first() else {
+        return Ok(Some(Command::Status));
+    };
+    let cmd = match first.as_str() {
+        "version" => return Ok(None),
+        "status" if args.len() == 1 => Command::Status,
+        "subscribe" if args.len() == 1 => Command::Subscribe,
+        "profile" => Command::SetProfile {
+            profile: arg("<name>")?.clone(),
+        },
+        "page" => Command::SetPage {
+            page: arg("<n>")?.parse().context("page must be a number")?,
+        },
+        "brightness" => Command::SetBrightness {
+            brightness: arg("<0-100>")?
+                .parse()
+                .context("brightness must be 0-100")?,
+        },
+        other => bail!("unknown command or arguments: {other}"),
+    };
+    Ok(Some(cmd))
+}
+
+async fn run(cmd: Command, json: bool) -> Result<()> {
+    let path = ipc::socket_path().context("XDG_RUNTIME_DIR is not set")?;
+    let stream = UnixStream::connect(&path)
+        .await
+        .with_context(|| format!("daemon not running? cannot connect to {}", path.display()))?;
+    let (read, mut write) = stream.into_split();
+    let mut lines = BufReader::new(read).lines();
+    let subscribe = cmd == Command::Subscribe;
+    let mut req = serde_json::to_vec(&Request::new(cmd))?;
+    req.push(b'\n');
+    write.write_all(&req).await?;
+
+    let line = next(&mut lines).await?;
+    let resp: Response = serde_json::from_str(&line).context("invalid daemon response")?;
+    if !resp.ok {
+        bail!("{}", resp.error.unwrap_or_else(|| "request failed".into()));
+    }
+    if !subscribe {
+        match (json, &resp.status) {
+            (true, _) => println!("{line}"),
+            (false, Some(s)) => print_status(s),
+            (false, None) => {}
+        }
+        return Ok(());
+    }
+    // Always JSON lines: the shell plugin reads them. The first line is the
+    // current status so the reader starts with a complete picture.
+    println!("{line}");
+    loop {
+        println!("{}", next(&mut lines).await?);
+    }
+}
+
+async fn next(lines: &mut Lines<BufReader<OwnedReadHalf>>) -> Result<String> {
+    lines
+        .next_line()
+        .await?
+        .context("daemon closed the connection")
+}
+
+fn print_status(s: &Status) {
+    match &s.serial {
+        Some(serial) => println!("device:     Stream Deck + ({serial})"),
+        None if s.connected => println!("device:     Stream Deck +"),
+        None => println!("device:     not connected"),
+    }
+    println!("profile:    {} ({})", s.profile, s.profiles.join(", "));
+    match &s.folder {
+        Some(f) => println!("page:       {}/{} – folder {f}", s.page, s.pages),
+        None => println!("page:       {}/{}", s.page, s.pages),
+    }
+    println!("brightness: {} %", s.brightness);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn p(args: &[&str]) -> Result<Option<Command>> {
+        parse(&args.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>())
+    }
+
+    #[test]
+    fn parses_commands() -> Result<()> {
+        assert_eq!(p(&[])?, Some(Command::Status));
+        assert_eq!(p(&["version"])?, None);
+        assert_eq!(p(&["page", "2"])?, Some(Command::SetPage { page: 2 }));
+        assert_eq!(
+            p(&["brightness", "40"])?,
+            Some(Command::SetBrightness { brightness: 40 })
+        );
+        assert!(p(&["page"]).is_err());
+        assert!(p(&["brightness", "300"]).is_err());
+        assert!(p(&["status", "x"]).is_err());
+        assert!(p(&["reboot"]).is_err());
+        Ok(())
+    }
 }

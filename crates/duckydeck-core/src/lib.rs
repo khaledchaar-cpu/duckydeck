@@ -7,6 +7,7 @@ pub mod dial;
 pub mod font;
 pub mod hypr;
 pub mod icons;
+pub mod ipc;
 pub mod media;
 pub mod nav;
 

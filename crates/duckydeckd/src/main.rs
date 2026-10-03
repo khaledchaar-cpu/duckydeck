@@ -5,6 +5,7 @@ mod device;
 mod gesture;
 mod hyprland;
 mod input;
+mod ipc;
 mod levels;
 mod mpris;
 mod screen;
@@ -17,7 +18,7 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use device::{Deck, DeckEvent};
 use gesture::Recognizer;
-use tokio::sync::mpsc;
+use tokio::sync::{broadcast, mpsc};
 use tracing_subscriber::EnvFilter;
 
 const BOOT_TIME: Duration = Duration::from_secs(2);
@@ -97,9 +98,24 @@ async fn main() -> Result<()> {
             toggles: toggle_tx,
         },
     )?;
+    let (events, _) = broadcast::channel(32);
+    match duckydeck_core::ipc::socket_path() {
+        Some(path) => {
+            let listener = ipc::bind(&path).await?;
+            tokio::spawn(ipc::serve(listener, path, tx.clone(), events.clone()));
+        }
+        None => tracing::warn!("XDG_RUNTIME_DIR not set: IPC disabled"),
+    }
     let mut deck = try_connect(&mut painter, &tx);
     let mut gestures = Recognizer::default();
+    let mut last = painter.status(deck.as_ref());
     loop {
+        // Every change of what the deck shows becomes an event.
+        let now = painter.status(deck.as_ref());
+        if let Some(ev) = duckydeck_core::ipc::Event::between(&last, &now) {
+            let _ = events.send(ev);
+            last = now;
+        }
         let deadline = gestures.deadline();
         let strip_deadline = deck.as_ref().and_then(|_| painter.strip_deadline());
         let key_deadline = deck.as_ref().and_then(|_| painter.key_deadline());
@@ -202,6 +218,13 @@ async fn main() -> Result<()> {
                 tracing::info!("Stream Deck + disconnected");
                 deck = None;
                 gestures = Recognizer::default();
+            }
+            DeckEvent::Ipc(cmd, reply) => {
+                let resp = match painter.command(deck.as_mut(), &cmd) {
+                    Ok(()) => duckydeck_core::ipc::Response::ok(painter.status(deck.as_ref())),
+                    Err(e) => duckydeck_core::ipc::Response::error(e),
+                };
+                let _ = reply.send(resp);
             }
             DeckEvent::Input(i) => {
                 tracing::debug!(input = ?i, "input");
