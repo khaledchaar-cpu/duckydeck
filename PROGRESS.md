@@ -7,13 +7,13 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- Release v0.1.1 auf GitHub
+- Release v0.1.1 und v0.1.2 (Idee 3) auf GitHub
 - Idee 3: eigene Icons (`~/.config/duckydeck/icons`, `icons add/remove`, Import im Editor über `omarchy file select`)
 - Freie Bibliotheken Tabler/Lucide: Download auf Klick (gepinnt + sha256), `icons library/search/browse`
 - Editor: großer Icon-Browser über Aktionsliste/Deck (Kategorien, Suche, Bibliotheken seitenweise); vom Nutzer getestet
 
 ## Nächster Schritt
-- Release 0.1.2 mit Idee 3 (Version erhöhen, Paket bauen, push/Release nach Nutzer-OK); danach Idee 4 (weitere Modelle) – Plan abstimmen
+- Idee 4 (weitere Modelle): Plan mit Nutzer abstimmen
 
 ## Offene Probleme / Notizen
 - Erinnerung/Tastaturlicht-Text nur nach Druck, Start und (Erinnerung) Fälligkeit aktuell – außerhalb gesetzte Erinnerungen erst danach sichtbar
