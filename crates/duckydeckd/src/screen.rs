@@ -34,6 +34,9 @@ const SWIPE_MIN: u16 = 100;
 const OVERLAY: Duration = Duration::from_secs(2);
 /// Media view refresh while playing (progress and time).
 const MEDIA_TICK: Duration = Duration::from_secs(1);
+/// The media view stays this long after playback stops: players report a
+/// short pause while seeking.
+const MEDIA_HOLD: Duration = Duration::from_millis(1500);
 
 pub struct Screen {
     renderer: Renderer,
@@ -51,6 +54,8 @@ pub struct Screen {
     overlay_until: Option<Instant>,
     /// Next media view refresh; `Some` while the strip shows it.
     media_tick: Option<Instant>,
+    /// Player last shown in the media view and until when it stays.
+    media_hold: Option<(String, Instant)>,
 }
 
 impl Screen {
@@ -80,6 +85,7 @@ impl Screen {
             players: Players::default(),
             overlay_until: None,
             media_tick: None,
+            media_hold: None,
         })
     }
 
@@ -141,9 +147,11 @@ impl Screen {
             self.overlay_until = None;
         }
         if self.overlay_until.is_none()
-            && let Some(p) = self.playing_now()
+            && let Some(p) = self.media_player(now)
         {
-            let p = p.clone();
+            if p.status == Status::Playing {
+                self.media_hold = Some((p.name.clone(), now + MEDIA_HOLD));
+            }
             let time = p.time_text(now);
             let view = MediaView {
                 icon: icons::get("play"),
@@ -162,6 +170,19 @@ impl Screen {
         deck.out.flush()
     }
 
+    /// The player for the media view: the playing one, else the one shown
+    /// last while its hold lasts.
+    fn media_player(&self, now: Instant) -> Option<media::Player> {
+        if let Some(p) = self.playing_now() {
+            return Some(p.clone());
+        }
+        let (name, until) = self.media_hold.as_ref()?;
+        if *until <= now {
+            return None;
+        }
+        self.players.list.iter().find(|p| &p.name == name).cloned()
+    }
+
     /// The player shown on the strip: the active one, if it is playing.
     fn playing_now(&self) -> Option<&media::Player> {
         self.players
@@ -174,13 +195,18 @@ impl Screen {
         if let Some(t) = self.overlay_until {
             return Some(t);
         }
-        self.media_tick
+        let hold = self.media_hold.as_ref().map(|(_, t)| *t);
+        match (self.media_tick, hold) {
+            (Some(a), Some(b)) if self.playing_now().is_none() => Some(a.min(b)),
+            (a, _) => a,
+        }
     }
 
     /// Dial values become visible (or stay visible) for [`OVERLAY`].
     fn touch_dials(&mut self, deck: &mut Deck) -> Result<()> {
         let was = self.overlay_until.is_some() || self.media_tick.is_none();
-        self.overlay_until = self.playing_now().map(|_| Instant::now() + OVERLAY);
+        let now = Instant::now();
+        self.overlay_until = self.media_player(now).map(|_| now + OVERLAY);
         if was { Ok(()) } else { self.draw_strip(deck) }
     }
 
