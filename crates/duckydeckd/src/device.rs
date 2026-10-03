@@ -27,6 +27,8 @@ pub enum DeckEvent {
 pub struct Deck {
     pub serial: String,
     pub out: StreamDeck,
+    /// Test pattern state (0-100 per encoder); goes away with the M2 renderer.
+    pub levels: [u8; 4],
     input: Option<StreamDeck>,
 }
 
@@ -59,6 +61,7 @@ pub fn connect() -> Result<Deck> {
     Ok(Deck {
         serial,
         out,
+        levels: [50; 4],
         input: Some(input),
     })
 }

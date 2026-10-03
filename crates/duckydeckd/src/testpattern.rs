@@ -44,10 +44,30 @@ pub fn draw(deck: &Deck) -> Result<()> {
     Ok(())
 }
 
-pub fn on_input(deck: &Deck, u: &DeviceStateUpdate) {
+pub fn on_input(deck: &mut Deck, u: &DeviceStateUpdate) {
     let res = match *u {
         DeviceStateUpdate::ButtonDown(i) => deck.out.set_button_image(i, key_image(i, true)),
         DeviceStateUpdate::ButtonUp(i) => deck.out.set_button_image(i, key_image(i, false)),
+        DeviceStateUpdate::EncoderTwist(i, delta) => {
+            let Some(level) = deck.levels.get_mut(usize::from(i)) else {
+                return;
+            };
+            *level = level
+                .saturating_add_signed(delta.saturating_mul(5))
+                .min(100);
+            let level = *level;
+            log_err(draw_segment(deck, i, level, false));
+            return;
+        }
+        DeviceStateUpdate::EncoderDown(i) => {
+            log_err(draw_segment(deck, i, 0, true));
+            return;
+        }
+        DeviceStateUpdate::EncoderUp(i) => {
+            let level = deck.levels.get(usize::from(i)).copied().unwrap_or(50);
+            log_err(draw_segment(deck, i, level, false));
+            return;
+        }
         _ => return,
     };
     if let Err(e) = res.and_then(|()| deck.out.flush()) {
@@ -57,9 +77,31 @@ pub fn on_input(deck: &Deck, u: &DeviceStateUpdate) {
 
 pub fn draw_strip(deck: &Deck) -> Result<()> {
     for seg in 0..4u8 {
-        let img = RgbImage::from_pixel(200, 100, hue(seg * 2 + 1));
-        let rect = ImageRect::from_image(DynamicImage::ImageRgb8(img))?;
-        deck.out.write_lcd(u16::from(seg) * 200, 0, &rect)?;
+        draw_segment(deck, seg, 50, false)?;
     }
     Ok(())
+}
+
+/// One strip segment above an encoder: colored bar showing `level` (0-100),
+/// all white while the encoder is pressed.
+fn draw_segment(deck: &Deck, seg: u8, level: u8, pressed: bool) -> Result<()> {
+    let fill = u32::from(level) * 2;
+    let img = RgbImage::from_fn(200, 100, |x, _| {
+        if pressed {
+            Rgb([255, 255, 255])
+        } else if x < fill {
+            hue(seg * 2 + 1)
+        } else {
+            Rgb([30, 30, 30])
+        }
+    });
+    let rect = ImageRect::from_image(DynamicImage::ImageRgb8(img))?;
+    deck.out.write_lcd(u16::from(seg) * 200, 0, &rect)?;
+    Ok(())
+}
+
+fn log_err(res: Result<()>) {
+    if let Err(e) = res {
+        tracing::warn!(error = %e, "strip update failed");
+    }
 }

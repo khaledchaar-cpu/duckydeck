@@ -67,7 +67,7 @@ async fn main() -> Result<()> {
             }
             DeckEvent::Input(u) => {
                 tracing::info!(event = ?u, "input");
-                if let Some(d) = &deck {
+                if let Some(d) = &mut deck {
                     testpattern::on_input(d, &u);
                 }
             }
