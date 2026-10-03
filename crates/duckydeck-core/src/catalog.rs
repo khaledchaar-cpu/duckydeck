@@ -70,6 +70,10 @@ pub struct Entry {
     pub run: Vec<String>,
     /// Hyprland dispatcher in Lua (`hl.dsp.…`), sent over the IPC socket.
     pub dispatch: Option<String>,
+    /// Placeholders that take a whole dispatcher expression (`hl.dsp.…`)
+    /// from the profile instead of a value inside a Lua string.
+    #[serde(default)]
+    pub raw: Vec<String>,
     /// Omarchy route that must exist; default: derived from `run`.
     pub requires: Option<String>,
     pub confirm: Option<Confirm>,
@@ -126,11 +130,14 @@ impl Entry {
                 action: id.to_owned(),
                 arg: name.to_owned(),
             })?;
-            if lua
-                && !value
+            let unsafe_value = if self.raw.iter().any(|r| r == name) {
+                !value.starts_with("hl.dsp.") || value.contains(['\n', '\r'])
+            } else {
+                lua && !value
                     .chars()
                     .all(|c| c.is_ascii_alphanumeric() || "_+-:".contains(c))
-            {
+            };
+            if unsafe_value {
                 return Err(CatalogError::UnsafeArg {
                     action: id.to_owned(),
                     arg: name.to_owned(),
@@ -283,6 +290,10 @@ mod tests {
             if let Some(r) = e.route(&routes) {
                 assert!(routes.contains(&r), "{id}: unknown route `{r}`");
             }
+            // Raw dispatches have no sensible default; see their own test.
+            if !e.raw.is_empty() {
+                continue;
+            }
             // Defaults complete every placeholder; the call goes out verbatim.
             let spec = match e.exec(id, &toml::Table::new()).unwrap() {
                 Exec::Command(spec) => spec,
@@ -360,6 +371,26 @@ mod tests {
             e.exec("window.workspace", &args),
             Err(CatalogError::UnsafeArg { .. })
         ));
+    }
+
+    #[test]
+    fn raw_dispatch_takes_whole_expression() {
+        let c = Catalog::builtin().unwrap();
+        let e = c.get("window.dispatch").unwrap();
+        let mut args = toml::Table::new();
+        let expr = r#"hl.dsp.window.move({ monitor = "+1" })"#;
+        args.insert("expr".into(), expr.into());
+        assert_eq!(
+            e.exec("window.dispatch", &args).unwrap(),
+            Exec::Dispatch(expr.into())
+        );
+        for bad in ["os.exit()", "hl.dsp.window.close()\nos.exit()"] {
+            args.insert("expr".into(), bad.into());
+            assert!(matches!(
+                e.exec("window.dispatch", &args),
+                Err(CatalogError::UnsafeArg { .. })
+            ));
+        }
     }
 
     #[test]

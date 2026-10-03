@@ -95,6 +95,9 @@ gaps-toggle = "border-outer"
 layout-toggle = "layout-grid"
 transparency = "contrast"
 pop-out = "picture-in-picture"
+move-window = "arrows-move"
+move-to-monitor = "device-desktop-share"
+dispatch = "code"
 
 [launcher]
 launcher = "rocket"

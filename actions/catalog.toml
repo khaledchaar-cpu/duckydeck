@@ -172,3 +172,35 @@ run   = ["omarchy", "hyprland", "window", "gaps", "toggle"]
 label = "Layout"
 icon  = "layout-toggle"
 run   = ["omarchy", "hyprland", "workspace", "layout", "toggle"]
+
+[window.move]
+label    = "Move"
+icon     = "move-window"
+dispatch = 'hl.dsp.window.swap({ direction = "{dir}" })'
+defaults = { dir = "r" }
+
+[window.to_monitor]
+label    = "To monitor"
+icon     = "move-to-monitor"
+dispatch = 'hl.dsp.window.move({ monitor = "{monitor}" })'
+defaults = { monitor = "+1" }
+
+[window.monitor_internal]
+label    = "Laptop"
+icon     = "monitor"
+run      = ["omarchy", "hyprland", "monitor", "internal", "{mode}"]
+defaults = { mode = "toggle" }
+
+[window.monitor_mirror]
+label    = "Mirror"
+icon     = "monitor-mirror"
+run      = ["omarchy", "hyprland", "monitor", "internal", "mirror", "{mode}"]
+defaults = { mode = "toggle" }
+
+# Any Hyprland dispatcher, e.g. expr = 'hl.dsp.window.move({ monitor = "+1" })'.
+# The profile value must start with `hl.dsp.` and be a single line.
+[window.dispatch]
+label    = "Dispatch"
+icon     = "dispatch"
+dispatch = '{expr}'
+raw      = ["expr"]

@@ -27,7 +27,7 @@ run   = ["omarchy", "toggle", "nightlight"]
 state = { kind = "command", check = ["…"] }   # optional, nur wenn es ein Event/Status gibt
 ```
 
-- `dispatch = 'hl.dsp.window.close()'` statt `run`: Hyprland-Dispatcher als Lua-Ausdruck (Hyprland ≥ 0.55 mit Lua-Config), direkt über `.socket.sock` gesendet. Platzhalterwerte dürfen nur Buchstaben, Ziffern und `_+-:` enthalten (bleiben im Lua-String); `{ … }` ohne Bezeichner ist eine Lua-Tabelle, kein Platzhalter.
+- `dispatch = 'hl.dsp.window.close()'` statt `run`: Hyprland-Dispatcher als Lua-Ausdruck (Hyprland ≥ 0.55 mit Lua-Config), direkt über `.socket.sock` gesendet. Platzhalterwerte dürfen nur Buchstaben, Ziffern und `_+-:` enthalten (bleiben im Lua-String); `{ … }` ohne Bezeichner ist eine Lua-Tabelle, kein Platzhalter. `raw = ["expr"]` erlaubt für diesen Platzhalter einen ganzen Ausdruck aus dem Profil (muss mit `hl.dsp.` beginnen, einzeilig).
 - `requires = "omarchy capture screenshot"`: Route, die beim Start gegen `omarchy commands --json` geprüft wird (Default: aus `run` abgeleitet).
 - Parameter aus dem Profil per Platzhalter als **eigenes Argument** (`"{n}"`, auch innerhalb eines Arguments wie `"--size={n}"`), nie String-Verkettung in einer Shell. `defaults = { mode = "smart" }` liefert Werte, die das Profil nicht setzt.
 - `confirm = "long-press"`: Tap tut nichts, nur Long-Press führt aus (Herunterfahren, Neustart, Abmelden). Andere Actions laufen bei Tap und Long-Press.
@@ -67,8 +67,8 @@ Unten steht bei jeder Kategorie, was Katalog (K) und was Rust (R) ist.
 - **Regler** `window.workspace_scroll`: Workspaces durchblättern (`e±N`), Druck = Scratchpad; Strip zeigt die aktive Nummer
 - Fenster schließen, Floating, Vollbild, Pseudo, Split
 - Omarchy-Routen: Tiled-Fullscreen, Pop-out, Transparenz, Gaps, Layout dwindle ↔ scrolling (`omarchy hyprland …`)
-- Fokus/Verschieben in Richtung, Fenster an Monitor, internen Monitor an/aus/spiegeln
-- Beliebiger `hyprctl dispatch`
+- Fokus (`window.focus`), Verschieben in Richtung (`window.move`, tauscht wie Omarchys SUPER+SHIFT+Pfeil), Fenster an Monitor (`window.to_monitor`, `monitor = "+1"` oder Name), internen Monitor an/aus/spiegeln (`window.monitor_internal`/`window.monitor_mirror`, `mode = toggle|on|off`)
+- Beliebiger Dispatch (`window.dispatch`, `expr = 'hl.dsp.…'`)
 
 ## Launcher (M5d) – `omarchy launch …` K, Fokussieren-oder-Starten und Badge R
 - App über `.desktop` bzw. `omarchy launch …` (Browser, Terminal, Editor, Webapps, TUIs)
