@@ -19,7 +19,12 @@ const BOOT_TIME: Duration = Duration::from_secs(2);
 #[tokio::main]
 async fn main() -> Result<()> {
     let debug = std::env::args().any(|a| a == "--debug");
-    let default = if debug { "debug" } else { "info" };
+    // cosmic-text logs every missing fallback family per text layout.
+    let default = if debug {
+        "debug,cosmic_text=warn"
+    } else {
+        "info"
+    };
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default)),
