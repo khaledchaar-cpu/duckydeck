@@ -195,6 +195,16 @@ pub fn create(dir: &Path, id: &str, name: &str, from: Option<&str>) -> Result<Pa
     Ok(path)
 }
 
+/// Writes `src` as the whole file of profile `id`, creating it if needed:
+/// the editor's undo for removing a page or deleting a profile.
+pub fn restore(dir: &Path, id: &str, src: &str) -> Result<PathBuf, EditError> {
+    check_id(id)?;
+    let path = profile_path(dir, id);
+    Profile::parse(src, &path)?;
+    write(&path, src)?;
+    Ok(path)
+}
+
 /// Deletes profile `id`. The default profile cannot go away: deleting it
 /// resets it to the built-in one. Profiles still in use are refused.
 pub fn delete(dir: &Path, id: &str) -> Result<(), EditError> {
@@ -710,6 +720,11 @@ keys = [{ action = "capture.qr" }]
                 .to_string()
                 .contains("used by")
         );
+        let saved = std::fs::read_to_string(profile_path(&dir, "dev2")).unwrap();
+        delete(&dir, "dev2").unwrap();
+        restore(&dir, "dev2", &saved).unwrap();
+        assert_eq!(Loaded::load(&dir).unwrap().profiles["dev2"].name, "Dev 2");
+        assert!(restore(&dir, "dev2", "pages = 3").is_err());
         delete(&dir, "dev2").unwrap();
         delete(&dir, "dev").unwrap();
         assert!(delete(&dir, "dev").is_err());

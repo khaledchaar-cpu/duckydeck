@@ -47,6 +47,7 @@ Item {
   property var redoStack: []
   property bool busy: false
   property bool busyNew: false
+  property var afterSnapshot: null
   // Slot marked with Ctrl+X: {at, kind, index} (index 0-based).
   property var cutSlot: null
   // Copied binding (Ctrl+C), pasted onto the selected slot with Ctrl+V.
@@ -610,16 +611,26 @@ Item {
                 redo: [root.profile, "page", "move", String(from), String(to)] })
   }
 
-  // Asks once, removes on the second call. Not undoable: the history is reset.
+  // Asks once, removes on the second call. Undo writes the saved file back.
   function removePage() {
     if (root.pageCount < 2 || root.folders.length > 0) return
     if (root.confirming !== "page") { root.confirming = "page"; return }
     root.confirming = ""
+    var id = root.profile
     var n = root.page
-    root.page = Math.min(n, root.pageCount - 1)
-    root.undoStack = []
-    root.redoStack = []
-    root.runEdit([root.profile, "page", "remove", String(n)])
+    root.withSnapshot(id, function(toml) {
+      root.page = Math.min(n, root.pageCount - 1)
+      root.edit({ undo: [id, "restore", toml], redo: [id, "page", "remove", String(n)] })
+    })
+  }
+
+  // Runs then(toml) with the current file of profile id, for an undo entry.
+  function withSnapshot(id, then) {
+    root.busy = true
+    root.error = ""
+    root.afterSnapshot = then
+    snapshotProc.command = ["duckydeck", "export", id]
+    snapshotProc.running = true
   }
 
   function setProfileField(field, value, old) {
@@ -690,11 +701,13 @@ Item {
     if (root.confirming !== "profile") { root.confirming = "profile"; return }
     root.confirming = ""
     var id = root.profile
-    root.undoStack = []
-    root.redoStack = []
-    root.manage([id, "delete"], function() {
-      if (id === "omarchy") root.refresh(true)
-      else root.setProfile("omarchy")
+    root.withSnapshot(id, function(toml) {
+      root.manage([id, "delete"], function() {
+        root.redoStack = []
+        root.undoStack = root.undoStack.concat([{ undo: [id, "restore", toml], redo: [id, "delete"] }])
+        if (id === "omarchy") root.refresh(true)
+        else root.setProfile("omarchy")
+      })
     })
   }
 
@@ -785,6 +798,23 @@ Item {
       // The daemon's file watcher may lag behind: reload first, then render.
       if (code === 0 && root.status) reloadProc.running = true
       else root.refresh(true)
+    }
+  }
+
+  Process {
+    id: snapshotProc
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var then = root.afterSnapshot
+        root.afterSnapshot = null
+        root.busy = false
+        if (then && String(text).trim() !== "") then(String(text))
+      }
+    }
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: if (String(text).trim() !== "") root.error = String(text).trim().replace(/^duckydeck: /, "")
     }
   }
 

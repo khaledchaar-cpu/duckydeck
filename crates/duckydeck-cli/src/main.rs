@@ -28,7 +28,7 @@ commands:
   edit <profile> page add | page remove <n> | page move <from> <to>
   edit <profile> name <text> | match <class regex> | title <title regex>
                         (empty regex = off; class and title must both match)
-  edit <profile> create <name> [<copy of>] | delete
+  edit <profile> create <name> [<copy of>] | delete | restore <toml>
                         manage pages and profiles; deleting the default
                         profile resets it to the built-in one
   reload                re-read system font, theme and config
@@ -324,6 +324,9 @@ fn edit(args: &[&str]) -> Result<()> {
             edit::create(&dir, id, name, Some(from))?;
         }
         [id, "delete"] => edit::delete(&dir, id)?,
+        [id, "restore", src] => {
+            edit::restore(&dir, id, src)?;
+        }
         _ => return Err(usage()),
     }
     Ok(())

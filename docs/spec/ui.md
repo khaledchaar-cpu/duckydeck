@@ -43,7 +43,7 @@ Eigenes Plugin vom Typ `overlay`, zusätzlich zum Panel aus v1 (das Panel bleibt
 
 ### Bearbeiten und Speichern
 - Drag & Drop: Bibliothek → Slot belegt; Slot → Slot tauscht. Gleiches per Tastatur (Enter belegt, Strg+X/Strg+V verschiebt).
-- **Sofort speichern:** jede Änderung wird direkt in die Profil-TOML geschrieben, das Gerät zeigt sie live. Rückgängig/Wiederholen mit Strg+Z/Strg+Umschalt+Z für die gesamte Editor-Sitzung.
+- **Sofort speichern:** jede Änderung wird direkt in die Profil-TOML geschrieben, das Gerät zeigt sie live. Rückgängig/Wiederholen mit Strg+Z/Strg+Umschalt+Z für die gesamte Editor-Sitzung, auch für „Seite entfernen“ und „Profil löschen“ (`duckydeck edit <id> restore <toml>` schreibt die vorher gesicherte Datei zurück).
 - Geschrieben wird mit `toml_edit`: Kommentare und Formatierung bleiben erhalten, Hand-Editieren bleibt gleichwertig. Ändert sich die Datei extern, lädt der Editor neu.
 - Die UI schreibt nie selbst Dateien, sondern ruft CLI-Befehle auf (`duckydeck edit …`); der Daemon/CLI validiert vor dem Schreiben.
 
