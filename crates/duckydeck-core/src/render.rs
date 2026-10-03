@@ -12,12 +12,12 @@ use crate::theme::{Color, MIN_CONTRAST, Role, Theme};
 
 pub const KEY_SIZE: u32 = 120;
 
-const ICON_WITH_LABEL: f32 = 56.0;
+const ICON_WITH_LABEL: f32 = 54.0;
 const ICON_ALONE: f32 = 64.0;
-const LABEL_PX: f32 = 13.0;
-const LABEL_PAD: f32 = 6.0;
+const LABEL_PX: f32 = 16.0;
+const LABEL_PAD: f32 = 4.0;
 /// Icon area top edge when a label is shown; label sits below it.
-const ICON_TOP_WITH_LABEL: f32 = 18.0;
+const ICON_TOP_WITH_LABEL: f32 = 14.0;
 const GLYPH_PX: f32 = 56.0;
 const MARK_W: f32 = 40.0;
 const MARK_H: f32 = 6.0;
@@ -29,15 +29,15 @@ pub const SEGMENT_H: u32 = 100;
 const SEG_PAD: f32 = 16.0;
 const SEG_ICON: f32 = 36.0;
 const SEG_ICON_TOP: f32 = 16.0;
-const SEG_TEXT_PX: f32 = 22.0;
+const SEG_TEXT_PX: f32 = 28.0;
 const SEG_BAR_TOP: f32 = 68.0;
 const SEG_BAR_H: f32 = 10.0;
 
 /// The whole strip, used for the media view.
 pub const STRIP_W: u32 = 800;
 const MEDIA_ICON: f32 = 40.0;
-const MEDIA_TITLE_PX: f32 = 24.0;
-const MEDIA_ARTIST_PX: f32 = 18.0;
+const MEDIA_TITLE_PX: f32 = 26.0;
+const MEDIA_ARTIST_PX: f32 = 20.0;
 const MEDIA_TIME_W: f32 = 140.0;
 const MEDIA_BAR_TOP: f32 = 80.0;
 const MEDIA_BAR_H: f32 = 6.0;
