@@ -2,3 +2,4 @@
 *.png.new
 *.snap.new
 .claude/settings.local.json
+*.pkg.tar.zst
