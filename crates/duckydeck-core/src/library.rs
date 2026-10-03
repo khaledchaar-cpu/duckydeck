@@ -29,6 +29,9 @@ pub enum ParamKind {
     Profile,
     /// Desktop-entry id of an installed app (`duckydeck apps`).
     App,
+    /// An app playing audio (`duckydeck audio apps`); free text, since the
+    /// app may be silent when the profile is edited.
+    AudioApp,
     /// Nested bindings (`structure.multi` steps, `structure.toggle` states).
     List,
 }
@@ -80,8 +83,8 @@ type BuiltinParam = (
 );
 
 const PLAYER: BuiltinParam = ("player", ParamKind::Text, None, true, &[]);
-/// Empty = the focused window's app.
-const APP: BuiltinParam = ("app", ParamKind::Text, None, true, &[]);
+/// App to start with; empty = the first playing app.
+const APP: BuiltinParam = ("app", ParamKind::AudioApp, None, true, &[]);
 const STEP: BuiltinParam = ("step", ParamKind::Integer, Some(5), false, &[]);
 
 const BUILTINS: &[Builtin] = &[

@@ -39,6 +39,8 @@ Item {
   property var icons: []
   // Installed apps ({id, name}) from `duckydeck apps --json`.
   property var apps: []
+  // Apps playing audio right now (`duckydeck audio apps --json`).
+  property var audioApps: []
   property string query: ""
   property int libIndex: 0
   // "deck" or "library": where the keyboard goes.
@@ -154,6 +156,7 @@ Item {
     iconsProc.running = true
     appsProc.running = false
     appsProc.running = true
+    root.refreshAudioApps()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
@@ -251,6 +254,12 @@ Item {
     root.openEntry = -1
     root.selKind = kind
     root.selIndex = Math.max(0, Math.min(kind === "dial" ? 3 : 7, index))
+    if (kind === "dial") root.refreshAudioApps()
+  }
+
+  function refreshAudioApps() {
+    audioAppsProc.running = false
+    audioAppsProc.running = true
   }
 
   // Keys are 2 rows of 4, dials one row below them.
@@ -525,7 +534,11 @@ Item {
     var list = p.kind === "choice" ? p.choices
       : p.kind === "folder" ? Object.keys(root.profileData ? root.profileData.folders : {})
       : p.kind === "profile" ? (root.status ? root.status.profiles : [])
+      : p.kind === "audio_app" ? root.audioApps
       : []
+    // A silent app set in the profile stays selectable.
+    var cur = root.argText(p)
+    if (cur !== "" && list.indexOf(cur) < 0) list = [cur].concat(list)
     return (p.optional ? [""] : []).concat(list)
   }
 
@@ -838,6 +851,17 @@ Item {
       waitForEnd: true
       onStreamFinished: {
         try { root.icons = JSON.parse(text).icons || [] } catch (e) {}
+      }
+    }
+  }
+
+  Process {
+    id: audioAppsProc
+    command: ["duckydeck", "audio", "apps", "--json"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try { root.audioApps = JSON.parse(text).apps || [] } catch (e) {}
       }
     }
   }
@@ -1776,7 +1800,7 @@ Item {
               Column {
                 id: param
                 required property var modelData
-                readonly property bool isSelect: ["choice", "folder", "profile"].indexOf(modelData.kind) >= 0
+                readonly property bool isSelect: ["choice", "folder", "profile", "audio_app"].indexOf(modelData.kind) >= 0
                 readonly property string current: root.argText(modelData)
                 property string error: ""
                 width: inspector.width

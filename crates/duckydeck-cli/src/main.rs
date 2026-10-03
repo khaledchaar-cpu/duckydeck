@@ -56,6 +56,7 @@ commands:
                         search downloaded libraries (max. 60 hits); import a
                         hit with icons add <path> <library>-<name>
   apps                  list installed apps: desktop-entry id and name (no daemon needed)
+  audio apps            list apps playing audio right now (no daemon needed)
   preview <profile> [<page>|<folder>]
                         render a page or folder to PNG files (paths printed)
   subscribe             print status events as JSON lines until killed
@@ -318,6 +319,22 @@ async fn main() -> Result<()> {
             }
             return Ok(());
         }
+        ["audio", "apps"] => {
+            let streams =
+                duckydeck_core::app_audio::read_streams(&duckydeck_core::TokioRunner).await;
+            let apps = duckydeck_core::app_audio::apps(&streams);
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({ "v": 1, "ok": true, "apps": apps })
+                );
+            } else {
+                for a in apps {
+                    println!("{a}");
+                }
+            }
+            return Ok(());
+        }
         ["export", id] if json => return export_json(id),
         ["export", id] => return export(id),
         ["edit"] => return open_editor().await,
@@ -328,7 +345,12 @@ async fn main() -> Result<()> {
             }
             return Ok(());
         }
-        ["check", ..] | ["export", ..] | ["icons", ..] | ["profiles", ..] | ["apps", ..] => {
+        ["check", ..]
+        | ["export", ..]
+        | ["icons", ..]
+        | ["profiles", ..]
+        | ["apps", ..]
+        | ["audio", ..] => {
             eprintln!("duckydeck: wrong arguments for {}\n\n{USAGE}", args[0]);
             std::process::exit(2);
         }

@@ -41,9 +41,11 @@ keys = [
   { action = "structure.folder", args = { folder = "look" }, label = "Look", icon = "theme" },
   { action = "structure.folder", args = { folder = "power" }, label = "Power", icon = "power" },
 ]
+# Dial 2 sets the volume of one playing app: hold it down and turn to pick
+# the app, press to mute it. `args = { app = "spotify" }` picks the start app.
 dials = [
   { action = "media.volume", args = { step = 5 } },
-  { action = "media.mic" },
+  { action = "media.app_volume" },
   { action = "display.brightness", args = { step = 5 } },
   { action = "structure.page_scroll" },
 ]
