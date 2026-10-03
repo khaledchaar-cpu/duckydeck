@@ -8,6 +8,9 @@ name = "Omarchy"
 
 # Each page has up to 8 keys (left to right, top row first) and up to 4 dials.
 # `{}` leaves a slot empty. `label` and `icon` override the action's defaults.
+# Swipe the strip or turn the right dial to change pages.
+
+# Page 1 – everyday: workspaces, apps, screenshot, Omarchy menu.
 [[pages]]
 keys = [
   { action = "window.workspace", args = { n = 1 } },
@@ -16,21 +19,70 @@ keys = [
   { action = "window.workspace", args = { n = 4 } },
   { action = "launcher.terminal" },
   { action = "launcher.browser" },
-  { action = "capture.screenshot", args = { mode = "region" } },
+  { action = "capture.screenshot" },
   { action = "system.menu" },
 ]
 dials = [
   { action = "media.volume", args = { step = 5 } },
   { action = "media.mic" },
   { action = "display.brightness", args = { step = 5 } },
+  { action = "structure.page_scroll" },
+]
+
+# Page 2 – media, capture tools and folders.
+[[pages]]
+keys = [
+  { action = "media.previous" },
+  { action = "media.play_pause" },
+  { action = "media.next" },
+  { action = "capture.screenrecording" },
+  { action = "capture.color_picker" },
+  { action = "capture.ocr" },
+  { action = "structure.folder", args = { folder = "look" }, label = "Look", icon = "theme" },
+  { action = "structure.folder", args = { folder = "power" }, label = "Power", icon = "power" },
+]
+dials = [
+  { action = "media.volume", args = { step = 5 } },
+  { action = "media.mic" },
+  { action = "display.brightness", args = { step = 5 } },
+  { action = "structure.page_scroll" },
+]
+
+# Page 3 – windows and focus.
+[[pages]]
+keys = [
+  { action = "window.close" },
+  { action = "window.float" },
+  { action = "window.fullscreen" },
+  { action = "window.layout" },
+  { action = "window.scratchpad" },
+  { action = "system.dnd" },
+  { action = "system.idle" },
+  { action = "system.dismiss_notifications" },
+]
+dials = [
+  { action = "media.volume", args = { step = 5 } },
   { action = "window.workspace_scroll" },
+  { action = "display.brightness", args = { step = 5 } },
+  { action = "structure.page_scroll" },
 ]
 
 # Folders are extra pages opened by a key with `structure.folder`.
 # A folder shows a back key in its last slot automatically.
-# [folders.power]
-# keys = [
-#   { action = "system.lock" },
-#   { action = "system.suspend" },
-#   { action = "system.shutdown" },
-# ]
+[folders.look]
+keys = [
+  { action = "system.theme" },
+  { action = "system.wallpaper" },
+  { action = "system.nightlight" },
+  { action = "window.gaps" },
+  { action = "window.transparency" },
+]
+
+[folders.power]
+keys = [
+  { action = "system.lock" },
+  { action = "system.suspend" },
+  { action = "system.logout" },
+  { action = "system.reboot" },
+  { action = "system.shutdown" },
+]
