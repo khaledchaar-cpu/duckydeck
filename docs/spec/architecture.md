@@ -84,7 +84,8 @@ Genauso wird der Hyprland-Zugriff hinter einem Trait gekapselt (Fake mit vorgege
 
 1. Das AUR-Paket (`omarchy pkg aur add duckydeck`) liefert:
    - `/usr/lib/udev/rules.d/70-duckydeck.rules` (`uaccess`, kein root)
-   - `/usr/lib/systemd/user/duckydeck.service` (`WantedBy=graphical-session.target`, Preset aktiviert)
+   - `/usr/lib/systemd/user/duckydeck.service` (`WantedBy=graphical-session.target`), global aktiviert über den mitgelieferten Symlink in `graphical-session.target.wants/`; die udev-Regel startet den Dienst zusätzlich beim Einstecken (`SYSTEMD_USER_WANTS`), also auch direkt nach der Installation ohne Neu-Login
+   - Paket: `packaging/PKGBUILD` (`options=('!lto')`, sonst scheitert das Linken von hidapi)
    - Shell-Plugins, Menüerweiterung und Hook-Scripts unter `/usr/share/duckydeck/`
 2. `duckydeck setup` (beim ersten Daemon-Start automatisch, idempotent):
    - Plugins nach `~/.config/omarchy/plugins/duckydeck.*` verlinken, Widget per `omarchy bar put duckydeck.widget` einhängen

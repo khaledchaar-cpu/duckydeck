@@ -1,0 +1,46 @@
+# Maintainer: Khaled Chaar <254331885+khaledchaar-cpu@users.noreply.github.com>
+pkgname=duckydeck
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Elgato Stream Deck + integration for Omarchy'
+arch=('x86_64')
+url='https://github.com/khaledchaar-cpu/duckydeck'
+license=('MIT')
+depends=('gcc-libs' 'glibc' 'systemd-libs' 'hyprland' 'libpulse' 'fontconfig')
+makedepends=('cargo')
+# LTO from makepkg.conf breaks linking the bundled hidapi C library.
+options=('!lto')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable CARGO_TARGET_DIR=target
+  cargo build --frozen --release -p duckydeckd -p duckydeck-cli
+}
+
+check() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable CARGO_TARGET_DIR=target
+  cargo test --frozen --release --workspace
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm755 target/release/duckydeckd target/release/duckydeck -t "$pkgdir/usr/bin/"
+  install -Dm644 packaging/70-duckydeck.rules -t "$pkgdir/usr/lib/udev/rules.d/"
+  install -Dm644 packaging/duckydeck.service -t "$pkgdir/usr/lib/systemd/user/"
+  # Enabled for every user; starts with the next graphical session.
+  install -d "$pkgdir/usr/lib/systemd/user/graphical-session.target.wants"
+  ln -s ../duckydeck.service "$pkgdir/usr/lib/systemd/user/graphical-session.target.wants/duckydeck.service"
+  install -d "$pkgdir/usr/share/duckydeck/shell-plugins"
+  cp -r --no-preserve=ownership shell-plugins/duckydeck.widget "$pkgdir/usr/share/duckydeck/shell-plugins/"
+  install -Dm644 examples/profiles/*.toml -t "$pkgdir/usr/share/doc/$pkgname/examples/"
+  install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+}

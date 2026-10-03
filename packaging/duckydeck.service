@@ -1,0 +1,13 @@
+[Unit]
+Description=DuckyDeck – Elgato Stream Deck + daemon
+Documentation=https://github.com/khaledchaar-cpu/duckydeck
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/duckydeckd
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target
