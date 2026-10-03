@@ -61,6 +61,35 @@ pub fn scan(dirs: &[PathBuf]) -> Vec<App> {
     apps
 }
 
+/// `Icon=` of the desktop entry `id` (first match in `dirs`): a theme icon
+/// name or an absolute path.
+pub fn icon_name(dirs: &[PathBuf], id: &str) -> Option<String> {
+    dirs.iter().find_map(|dir| {
+        let mut files = Vec::new();
+        collect(dir, dir, &mut files);
+        let (_, path) = files.into_iter().find(|(i, _)| i == id)?;
+        let text = std::fs::read_to_string(path).ok()?;
+        entry_value(&text, "Icon")
+    })
+}
+
+/// A key of the `[Desktop Entry]` group.
+fn entry_value(text: &str, wanted: &str) -> Option<String> {
+    let mut in_entry = false;
+    for line in text.lines().map(str::trim) {
+        if line.starts_with('[') {
+            in_entry = line == "[Desktop Entry]";
+        } else if in_entry
+            && let Some((key, value)) = line.split_once('=')
+            && key.trim() == wanted
+            && !value.trim().is_empty()
+        {
+            return Some(value.trim().to_owned());
+        }
+    }
+    None
+}
+
 /// Desktop files below `dir` with their id (subdirectories joined by `-`).
 fn collect(root: &Path, dir: &Path, out: &mut Vec<(String, PathBuf)>) {
     let Ok(entries) = std::fs::read_dir(dir) else {
@@ -136,6 +165,13 @@ mod tests {
         );
         assert_eq!(parse("[Desktop Entry]\nType=Link\nName=X\n"), None);
         assert_eq!(parse("[Desktop Entry]\nType=Application\n"), None);
+    }
+
+    #[test]
+    fn reads_icon_of_the_entry_only() {
+        let text = "[Desktop Entry]\nName=X\nIcon=x-app\n[Desktop Action a]\nIcon=other\n";
+        assert_eq!(entry_value(text, "Icon"), Some("x-app".into()));
+        assert_eq!(entry_value(GHOSTTY, "Icon"), None);
     }
 
     #[test]

@@ -31,7 +31,7 @@ Jede eingebaute Action sieht ohne Zutun gut aus und passt zu jedem Omarchy-Theme
 - **Touchstrip-Layouts** (800×100): Reglerwerte (Balken + Prozent + Icon), Medien, Workspace-Leiste.
 - **Splash** beim Verbinden (Logo in `accent`, 600 ms) und **Screensaver** (gedimmt, Uhrzeit), gekoppelt an Idle/Lock der Shell.
 - **Fehlerzustand:** kurzes rotes Aufblinken + `warning`-Icon.
-- **App-Icons:** über das Icon-Theme des Omarchy-Themes (`icons.theme`), Fallback `generic-app`.
+- **App-Icons:** über das Icon-Theme des Omarchy-Themes (`icons.theme`), Fallback `generic-app`. Suche: `Icon=` der Desktop-Datei → Theme, `Inherits`-Kette, `hicolor`, `pixmaps`; größte Variante, SVG vor PNG; PNG wird farbig gezeichnet.
 - v2: Geräte-Grafik `assets/device/streamdeck-plus.svg` für den Editor.
 
 ## Ablage & Prüfung

@@ -46,6 +46,8 @@ const MEDIA_BAR_H: f32 = 6.0;
 pub enum RenderError {
     #[error("invalid SVG: {0}")]
     Svg(#[from] usvg::Error),
+    #[error("png: {0}")]
+    Png(String),
     #[error("pixmap allocation failed")]
     Pixmap,
 }
@@ -349,7 +351,7 @@ fn fill_rect(pm: &mut Pixmap, x: f32, y: f32, w: f32, h: f32, c: Color) {
 }
 
 /// Renders `svg` with `currentColor` replaced by `color`, centered in the
-/// `size` square at (`left`, `top`).
+/// `size` square at (`left`, `top`). PNG data (app icons) is drawn as is.
 fn draw_svg(
     pm: &mut Pixmap,
     svg: &[u8],
@@ -358,6 +360,9 @@ fn draw_svg(
     left: f32,
     top: f32,
 ) -> Result<(), RenderError> {
+    if svg.starts_with(b"\x89PNG") {
+        return draw_png(pm, svg, size, left, top);
+    }
     let src = String::from_utf8_lossy(svg).replace("currentColor", color);
     let tree = usvg::Tree::from_str(&src, &usvg::Options::default())?;
     let s = tree.size();
@@ -368,6 +373,32 @@ fn draw_svg(
         &tree,
         Transform::from_scale(scale, scale).post_translate(left, top),
         &mut pm.as_mut(),
+    );
+    Ok(())
+}
+
+fn draw_png(
+    pm: &mut Pixmap,
+    png: &[u8],
+    size: f32,
+    left: f32,
+    top: f32,
+) -> Result<(), RenderError> {
+    let img = Pixmap::decode_png(png).map_err(|e| RenderError::Png(e.to_string()))?;
+    let scale = size / img.width().max(img.height()) as f32;
+    let left = left + (size - img.width() as f32 * scale) / 2.0;
+    let top = top + (size - img.height() as f32 * scale) / 2.0;
+    let paint = tiny_skia::PixmapPaint {
+        quality: tiny_skia::FilterQuality::Bicubic,
+        ..Default::default()
+    };
+    pm.draw_pixmap(
+        0,
+        0,
+        img.as_ref(),
+        &paint,
+        Transform::from_scale(scale, scale).post_translate(left, top),
+        None,
     );
     Ok(())
 }
@@ -453,6 +484,20 @@ mod tests {
         let img = r.glyph_key(&theme(), &view).unwrap();
         assert_eq!(img.pixel(60, 100), [0xe6, 0x8e, 0x0d]);
         assert_eq!(img.pixel(10, 100), [0x12, 0x12, 0x12]);
+    }
+
+    #[test]
+    fn png_icon_keeps_its_colors() {
+        let mut red = Pixmap::new(8, 8).unwrap();
+        red.fill(tiny_skia::Color::from_rgba8(255, 0, 0, 255));
+        let png = red.encode_png().unwrap();
+        let view = KeyView {
+            icon: Some(&png),
+            ..Default::default()
+        };
+        let img = Renderer::new(vec![]).key(&theme(), &view).unwrap();
+        assert_eq!(img.pixel(60, 60), [255, 0, 0]);
+        assert_eq!(img.pixel(0, 0), [0x12, 0x12, 0x12]);
     }
 
     #[test]

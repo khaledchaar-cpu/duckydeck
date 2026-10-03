@@ -4,7 +4,9 @@
 //! action id. Catalog actions run detached; dial actions go to the
 //! [`levels`](crate::levels) worker.
 
+use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap};
+use std::rc::Rc;
 use std::time::{Duration, Instant, SystemTime};
 
 use anyhow::{Context, Result};
@@ -58,6 +60,24 @@ pub struct Tasks {
     pub events: UnboundedSender<DeckEvent>,
 }
 
+const APP_ACTION: &str = "launcher.app";
+
+/// A built-in icon or an app icon from the icon theme (SVG or PNG).
+enum Icon {
+    Builtin(&'static [u8]),
+    App(Rc<[u8]>),
+}
+
+impl std::ops::Deref for Icon {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        match self {
+            Icon::Builtin(b) => b,
+            Icon::App(a) => a,
+        }
+    }
+}
+
 pub struct Screen {
     renderer: Renderer,
     theme: Theme,
@@ -66,6 +86,8 @@ pub struct Screen {
     catalog: Catalog,
     /// Catalog ids whose omarchy route is missing; shown with a warning icon.
     unavailable: BTreeSet<String>,
+    /// Icons of `launcher.app` apps by desktop-entry id, `None` if not found.
+    app_icons: RefCell<HashMap<String, Option<Rc<[u8]>>>>,
     jobs: UnboundedSender<Job>,
     levels: Levels,
     media_tx: UnboundedSender<mpris::Press>,
@@ -116,6 +138,7 @@ impl Screen {
             store,
             nav,
             catalog,
+            app_icons: RefCell::default(),
             unavailable,
             jobs: tasks.jobs,
             levels: Levels::default(),
@@ -150,6 +173,8 @@ impl Screen {
         if let Some(t) = load_theme() {
             self.theme = t;
         }
+        // The theme may bring another icon theme.
+        self.app_icons.borrow_mut().clear();
     }
 
     /// Returns whether the deck needs a redraw.
@@ -159,6 +184,7 @@ impl Screen {
             return false;
         }
         duckydeck_core::check::notify_problems(&self.store.current, &self.catalog, runner);
+        self.app_icons.borrow_mut().clear();
         self.brightness = None;
         self.toggled.clear();
         let reset = self.store.current.config.profile != configured;
@@ -768,8 +794,9 @@ impl Screen {
             return to_image(self.renderer.glyph_key(&self.theme, &view)?);
         }
         let label = binding.as_ref().map(|b| self.label(b));
+        let icon = binding.as_ref().and_then(|b| self.icon(b));
         let view = KeyView {
-            icon: binding.as_ref().and_then(|b| self.icon(b)),
+            icon: icon.as_deref(),
             label: label.as_deref(),
             fg: match binding
                 .as_ref()
@@ -821,12 +848,12 @@ impl Screen {
         };
         let icon = match (&binding, level) {
             (Some(b), Some((d, (pct, muted)))) if b.icon.is_none() => {
-                icons::get(dial_icon(d, pct, muted))
+                icons::get(dial_icon(d, pct, muted)).map(Icon::Builtin)
             }
             (b, _) => b.as_ref().and_then(|b| self.icon(b)),
         };
         let view = SegmentView {
-            icon,
+            icon: icon.as_deref(),
             text: text.as_deref(),
             level: level
                 .and_then(|(_, (pct, _))| pct)
@@ -876,9 +903,27 @@ impl Screen {
         name
     }
 
+    /// The app's own icon for `launcher.app`, else the built-in icon.
+    fn icon(&self, b: &Binding) -> Option<Icon> {
+        if b.icon.is_none()
+            && b.action == APP_ACTION
+            && !self.unavailable.contains(&b.action)
+            && let Some(app) = b.args.get("app").and_then(|v| v.as_str())
+            && let Some(data) = self
+                .app_icons
+                .borrow_mut()
+                .entry(app.to_owned())
+                .or_insert_with(|| duckydeck_core::appicon::load(app).map(Rc::from))
+                .clone()
+        {
+            return Some(Icon::App(data));
+        }
+        self.builtin_icon(b).map(Icon::Builtin)
+    }
+
     /// Explicit icon, else a warning for disabled actions, else the catalog
     /// icon, else one derived from the action id.
-    fn icon(&self, b: &Binding) -> Option<&'static [u8]> {
+    fn builtin_icon(&self, b: &Binding) -> Option<&'static [u8]> {
         if let Some(name) = &b.icon {
             return icons::get(name);
         }
