@@ -9,7 +9,11 @@ Jede eingebaute Action sieht ohne Zutun gut aus und passt zu jedem Omarchy-Theme
 - **Allgemeine Motive** für eigene Belegungen: Kategorien `[general]` (Alltag, Arbeit, Dev, Freizeit, Symbole …) und `[adult]` („Party & 18+“: Drinks, Rauchen, Casino, Flirt-Smileys) – Tabler-Name = DuckyDeck-Name, keine Action nutzt sie standardmäßig (Entscheidung 2026-10-03).
 - **Nur fehlende Motive** werden selbst erstellt, im Tabler-Stil, unter `assets/icons/custom/` (bisher: `omarchy-menu` = „o“ aus `/usr/share/omarchy/logo.svg`, `play-pause`). Workspace-Ziffern sind Font-Glyphen statt SVG.
 
-## Gestaltung
+## Eigene Icons (v2, Idee 3)
+- Ablage `~/.config/duckydeck/icons/<name>.svg|png` (max. 1 MiB, Name `[a-z0-9_-]`), Import per `duckydeck icons add <datei> [name]` oder im Editor („Import SVG/PNG…“ über `omarchy file select`); löschen mit `duckydeck icons remove <name>`.
+- `icon = "<name>"`: eingebaute Icons haben Vorrang, Namen eingebauter Icons sind beim Import gesperrt. SVGs mit `currentColor` werden wie eingebaute eingefärbt, alles andere bleibt farbig.
+- Editor-Kategorie `user` („My icons“). Daemon cached geladene Icons bis zum Config-Reload; `icons add/remove` lösen den Reload selbst aus.
+
 - Einfarbige SVGs mit `currentColor`, beim Rendern mit Theme-Tokens eingefärbt.
 - Toggles: aktiv = `accent`, inaktiv = `muted`, kritisch = `red`; eigene Icon-Variante je Zustand (z. B. `volume` / `volume-off`).
 - **Taste (120×120):** Icon 56 px zentriert (ohne Label 64 px), Label unten in der Systemschrift (12–14 px, 1 Zeile, Ellipse), Hintergrund `background` bzw. `lighter_background`, optional Badge (App läuft, Aufnahmezeit).

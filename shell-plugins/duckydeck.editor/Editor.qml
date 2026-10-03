@@ -770,6 +770,45 @@ Item {
     }
   }
 
+  // Icon import: file chooser, then `duckydeck icons add`; the callback
+  // gets the new icon name.
+  property var importDone: null
+
+  function importIcon(done) {
+    root.importDone = done
+    selectProc.running = true
+  }
+
+  Process {
+    id: selectProc
+    command: ["omarchy", "file", "select", "--title", strings.importTitle, "--extensions", "svg png"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var path = String(text).split("\n")[0].trim()
+        if (path === "") return
+        addIconProc.command = ["duckydeck", "icons", "add", path, "--json"]
+        addIconProc.running = true
+      }
+    }
+  }
+
+  Process {
+    id: addIconProc
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var msg
+        try { msg = JSON.parse(text) } catch (e) { return }
+        if (!msg.ok) { root.error = msg.error || ""; return }
+        iconsProc.running = false
+        iconsProc.running = true
+        if (root.importDone) root.importDone(msg.name)
+        root.importDone = null
+      }
+    }
+  }
+
   Process {
     id: iconsProc
     command: ["duckydeck", "icons", "--color", "#" + root.foreground.toString().slice(-6)]
@@ -1688,6 +1727,10 @@ Item {
                 root.updateSelected({ icon: name })
                 root.focusDeck()
               }
+              onImportRequested: root.importIcon(function(name) {
+                root.updateSelected({ icon: name })
+                root.focusDeck()
+              })
             }
 
             Repeater {
@@ -1922,6 +1965,9 @@ Item {
                           onPicked: function(name) {
                             root.setEntryField(entries.listName, entry.index, "icon", name)
                           }
+                          onImportRequested: root.importIcon(function(name) {
+                            root.setEntryField(entries.listName, entry.index, "icon", name)
+                          })
                         }
                         Repeater {
                           model: entry.action ? entry.action.params : []

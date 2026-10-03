@@ -13,7 +13,7 @@ QtObject {
   readonly property var groups: ({
     system: "System", capture: "Capture", media: "Media", launcher: "Launcher",
     window: "Window", display: "Display", structure: "Structure", apps: "Apps",
-    network: "Network", custom: "Other", general: "General", adult: "Party & 18+"
+    network: "Network", custom: "Other", user: "My icons", general: "General", adult: "Party & 18+"
   })
   readonly property string inspector: "SLOT"
   readonly property string empty: "Empty"
@@ -26,6 +26,8 @@ QtObject {
   readonly property string defaultIcon: "(default)"
   readonly property string searchApps: "Search apps"
   readonly property string searchIcons: "Search icons"
+  readonly property string importIcon: "Import SVG/PNG…"
+  readonly property string importTitle: "Import icon for DuckyDeck"
   readonly property string optional: "optional"
   readonly property string required: "Required"
   readonly property string notANumber: "Must be a whole number"

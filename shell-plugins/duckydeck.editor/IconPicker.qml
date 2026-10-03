@@ -4,7 +4,7 @@ import qs.Ui
 
 // Icon field of the inspector: shows the current icon; a click opens a grid
 // of all built-in icons by category with a search field. The first tile
-// resets to the action's default icon.
+// resets to the action's default icon, the second imports a user icon.
 Column {
   id: picker
 
@@ -23,6 +23,8 @@ Column {
   property string hovered: ""
 
   signal picked(string name)
+  // Asks the editor to pick an SVG/PNG file and import it as a user icon.
+  signal importRequested()
 
   readonly property int tile: Style.space(40)
   readonly property var byName: {
@@ -33,7 +35,7 @@ Column {
   readonly property string shown: value !== "" ? value : defaultName
   // Categories in a fixed order, each with its icons matching the filter.
   readonly property var groups: {
-    var order = ["system", "capture", "media", "display", "network", "window", "launcher", "structure", "general", "custom", "adult"]
+    var order = ["system", "capture", "media", "display", "network", "window", "launcher", "structure", "user", "general", "custom", "adult"]
     var q = filter.trim().toLowerCase()
     var out = []
     for (var o = 0; o < order.length; o++) {
@@ -148,28 +150,56 @@ Column {
         width: parent.width
         spacing: Style.space(8)
 
-        // Back to the action's own icon.
-        Rectangle {
+        // Back to the action's own icon, or import a file.
+        Row {
           visible: picker.filter.trim() === ""
           width: parent.width
-          height: picker.tile
-          radius: Style.cornerRadius
-          color: defaultArea.containsMouse ? Qt.alpha(picker.accent, 0.2) : "transparent"
-          border.width: picker.value === "" ? 1 : 0
-          border.color: picker.accent
-          Text {
-            anchors.centerIn: parent
-            text: picker.strings.defaultIcon
-            color: picker.foreground
-            font.family: picker.fontFamily
-            font.pixelSize: Style.font.bodySmall
+          spacing: Style.space(4)
+          Rectangle {
+            width: (parent.width - parent.spacing) / 2
+            height: picker.tile
+            radius: Style.cornerRadius
+            color: defaultArea.containsMouse ? Qt.alpha(picker.accent, 0.2) : "transparent"
+            border.width: picker.value === "" ? 1 : 0
+            border.color: picker.accent
+            Text {
+              anchors.centerIn: parent
+              text: picker.strings.defaultIcon
+              color: picker.foreground
+              font.family: picker.fontFamily
+              font.pixelSize: Style.font.bodySmall
+            }
+            MouseArea {
+              id: defaultArea
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: picker.choose("")
+            }
           }
-          MouseArea {
-            id: defaultArea
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: picker.choose("")
+          Rectangle {
+            width: (parent.width - parent.spacing) / 2
+            height: picker.tile
+            radius: Style.cornerRadius
+            color: importArea.containsMouse ? Qt.alpha(picker.accent, 0.2) : "transparent"
+            Text {
+              anchors.centerIn: parent
+              text: picker.strings.importIcon
+              color: picker.foreground
+              font.family: picker.fontFamily
+              font.pixelSize: Style.font.bodySmall
+            }
+            MouseArea {
+              id: importArea
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: {
+                picker.open = false
+                picker.filter = ""
+                picker.importRequested()
+              }
+            }
           }
         }
 
