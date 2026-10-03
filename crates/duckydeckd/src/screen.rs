@@ -149,6 +149,7 @@ impl Screen {
         if !self.store.reload(runner) {
             return false;
         }
+        duckydeck_core::check::notify_problems(&self.store.current, &self.catalog, runner);
         self.brightness = None;
         self.toggled.clear();
         let reset = self.store.current.config.profile != configured;

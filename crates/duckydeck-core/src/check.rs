@@ -3,6 +3,7 @@
 //! are already checked by [`Loaded::load`](crate::config::Loaded::load).
 
 use crate::catalog::Catalog;
+use crate::command::{CommandRunner, CommandSpec};
 use crate::compound::{self, MULTI_ACTION, PROFILE_ACTION, Step, TOGGLE_ACTION};
 use crate::config::{Binding, FOLDER_ACTION, Loaded, Page};
 use crate::dial::Dial;
@@ -30,6 +31,30 @@ pub fn problems(loaded: &Loaded, catalog: &Catalog) -> Vec<String> {
         }
     }
     out
+}
+
+/// Daemon side of the check: logs every problem and sends one shell
+/// notification. The config is still used; broken slots just do nothing.
+pub fn notify_problems(loaded: &Loaded, catalog: &Catalog, runner: &dyn CommandRunner) {
+    let problems = problems(loaded, catalog);
+    if problems.is_empty() {
+        return;
+    }
+    for p in &problems {
+        tracing::warn!(problem = %p, "config problem");
+    }
+    let mut body = problems[0].clone();
+    if problems.len() > 1 {
+        body.push_str(&format!(
+            " (+{} more, see `duckydeck check`)",
+            problems.len() - 1
+        ));
+    }
+    let spec = CommandSpec::omarchy(["notification", "send", "--app-name", "DuckyDeck"])
+        .args(["DuckyDeck config problem".to_owned(), body]);
+    if let Err(e) = runner.spawn(&spec) {
+        tracing::warn!(error = %e, "config problem notification failed");
+    }
 }
 
 fn check_page(
@@ -160,5 +185,29 @@ mod tests {
                 r#"profile "t", page 1, dial 2: "system.lock" cannot be used on a dial"#,
             ]
         );
+    }
+
+    #[test]
+    fn notifies_once_with_count() {
+        let catalog = Catalog::builtin().unwrap();
+        let l = loaded(
+            r#"
+            name = "T"
+            [[pages]]
+            keys = [{ action = "nope" }, { action = "nope2" }]
+            "#,
+        );
+        let runner = crate::command::RecordingRunner::new();
+        notify_problems(&l, &catalog, &runner);
+        assert_eq!(
+            runner.command_lines(),
+            [
+                r#"omarchy notification send --app-name DuckyDeck DuckyDeck config problem profile "t", page 1, key 1: unknown action "nope" (+1 more, see `duckydeck check`)"#
+            ]
+        );
+        let clean = loaded("name = \"x\"\n[[pages]]");
+        let runner = crate::command::RecordingRunner::new();
+        notify_problems(&clean, &catalog, &runner);
+        assert!(runner.command_lines().is_empty());
     }
 }

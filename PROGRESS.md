@@ -35,5 +35,5 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - Socket-Pfad (SUN_LEN): Tests mit kurzem `XDG_RUNTIME_DIR` unter `/tmp/claude-1000`
 - Paket 0.1.0 ist installiert: Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`; `/usr/bin/duckydeck` ist das Paket-Binary
 - Dienst zeigt `is-enabled: disabled` (global über `/usr/lib/…/wants`); abschalten nur per `systemctl --user mask duckydeck` → in README erwähnen
-- `duckydeck check` meldet Fehler ohne Shell-Benachrichtigung; der Daemon prüft Action-Ids beim Laden noch nicht (unbekannte → Log „not implemented yet“)
+- Daemon prüft Action-Ids beim Laden/Reload (`check::notify_problems`) und meldet sie per Shell-Benachrichtigung; Config wird trotzdem verwendet
 - Rust beim Nutzer per rustup → lokal `makepkg -d`

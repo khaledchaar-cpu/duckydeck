@@ -88,6 +88,7 @@ async fn main() -> Result<()> {
             }
         });
     }
+    duckydeck_core::check::notify_problems(&store.current, &catalog, &runner);
     let mut painter = screen::Screen::new(
         font,
         store,
