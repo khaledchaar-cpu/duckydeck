@@ -59,6 +59,7 @@ Item {
   property string confirming: ""
   // App id of the window that was active before the editor opened.
   property string lastAppId: ""
+  property string lastTitle: ""
   // Bar shows the new-profile form; advanced regex field in the profile tab.
   property bool creating: false
   property bool showAdvanced: false
@@ -126,6 +127,7 @@ Item {
   function open(payloadJson) {
     var top = ToplevelManager.activeToplevel
     root.lastAppId = top && top.appId ? top.appId : ""
+    root.lastTitle = top && top.title ? top.title : ""
     root.profileMode = false
     root.confirming = ""
     root.creating = false
@@ -634,6 +636,11 @@ Item {
   }
 
   // The id (file name) follows from the name: "My Games" → my-games, unique.
+  function matchTitle() {
+    return root.profileData && root.profileData.match && root.profileData.match.title
+      ? root.profileData.match.title : ""
+  }
+
   function createProfile(name, copy) {
     name = name.trim()
     if (name === "" || root.busy) return
@@ -1430,16 +1437,54 @@ Item {
               fontFamily: root.fontFamily
               onClicked: root.showAdvanced = !root.showAdvanced
             }
-            TextField {
+            Column {
               visible: root.showAdvanced
               width: parent.width
-              text: root.matchClass()
-              placeholderText: strings.matchPlaceholder
-              foreground: root.foreground
-              accent: root.accent
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.body
-              onEditingFinished: if (root.profileData) root.setProfileField("match", text.trim(), root.matchClass())
+              spacing: Style.space(4)
+
+              Text {
+                text: strings.classRegex
+                color: root.foreground
+                opacity: 0.6
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.bodySmall
+              }
+              TextField {
+                width: parent.width
+                text: root.matchClass()
+                placeholderText: root.lastAppId || strings.off
+                foreground: root.foreground
+                accent: root.accent
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                onEditingFinished: if (root.profileData) root.setProfileField("match", text.trim(), root.matchClass())
+              }
+              Text {
+                text: strings.titleRegex
+                color: root.foreground
+                opacity: 0.6
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.bodySmall
+              }
+              TextField {
+                width: parent.width
+                text: root.matchTitle()
+                placeholderText: root.lastTitle || strings.off
+                foreground: root.foreground
+                accent: root.accent
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                onEditingFinished: if (root.profileData) root.setProfileField("title", text.trim(), root.matchTitle())
+              }
+              Text {
+                width: parent.width
+                wrapMode: Text.Wrap
+                text: strings.regexHint
+                color: root.foreground
+                opacity: 0.45
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.bodySmall
+              }
             }
 
             PanelSectionHeader {

@@ -26,7 +26,8 @@ commands:
                         change one slot in the profile file (no daemon needed;
                         <json> = {action, args?, label?, icon?} as JSON)
   edit <profile> page add | page remove <n> | page move <from> <to>
-  edit <profile> name <text> | match <class regex, empty = off>
+  edit <profile> name <text> | match <class regex> | title <title regex>
+                        (empty regex = off; class and title must both match)
   edit <profile> create <name> [<copy of>] | delete
                         manage pages and profiles; deleting the default
                         profile resets it to the built-in one
@@ -306,7 +307,14 @@ fn edit(args: &[&str]) -> Result<()> {
             edit::apply(&dir, id, &catalog, |src| edit::set_name(src, name))?;
         }
         [id, "match", class] => {
-            edit::apply(&dir, id, &catalog, |src| edit::set_match(src, class))?;
+            edit::apply(&dir, id, &catalog, |src| {
+                edit::set_match(src, edit::MatchField::Class, class)
+            })?;
+        }
+        [id, "title", title] => {
+            edit::apply(&dir, id, &catalog, |src| {
+                edit::set_match(src, edit::MatchField::Title, title)
+            })?;
         }
         [id, "create", name] => {
             edit::create(&dir, id, name, None)?;

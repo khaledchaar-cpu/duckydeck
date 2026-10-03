@@ -135,11 +135,22 @@ pub fn set_name(src: &str, name: &str) -> Result<String, EditError> {
     finish(doc)
 }
 
-/// Sets the window class regex for the automatic switch; empty removes it
-/// (a title regex is kept).
-pub fn set_match(src: &str, class: &str) -> Result<String, EditError> {
-    if !class.is_empty() {
-        regex_lite::Regex::new(class).map_err(|e| invalid(format!("invalid regex: {e}")))?;
+/// Which window property a `match` regex tests.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MatchField {
+    Class,
+    Title,
+}
+
+/// Sets the class or title regex for the automatic switch; empty removes it
+/// (the other one is kept).
+pub fn set_match(src: &str, field: MatchField, regex: &str) -> Result<String, EditError> {
+    let key = match field {
+        MatchField::Class => "class",
+        MatchField::Title => "title",
+    };
+    if !regex.is_empty() {
+        regex_lite::Regex::new(regex).map_err(|e| invalid(format!("invalid regex: {e}")))?;
     }
     let mut doc = parse(src)?;
     let table = doc
@@ -148,10 +159,10 @@ pub fn set_match(src: &str, class: &str) -> Result<String, EditError> {
     let Some(t) = table.as_table_like_mut() else {
         return Err(invalid("`match` must be a table"));
     };
-    if class.is_empty() {
-        t.remove("class");
+    if regex.is_empty() {
+        t.remove(key);
     } else {
-        t.insert("class", toml_edit::value(class));
+        t.insert(key, toml_edit::value(regex));
     }
     if t.is_empty() {
         doc.remove("match");
@@ -655,12 +666,16 @@ keys = [{ action = "capture.qr" }]
         let out = set_name(SRC, "Code").unwrap();
         assert!(out.starts_with("# My profile\nname = \"Code\"\n"), "{out}");
         assert!(set_name(SRC, " ").is_err());
-        let out = set_match(SRC, "^code$").unwrap();
+        let out = set_match(SRC, MatchField::Class, "^code$").unwrap();
+        let out = set_match(&out, MatchField::Title, "Claude").unwrap();
+        let p = Profile::parse(&out, Path::new("t")).unwrap();
+        assert_eq!(p.matcher.unwrap().title.as_deref(), Some("Claude"));
+        let out = set_match(&out, MatchField::Title, "").unwrap();
         let p = Profile::parse(&out, Path::new("t")).unwrap();
         assert_eq!(p.matcher.unwrap().class.as_deref(), Some("^code$"));
-        let back = set_match(&out, "").unwrap();
+        let back = set_match(&out, MatchField::Class, "").unwrap();
         assert!(!back.contains("match"), "{back}");
-        assert!(set_match(SRC, "(").is_err());
+        assert!(set_match(SRC, MatchField::Title, "(").is_err());
     }
 
     #[test]

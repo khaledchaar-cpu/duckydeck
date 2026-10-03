@@ -26,8 +26,9 @@ Eigenes Plugin vom Typ `overlay`, zusätzlich zum Panel aus v1 (das Panel bleibt
 
 ### Profile und Seiten
 - Profil wählen, anlegen (leer oder als Kopie), umbenennen, löschen (mit Bestätigung; das Standardprofil `omarchy` kann nicht gelöscht, nur zurückgesetzt werden).
-- Seiten: hinzufügen, löschen, per Drag & Drop umsortieren. Ordner entstehen, indem man `structure.folder` auf eine Taste legt.
-- Profil-Einstellungen: Name und Auto-Wechsel (`match`). „Aktuelles Fenster übernehmen“ setzt die Klasse des zuletzt aktiven Fensters vor dem Editor.
+- Seiten: hinzufügen, löschen, umsortieren (Knöpfe ← / →). Ordner entstehen, indem man `structure.folder` auf eine Taste legt.
+- Profil anlegen über „+ New profile…“ im Profil-Dropdown: nur Name eingeben (leer oder Kopie des aktuellen), die Id entsteht aus dem Namen. Inspector mit Reitern „Key / Dial“ und „Profile“.
+- Profil-Einstellungen: Name und Auto-Wechsel (`match`) als App-Auswahl („Never“, aktuelles Fenster vor dem Editor, installierte Apps über `StartupWMClass`/Desktop-Id). Unter „Advanced“ Regex für Fensterklasse und **Fenstertitel** (`match.title`, z. B. für Terminal-Apps; beide müssen passen).
 
 ### Action-Bibliothek
 - Gruppiert nach Kategorie (System, Capture, Medien, Launcher, Fenster, Struktur) plus **Apps** (installierte `.desktop`-Einträge, belegen `launcher.app`; App-Icons später).
