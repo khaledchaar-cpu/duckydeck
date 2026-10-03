@@ -8,7 +8,8 @@ import qs.Ui
 // Layout editor overlay: profile/page bar, device preview rendered by the
 // daemon, selection by click, arrows or the device itself (learn mode runs
 // while the overlay is open), action library with search, assigning by
-// Enter or drag & drop through `duckydeck edit`, undo/redo. Inspector: M9d.
+// Enter or drag & drop through `duckydeck edit`, undo/redo, and an inspector
+// for label, icon and parameters.
 Item {
   id: root
 
@@ -33,6 +34,8 @@ Item {
 
   // `duckydeck actions --json`, the search query and the library cursor.
   property var actions: []
+  // Built-in icon names from `duckydeck icons --json`.
+  property var icons: []
   property string query: ""
   property int libIndex: 0
   // "deck" or "library": where the keyboard goes.
@@ -67,6 +70,12 @@ Item {
                slot: a.slot, ok: a.available && a.slot === root.selKind }
     })
   }
+  readonly property var actionsById: {
+    var map = {}
+    for (var i = 0; i < root.actions.length; i++) map[root.actions[i].id] = root.actions[i]
+    return map
+  }
+  readonly property var selectedAction: selected ? actionsById[selected.action] || null : null
   readonly property string location: folder !== "" ? folder : String(page)
 
   readonly property var slots: {
@@ -105,6 +114,8 @@ Item {
     root.cutSlot = null
     actionsProc.running = false
     actionsProc.running = true
+    iconsProc.running = false
+    iconsProc.running = true
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
@@ -296,6 +307,64 @@ Item {
     root.edit({ undo: args, redo: args })
   }
 
+  // Changes the selected slot: `change` sets fields of the binding
+  // (label, icon) or, under `args`, single arguments; "" or null removes one.
+  function updateSelected(change) {
+    var before = root.selected
+    if (!before || root.busy) return
+    var after = JSON.parse(JSON.stringify(root.binding(before)))
+    for (var k in change) {
+      if (k === "args") continue
+      if (change[k] === "" || change[k] === null) delete after[k]
+      else after[k] = change[k]
+    }
+    if (change.args) {
+      var args = after.args || {}
+      for (var a in change.args) {
+        if (change.args[a] === "" || change.args[a] === null) delete args[a]
+        else args[a] = change.args[a]
+      }
+      if (Object.keys(args).length > 0) after.args = args
+      else delete after.args
+    }
+    if (JSON.stringify(after) === JSON.stringify(root.binding(before))) return
+    root.edit({
+      undo: root.slotArgs(root.location, root.selKind, root.selIndex, before),
+      redo: root.slotArgs(root.location, root.selKind, root.selIndex, after)
+    })
+  }
+
+  // Current value of parameter `p` as text ("" = not set).
+  function argText(p) {
+    var args = root.selected && root.selected.args
+    if (!args || args[p.name] === undefined || args[p.name] === null) return ""
+    return typeof args[p.name] === "string" ? args[p.name] : JSON.stringify(args[p.name])
+  }
+
+  // Options of a selection field: choices, folders or profiles; an unset
+  // optional or defaulted parameter shows as "".
+  function paramOptions(p) {
+    var list = p.kind === "choice" ? p.choices
+      : p.kind === "folder" ? Object.keys(root.profileData ? root.profileData.folders : {})
+      : p.kind === "profile" ? (root.status ? root.status.profiles : [])
+      : []
+    return (p.optional ? [""] : []).concat(list)
+  }
+
+  // Error text for a typed value, "" if fine.
+  function paramError(p, text) {
+    if (text === "") return p.optional || p.default !== undefined ? "" : strings.required
+    if (p.kind === "integer" && !/^-?[0-9]+$/.test(text)) return strings.notANumber
+    return ""
+  }
+
+  function setParam(p, text) {
+    if (root.paramError(p, text) !== "") return
+    var change = {}
+    change[p.name] = p.kind === "integer" && text !== "" ? parseInt(text) : text
+    root.updateSelected({ args: change })
+  }
+
   // A drag ended on slot (kind, index).
   function dropOn(kind, index) {
     var p = root.dragPayload
@@ -357,12 +426,6 @@ Item {
     return slot.label ? slot.label : slot.action
   }
 
-  function argsText(slot) {
-    if (!slot || !slot.args) return ""
-    var parts = []
-    for (var k in slot.args) parts.push(k + " = " + JSON.stringify(slot.args[k]))
-    return parts.join("\n")
-  }
 
   Strings { id: strings }
 
@@ -397,6 +460,17 @@ Item {
         try { msg = JSON.parse(text) } catch (e) { return }
         if (msg.ok && msg.actions) root.actions = msg.actions
         else if (msg.error) root.error = msg.error
+      }
+    }
+  }
+
+  Process {
+    id: iconsProc
+    command: ["duckydeck", "icons", "--json"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try { root.icons = JSON.parse(text).icons || [] } catch (e) {}
       }
     }
   }
@@ -583,6 +657,7 @@ Item {
               else if (k === Qt.Key_PageDown) root.moveLib(8)
               else if (k === Qt.Key_PageUp) root.moveLib(-8)
               else if (k === Qt.Key_Return || k === Qt.Key_Enter) root.assign(root.library[root.libIndex])
+              else if (k === Qt.Key_Tab && root.selected) labelField.forceActiveFocus()
               else if (k === Qt.Key_Tab) root.focusDeck()
               else if (k === Qt.Key_Escape && root.query !== "") root.query = ""
               else if (k === Qt.Key_Escape) root.focusDeck()
@@ -879,11 +954,13 @@ Item {
           }
         }
 
-        // Inspector (read-only until M9d).
+        // Inspector: action, label, icon and parameters of the selected slot.
         Column {
+          id: inspector
           width: columns.sideWidth
           height: parent.height
           spacing: Style.space(8)
+
           PanelSectionHeader {
             text: strings.inspector + " · " + strings.slotName(root.selKind, root.selIndex)
             foreground: root.foreground
@@ -893,41 +970,155 @@ Item {
             width: parent.width
             wrapMode: Text.WrapAnywhere
             textFormat: Text.PlainText
-            text: root.slots ? root.slotLabel(root.selected) : strings.noSelection
+            text: !root.slots ? strings.noSelection
+              : root.selectedAction ? root.selectedAction.label
+              : root.slotLabel(root.selected)
             color: root.foreground
             font.family: root.fontFamily
             font.pixelSize: Style.font.title
           }
           Text {
             width: parent.width
-            visible: !!root.selected && !!root.selected.label
             wrapMode: Text.WrapAnywhere
             textFormat: Text.PlainText
-            text: root.selected ? root.selected.action : ""
+            text: root.selected ? root.selected.action : strings.emptyHint
             color: root.foreground
             opacity: 0.6
             font.family: root.fontFamily
-            font.pixelSize: Style.font.body
-          }
-          Text {
-            width: parent.width
-            visible: text !== ""
-            wrapMode: Text.WrapAnywhere
-            textFormat: Text.PlainText
-            text: root.argsText(root.selected)
-            color: root.foreground
-            opacity: 0.8
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.body
-          }
-          Text {
-            visible: root.folderOf(root.selected) !== ""
-            textFormat: Text.PlainText
-            text: strings.openFolder
-            color: root.foreground
-            opacity: 0.5
-            font.family: root.fontFamily
             font.pixelSize: Style.font.bodySmall
+          }
+
+          Column {
+            width: parent.width
+            spacing: Style.space(8)
+            visible: !!root.selected
+
+            Text {
+              text: strings.label
+              color: root.foreground
+              opacity: 0.6
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+            }
+            TextField {
+              id: labelField
+              width: parent.width
+              text: root.selected && root.selected.label ? root.selected.label : ""
+              placeholderText: root.selectedAction ? root.selectedAction.label : strings.defaultLabel
+              foreground: root.foreground
+              accent: root.accent
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              onEditingFinished: root.updateSelected({ label: text })
+              Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Escape || event.key === Qt.Key_Tab) {
+                  root.updateSelected({ label: text })
+                  root.focusDeck()
+                  event.accepted = true
+                }
+              }
+            }
+
+            Text {
+              text: strings.icon
+              color: root.foreground
+              opacity: 0.6
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+            }
+            SearchableDropdown {
+              width: parent.width
+              showLabel: false
+              options: [strings.defaultIcon].concat(root.icons)
+              value: root.selected && root.selected.icon ? root.selected.icon : strings.defaultIcon
+              placeholderText: strings.searchIcons
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              onChanged: function(v) {
+                root.updateSelected({ icon: v === strings.defaultIcon ? "" : v })
+                root.focusDeck()
+              }
+            }
+
+            Repeater {
+              model: root.selectedAction ? root.selectedAction.params : []
+              Column {
+                id: param
+                required property var modelData
+                readonly property bool isSelect: ["choice", "folder", "profile"].indexOf(modelData.kind) >= 0
+                readonly property string current: root.argText(modelData)
+                property string error: ""
+                width: inspector.width
+                spacing: Style.space(4)
+
+                Text {
+                  text: param.modelData.name + (param.modelData.optional ? " · " + strings.optional : "")
+                  color: root.foreground
+                  opacity: 0.6
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.bodySmall
+                }
+                Dropdown {
+                  visible: param.isSelect
+                  width: parent.width
+                  showLabel: false
+                  options: root.paramOptions(param.modelData)
+                  value: param.current !== "" ? param.current
+                    : param.modelData.default !== undefined ? String(param.modelData.default) : ""
+                  foreground: root.foreground
+                  fontFamily: root.fontFamily
+                  onChanged: function(v) { root.setParam(param.modelData, v); root.focusDeck() }
+                }
+                TextField {
+                  visible: !param.isSelect && param.modelData.kind !== "list"
+                  width: parent.width
+                  text: param.current
+                  placeholderText: param.modelData.default !== undefined ? String(param.modelData.default) : ""
+                  foreground: root.foreground
+                  accent: param.error !== "" ? Color.urgent : root.accent
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.body
+                  onTextChanged: param.error = root.paramError(param.modelData, text)
+                  onEditingFinished: root.setParam(param.modelData, text)
+                  Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Escape || event.key === Qt.Key_Tab) {
+                      root.setParam(param.modelData, text)
+                      root.focusDeck()
+                      event.accepted = true
+                    }
+                  }
+                }
+                Text {
+                  visible: param.error !== "" || param.modelData.kind === "list"
+                  width: parent.width
+                  wrapMode: Text.WordWrap
+                  textFormat: Text.PlainText
+                  text: param.modelData.kind === "list" ? strings.listInToml : param.error
+                  color: param.modelData.kind === "list" ? root.foreground : Color.urgent
+                  opacity: param.modelData.kind === "list" ? 0.6 : 1.0
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.bodySmall
+                }
+              }
+            }
+
+            Text {
+              visible: root.folderOf(root.selected) !== ""
+              textFormat: Text.PlainText
+              text: strings.openFolder
+              color: root.foreground
+              opacity: 0.5
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+            }
+
+            Button {
+              text: strings.clear
+              bordered: true
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              onClicked: { root.clearSelected(); root.focusDeck() }
+            }
           }
         }
       }

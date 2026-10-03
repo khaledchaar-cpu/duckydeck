@@ -13,8 +13,10 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 
 - M9c: Bibliothek (`actions --json`, gruppiert, Suche – Tippen sucht sofort, daher kein hjkl mehr), unpassende/fehlende Actions ausgegraut; Belegen per Enter/Doppelklick/Drag & Drop, Slot→Slot tauschen per Drag oder Strg+X/V, Entf leert, Undo/Redo (Strg+Z / Strg+Umschalt+Z); nach jedem Edit `duckydeck reload`, dann Vorschau – am Gerät geprüft (Suche, Enter, Drag & Drop)
 
+- M9d Teil 1: Katalog `choices` (geprüft), Parameter-Typen in `actions --json`, `duckydeck icons [--json]`; Inspector mit Label, Icon (Suche), Parametern (Auswahl/Zahl/Text, Ordner/Profil), „Clear slot“ – sofort gespeichert, Undo – am Gerät geprüft
+
 ## Nächster Schritt
-- M9d: Inspector mit Parametern (z. B. `n` bei `window.workspace`), Label, Icon, Multi/Toggle
+- M9d Teil 2: Multi/Toggle (Schritte/Zustände im Inspector, Verzögerung), Slot kopieren/einfügen
 - Offen aus M9c: Gruppe „Apps“ (.desktop-Einträge) – `actions --json` liefert sie noch nicht
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
