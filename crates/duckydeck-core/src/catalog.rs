@@ -367,7 +367,11 @@ mod tests {
                     continue;
                 }
             };
-            assert!(!spec.args.iter().any(|a| a.contains('{')), "{id}");
+            // A bare `{}` is a literal (empty JSON payload), not a placeholder.
+            assert!(
+                !spec.args.iter().any(|a| a.contains('{') && a != "{}"),
+                "{id}"
+            );
             let runner = RecordingRunner::new();
             runner.spawn(&spec).unwrap();
             let line = runner.command_lines().remove(0);

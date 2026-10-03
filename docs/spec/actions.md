@@ -48,8 +48,11 @@ Unten steht bei jeder Kategorie, was Katalog (K) und was Rust (R) ist.
 - Omarchy-Menü öffnen, Theme wechseln, Hintergrund wechseln (`omarchy theme bg next`)
 - Schalter über `omarchy toggle …` (Nachtlicht, Idle-Inhibitor …)
 - „Nicht stören“ / Benachrichtigungen verwerfen (Shell: `omarchy-shell notifications dismissAll`, keine `omarchy`-Route)
-- WLAN-/Bluetooth-/Audio-Panel der Shell öffnen; `omarchy bluetooth power toggle`
+- Shell-Panel öffnen (`system.panel`, `omarchy-shell shell toggle <plugin-id> {}`; Audio, Bluetooth, Netzwerk, Power). WLAN an/aus gibt es bewusst nicht: keine `omarchy`-Route, nur das Netzwerk-Panel (Entscheidung 2026-10-03)
+- Bluetooth an/aus mit Zustand (`omarchy bluetooth power toggle`, Zustand per Exit-Code von `… is-on`)
+- Energieprofil (`omarchy powerprofiles set autodetect <profil>`, eine Taste pro Profil), Touchpad umschalten, Tastaturbeleuchtung als Taste (`omarchy brightness keyboard cycle`)
 - Erinnerung (`omarchy reminder <min>`), Coding-Agent (`omarchy agent`)
+- Offen (Rust, 2. Schritt): Regler Tastaturbeleuchtung, Zyklus der Energieprofile mit Anzeige des aktiven Profils
 - Beliebiger Befehl (Argumentliste, keine Shell-Interpolation)
 
 ## Capture (M5c) – K, Aufnahme-Laufzeit R
@@ -63,7 +66,7 @@ Unten steht bei jeder Kategorie, was Katalog (K) und was Rust (R) ist.
 - Play/Pause, Weiter, Zurück über MPRIS, aktiver Player wählbar
 - Touchstrip: Titel, Interpret, Fortschritt (Cover optional) über die ganze Breite, solange der aktive Player spielt (1,5 s Nachlauf, weil Player beim Spulen kurz pausieren); Regler anfassen zeigt 2 s die Reglerwerte. Position wird bei Status-/Titelwechsel und `Seeked` gelesen und hochgerechnet
 - Medientasten `media.play_pause|next|previous` (ausgegraut, wenn der Player `CanGoNext`/`CanGoPrevious = false` meldet), optional `args = { player = "spotify" }`; sonst der zuletzt gestartete spielende Player
-- Audio-Ausgabegerät wechseln
+- Audio-Ausgabegerät wechseln (`media.output_switch`), Medienquelle wechseln (`media.source_switch`, `omarchy audio source switch next|previous`) – beide Katalog
 - v2: Lautstärke pro App
 
 ## Window Management (M5b) – Dispatches/Omarchy-Routen K, Workspace-Status und Regler R

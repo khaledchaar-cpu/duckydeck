@@ -76,6 +76,61 @@ label = "Dismiss"
 icon  = "notifications-dismiss"
 run   = ["omarchy-shell", "notifications", "dismissAll"]
 
+# Shell panels (audio, Bluetooth, Wi-Fi …) are toggled via the shell's own IPC.
+[system.panel]
+label    = "Panel"
+icon     = "shell-panel"
+run      = ["omarchy-shell", "shell", "toggle", "{panel}", "{}"]
+defaults = { panel = "omarchy.audio" }
+choices  = { panel = ["omarchy.audio", "omarchy.bluetooth", "omarchy.network", "omarchy.power"] }
+
+[system.bluetooth]
+label = "Bluetooth"
+icon  = { on = "bluetooth", off = "bluetooth-off" }
+run   = ["omarchy", "bluetooth", "power", "toggle"]
+# No change event; the exit code of `is-on` is the state.
+state = { command = ["omarchy", "bluetooth", "power", "is-on"] }
+
+[system.power_profile]
+label    = "Power profile"
+icon     = "power-profile"
+run      = ["omarchy", "powerprofiles", "set", "autodetect", "{profile}"]
+defaults = { profile = "balanced" }
+choices  = { profile = ["power-saver", "balanced", "performance"] }
+
+[system.touchpad]
+label = "Touchpad"
+icon  = "touchpad"
+run   = ["omarchy", "toggle", "touchpad", "toggle"]
+
+[system.keyboard_backlight]
+label = "Key light"
+icon  = "keyboard-backlight"
+run   = ["omarchy", "brightness", "keyboard", "cycle"]
+
+[system.reminder]
+label    = "Reminder"
+icon     = "reminder"
+run      = ["omarchy", "reminder", "{minutes}"]
+defaults = { minutes = "10" }
+
+[system.agent]
+label = "Agent"
+icon  = "agent"
+run   = ["omarchy", "agent"]
+
+[media.output_switch]
+label = "Output"
+icon  = "audio-output-switch"
+run   = ["omarchy", "audio", "output", "switch"]
+
+[media.source_switch]
+label    = "Source"
+icon     = "media-source-switch"
+run      = ["omarchy", "audio", "source", "switch", "{dir}"]
+defaults = { dir = "next" }
+choices  = { dir = ["next", "previous"] }
+
 # ── Capture ───────────────────────────────────────────────────────────
 [capture.screenshot]
 label    = "Screenshot"

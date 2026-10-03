@@ -7,13 +7,14 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- Neues Standardprofil: 3 Seiten (Alltag / Medien+Capture / Fenster+Fokus), Ordner „Look“ und „Power“, rechter Regler blättert Seiten
-- Alte Nutzerprofile gelöscht (omarchy, second-profile, test); Paket lokal gebaut und installiert, Gerät zeigt 1/3
-- `*.pkg.tar.zst` in `.gitignore`
+- Lückenanalyse Controls, Katalog-Teil: `system.panel`, `system.bluetooth` (mit Zustand), `system.power_profile`, `system.touchpad`, `system.keyboard_backlight`, `system.reminder`, `system.agent`, `media.output_switch`, `media.source_switch` (+ Icons)
+- `gen-omarchy-reference.sh` um `agent`, `bluetooth`, `powerprofiles`, `reminder` erweitert
+- Mit Fake-Daemon geprüft (`duckydeck actions` listet alle); am echten Gerät noch nicht gedrückt
 
 ## Nächster Schritt
-- Idee 1 aus SPEC.md „Ideen“: Lückenanalyse Controls (was bieten `omarchy`, `pactl`, `bluetoothctl`?) → Vorschlag abstimmen, Entscheidungen in `docs/spec/actions.md`, Milestones anlegen
-- Nebenbei: Standardprofil am Gerät durchklicken, danach Release 0.1.1 erwägen
+- Neue Actions am Gerät testen (Paket bauen), v. a. `system.panel` und Bluetooth-Zustand
+- Rust-Teil aus Idee 1: Regler Tastaturbeleuchtung, Energieprofil-Zyklus mit Anzeige
+- Danach Release 0.1.1 erwägen, dann Idee 2 (Icon-Auswahl)
 
 ## Offene Probleme / Notizen
 - Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)

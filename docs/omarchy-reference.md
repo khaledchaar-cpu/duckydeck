@@ -7,6 +7,15 @@ Omarchy 4.0.4-1 · 2026-10-03
 
 Groups relevant to DuckyDeck only. Full list: `omarchy commands --json`. ⚠ = requires sudo.
 
+### agent
+
+| Route | Args | Summary |
+|---|---|---|
+| `omarchy agent` | [--inline] [--pick] | Launch the default coding agent in a terminal |
+| `omarchy agent crash` | <pid> [comm] [exe] [signal] | Diagnose a crashed process with the default coding agent |
+| `omarchy agent prompt` | [--inline] <prompt...> | Launch the default coding agent with a prompt |
+| `omarchy agent usage update` | [--force] [--limits-only] [--except <agent>] [agent...] | Regenerate the AI agent usage data files |
+
 ### audio
 
 | Route | Args | Summary |
@@ -26,6 +35,13 @@ Groups relevant to DuckyDeck only. Full list: `omarchy commands --json`. ⚠ = r
 | Route | Args | Summary |
 |---|---|---|
 | `omarchy bar` | use <id> \| reset \| defaults \| position <top\|bottom\|left\|right> \| transparent <true\|false\|toggle> \| put <id> [placement] \| move <id> [placement] \| set <id> <key> <value> [--json] [placement] | Configure the bar and its widget layout |
+
+### bluetooth
+
+| Route | Args | Summary |
+|---|---|---|
+| `omarchy bluetooth device` | [pair\|connect\|disconnect\|forget] <address> | Control a Bluetooth device |
+| `omarchy bluetooth power` | <on\|off\|toggle\|is-on> | Turn Bluetooth on or off, remembered across reboots |
 
 ### brightness
 
@@ -159,6 +175,20 @@ Groups relevant to DuckyDeck only. Full list: `omarchy commands --json`. ⚠ = r
 | `omarchy plugin remove` | [id] [--yes] | Remove an installed shell plugin |
 | `omarchy plugin update` | [id] [--yes] | Update installed git-managed plugins |
 | `omarchy plugin validate` | <plugin-folder> | Validate a plugin folder against the Omarchy plugin manifest schema |
+
+### powerprofiles
+
+| Route | Args | Summary |
+|---|---|---|
+| `omarchy powerprofiles init` |  | Set the correct power profile on boot based on current AC/battery state. |
+| `omarchy powerprofiles list` | [--active-state] | Returns a list of all the available power profiles on the system. |
+| `omarchy powerprofiles set` | [autodetect\|ac\|battery] [power-saver\|balanced\|performance] | Set and remember the power profile for AC or battery use |
+
+### reminder
+
+| Route | Args | Summary |
+|---|---|---|
+| `omarchy reminder` | [-i\|--interactive] \| <minutes> [message] \| show [-j\|--json] \| clear | Set and show lightweight desktop notification reminders |
 
 ### restart
 
