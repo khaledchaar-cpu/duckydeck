@@ -12,7 +12,8 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 - `*.pkg.tar.zst` in `.gitignore`
 
 ## Nächster Schritt
-- Standardprofil am Gerät durchklicken (v. a. Ordner, Medientasten, Aufnahme); danach Release 0.1.1 erwägen
+- Idee 1 aus SPEC.md „Ideen“: Lückenanalyse Controls (was bieten `omarchy`, `pactl`, `bluetoothctl`?) → Vorschlag abstimmen, Entscheidungen in `docs/spec/actions.md`, Milestones anlegen
+- Nebenbei: Standardprofil am Gerät durchklicken, danach Release 0.1.1 erwägen
 
 ## Offene Probleme / Notizen
 - Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)
