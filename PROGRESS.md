@@ -2,19 +2,19 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M9 – Editor (v2), Schritt M9a. M8 fertig bis auf AUR (zurückgestellt, Repo bleibt vorerst privat)
+**Aktueller Milestone:** M9 – Editor (v2): M9a fertig, nächster Schritt M9b. M8 fertig bis auf AUR (zurückgestellt, Repo bleibt vorerst privat)
 
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- Daemon meldet ungültige Actions beim Laden/Reload per Shell-Benachrichtigung (`check::notify_problems`)
-- Catalog-Befehle, die innerhalb von 3 s fehlschlagen → Benachrichtigung „<Label> failed“ (`CommandRunner::spawn_watched`)
-- Swipe-Schwelle 100 → 40 px (Gerät meldet nur ~50–100 px)
-- Am Gerät bestätigt: Auto-Profil, Toggle, Long-Press-Schutz (kurzer Druck), Fehlermeldung, Swipe
-- Funktionales Design des Editors → `docs/spec/ui.md` (v2), Milestones M9a–M9e
+- M9a: `launcher.app` (beliebige `.desktop`-App, wie Omarchy-Launcher) – am Gerät geprüft
+- M9a: `duckydeck actions` / IPC `list_actions` (`duckydeck_core::library`: alle Actions mit Slot-Typ, Parametern, Verfügbarkeit)
+- M9a: `duckydeck preview <profil> [<seite>|<ordner>]` → 8+4 PNGs mit `rev` im Namen; `export --json`
+- M9a: `duckydeck edit <profil> set|clear|swap …` (`toml_edit`, Kommentare bleiben, lehnt neue `check`-Probleme ab)
+- M9a: `duckydeck learn` (Lernmodus solange Verbindung offen, Events `slot_pressed`) – am Gerät geprüft
 
 ## Nächster Schritt
-- M9a: prüfen, ob es eine allgemeine `.desktop`-Launcher-Action gibt (Kategorie „Apps“); dann `duckydeck catalog --json` (Actions mit Kategorie, Slot-Typ, Parametern, Verfügbarkeit)
+- M9b: Plugin `duckydeck.editor` (Overlay) anlegen – Skill `shell-plugin`; Gerätevorschau aus `preview`, Auswahl per Klick/Pfeiltasten und `learn`, Profil-/Seitenleiste
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
@@ -27,5 +27,7 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 - Menüeintrag nur bei neuer Paketversion aktualisiert; `setup --remove` nimmt das Widget nicht aus dem Bar-Layout
 - Nachtlicht-Status ohne Event; Hyprland-Zugriff nicht hinter Trait
 - `scripts/check.sh` braucht `PATH=$HOME/.cargo/bin:$PATH`; Socket-Tests brauchen kurzes `XDG_RUNTIME_DIR` (z. B. `/tmp/claude-1000/dd`)
+- Lernmodus: jede Regler-Rastung erzeugt ein `slot_pressed` (Editor entprellt); Strip-Tippen am Gerät noch nicht gesehen
+- `duckydeck … | head` → Panic „Broken pipe“ (println!), harmlos
 - Daemon beenden mit `kill $(pgrep -x duckydeckd)` – `pkill -f` trifft auch die eigene Shell
 - Später: Repo öffentlich, Tag `v0.1.0`, `sha256sums` + `.SRCINFO`, AUR (Account + SSH-Key)
