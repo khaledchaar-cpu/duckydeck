@@ -27,6 +27,8 @@ scripts/check.sh <crate>                         # nach jeder Änderung: fmt + c
 scripts/check.sh                                 # ganzer Workspace (macht der Skill session-wrapup)
 cargo run -p duckydeckd -- --debug               # Daemon im Vordergrund (vorher: systemctl --user stop duckydeck)
 DUCKYDECK_FAKE_DEVICE=1 cargo run -p duckydeckd  # ohne Gerät → Gesamtbild $XDG_RUNTIME_DIR/duckydeck/fake/deck.png
+#   Eingaben per stdin, eine pro Zeile: ButtonDown(0) / ButtonUp(0) / EncoderTwist(0, -1) / TouchScreenSwipe((600, 50), (200, 50))
+#   Endet nicht bei stdin-EOF → im Hintergrund starten und per pkill beenden. Tests mit XDG_CONFIG_HOME=<scratchpad>, nie die echte Config
 cargo run -p duckydeck-cli -- setup              # Plugins (Symlinks), Menü, Hooks installieren
 omarchy-shell shell rescanPlugins                # Plugins neu laden
 ```
