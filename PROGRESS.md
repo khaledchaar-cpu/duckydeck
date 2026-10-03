@@ -12,7 +12,7 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 - App-Tasten zeigen den App-Namen aus dem Desktop-Eintrag statt „App“ (am Gerät geprüft)
 
 ## Nächster Schritt
-- Erstes Release: Repo öffentlich machen, Tag `v0.1.0` pushen, Workflow `release.yml` prüfen (lokal ungetestet, Docker ohne Rechte), Install-URL aus README testen
+- v0.1.0 veröffentlicht (Repo öffentlich). Install: Datei laden + `pacman -U` (per URL scheitert pacman an fehlender `.sig`)
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)

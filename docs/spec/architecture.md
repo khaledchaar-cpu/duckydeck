@@ -82,7 +82,7 @@ Genauso wird der Hyprland-Zugriff hinter einem Trait gekapselt (Fake mit vorgege
 
 ## Plug & Play
 
-1. Das Paket aus dem GitHub-Release (`sudo pacman -U <URL>`; gebaut von `.github/workflows/release.yml` beim Tag `v<pkgver>`, kein AUR) liefert:
+1. Das Paket aus dem GitHub-Release (herunterladen, dann `sudo pacman -U <Datei>` – unsigniert, per URL verlangt pacman eine `.sig`; gebaut von `.github/workflows/release.yml` beim Tag `v<pkgver>`, kein AUR) liefert:
    - `/usr/lib/udev/rules.d/70-duckydeck.rules` (`uaccess`, kein root)
    - `/usr/lib/systemd/user/duckydeck.service` (`WantedBy=graphical-session.target`), global aktiviert über den mitgelieferten Symlink in `graphical-session.target.wants/`; die udev-Regel startet den Dienst zusätzlich beim Einstecken (`SYSTEMD_USER_WANTS`), also auch direkt nach der Installation ohne Neu-Login
    - Paket: `packaging/PKGBUILD` (`options=('!lto')`, sonst scheitert das Linken von hidapi)
