@@ -96,3 +96,79 @@ run   = ["omarchy", "launch", "browser"]
 label = "Files"
 icon  = "files"
 run   = ["omarchy", "launch", "nautilus"]
+
+# ── Window management ─────────────────────────────────────────────────
+# `dispatch` entries are Hyprland Lua dispatchers sent over the IPC socket.
+# Their placeholder values may only contain letters, digits and `_+-:`.
+[window.workspace]
+label    = "Workspace"
+icon     = "workspace"
+dispatch = 'hl.dsp.focus({ workspace = "{n}" })'
+defaults = { n = 1 }
+
+[window.move_to_workspace]
+label    = "Move"
+icon     = "move-to-workspace"
+dispatch = 'hl.dsp.window.move({ workspace = "{n}" })'
+defaults = { n = 1 }
+
+[window.close]
+label    = "Close"
+icon     = "close-window"
+dispatch = 'hl.dsp.window.close()'
+
+[window.float]
+label    = "Float"
+icon     = "float"
+dispatch = 'hl.dsp.window.float({ action = "toggle" })'
+
+[window.fullscreen]
+label    = "Fullscreen"
+icon     = "fullscreen"
+dispatch = 'hl.dsp.window.fullscreen({ mode = "fullscreen" })'
+
+[window.pseudo]
+label    = "Pseudo"
+icon     = "pseudo"
+dispatch = 'hl.dsp.window.pseudo()'
+
+[window.split]
+label    = "Split"
+icon     = "split"
+dispatch = 'hl.dsp.layout("togglesplit")'
+
+[window.focus]
+label    = "Focus"
+icon     = "focus-right"
+dispatch = 'hl.dsp.focus({ direction = "{dir}" })'
+defaults = { dir = "r" }
+
+[window.scratchpad]
+label    = "Scratchpad"
+icon     = "scratchpad"
+dispatch = 'hl.dsp.workspace.toggle_special("scratchpad")'
+
+[window.tiled_fullscreen]
+label = "Tiled full"
+icon  = "fullscreen"
+run   = ["omarchy", "hyprland", "window", "tiled", "fullscreen", "toggle"]
+
+[window.pop]
+label = "Pop out"
+icon  = "pop-out"
+run   = ["omarchy", "hyprland", "window", "pop"]
+
+[window.transparency]
+label = "Opacity"
+icon  = "transparency"
+run   = ["omarchy", "hyprland", "window", "transparency", "toggle"]
+
+[window.gaps]
+label = "Gaps"
+icon  = "gaps-toggle"
+run   = ["omarchy", "hyprland", "window", "gaps", "toggle"]
+
+[window.layout]
+label = "Layout"
+icon  = "layout-toggle"
+run   = ["omarchy", "hyprland", "workspace", "layout", "toggle"]

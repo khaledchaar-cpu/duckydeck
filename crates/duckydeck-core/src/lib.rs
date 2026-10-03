@@ -5,6 +5,7 @@ pub mod command;
 pub mod config;
 pub mod dial;
 pub mod font;
+pub mod hypr;
 pub mod icons;
 pub mod media;
 pub mod nav;

@@ -34,6 +34,8 @@ pub enum DeckEvent {
     Levels(duckydeck_core::dial::Levels),
     /// An MPRIS player appeared, left or changed state.
     Media(duckydeck_core::media::Players),
+    /// The focused workspace or workspace occupancy changed.
+    Workspaces(duckydeck_core::hypr::Workspaces),
 }
 
 /// Handle used for output (images, brightness). Input runs on a separate

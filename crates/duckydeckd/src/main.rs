@@ -3,6 +3,7 @@
 mod configwatch;
 mod device;
 mod gesture;
+mod hyprland;
 mod input;
 mod levels;
 mod mpris;
@@ -72,7 +73,17 @@ async fn main() -> Result<()> {
     tokio::spawn(levels::watch_audio(jobs_tx.clone()));
     let (media_tx, media_rx) = mpsc::unbounded_channel();
     tokio::spawn(mpris::run(media_rx, tx.clone()));
-    let mut painter = screen::Screen::new(font, store, catalog, unavailable, jobs_tx, media_tx)?;
+    let (hypr_tx, hypr_rx) = mpsc::unbounded_channel();
+    tokio::spawn(hyprland::run(hypr_rx, tx.clone()));
+    let mut painter = screen::Screen::new(
+        font,
+        store,
+        catalog,
+        unavailable,
+        jobs_tx,
+        media_tx,
+        hypr_tx,
+    )?;
     let mut deck = try_connect(&mut painter, &tx);
     let mut gestures = Recognizer::default();
     loop {
@@ -147,6 +158,14 @@ async fn main() -> Result<()> {
                     && let Err(e) = painter.draw_keys(d).and_then(|()| painter.draw_strip(d))
                 {
                     tracing::warn!(error = %e, "redraw after media change failed");
+                }
+            }
+            DeckEvent::Workspaces(w) => {
+                if painter.set_workspaces(w)
+                    && let Some(d) = &mut deck
+                    && let Err(e) = painter.draw_keys(d).and_then(|()| painter.draw_strip(d))
+                {
+                    tracing::warn!(error = %e, "redraw after workspace change failed");
                 }
             }
             DeckEvent::Disconnected => {

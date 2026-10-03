@@ -9,7 +9,7 @@ OMARCHY=/usr/share/omarchy
 SHELL_DIR=$OMARCHY/shell
 OUT=docs/omarchy-reference.md
 # Command groups DuckyDeck uses for actions and feedback.
-GROUPS_RE='^(audio|brightness|capture|font|launch|menu|notification|osd|plugin|restart|shell|system|theme|toggle|tui|webapp)$'
+GROUPS_RE='^(audio|brightness|capture|font|hyprland|launch|menu|notification|osd|plugin|restart|shell|system|theme|toggle|tui|webapp)$'
 
 command -v omarchy >/dev/null || { echo "omarchy not found" >&2; exit 1; }
 command -v jq >/dev/null || { echo "jq not found" >&2; exit 1; }

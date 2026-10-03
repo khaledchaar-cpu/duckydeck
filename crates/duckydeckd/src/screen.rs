@@ -8,13 +8,14 @@ use std::collections::BTreeSet;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use duckydeck_core::catalog::{Catalog, Confirm};
+use duckydeck_core::catalog::{Catalog, Confirm, Exec};
 use duckydeck_core::config::{Binding, FOLDER_ACTION, Store};
 use duckydeck_core::dial::{Dial, Levels};
+use duckydeck_core::hypr::{self, WorkspaceState, Workspaces};
 use duckydeck_core::icons;
 use duckydeck_core::media::{self, MediaKey, Players, Status};
 use duckydeck_core::nav::{BACK_ACTION, Nav, PAGE_ACTION, Press};
-use duckydeck_core::render::{KeyView, MediaView, Renderer, SegmentView};
+use duckydeck_core::render::{GlyphView, KeyView, MediaView, Renderer, SegmentView};
 use duckydeck_core::theme::{Role, Theme};
 use duckydeck_core::{CommandRunner, TokioRunner};
 use image::RgbImage;
@@ -56,6 +57,9 @@ pub struct Screen {
     media_tick: Option<Instant>,
     /// Player last shown in the media view and until when it stays.
     media_hold: Option<(String, Instant)>,
+    /// Lua dispatchers for the [`hyprland`](crate::hyprland) task.
+    hypr_tx: UnboundedSender<String>,
+    workspaces: Workspaces,
 }
 
 impl Screen {
@@ -66,6 +70,7 @@ impl Screen {
         unavailable: BTreeSet<String>,
         jobs: UnboundedSender<Job>,
         media_tx: UnboundedSender<mpris::Press>,
+        hypr_tx: UnboundedSender<String>,
     ) -> Result<Self> {
         let theme = match load_theme() {
             Some(t) => t,
@@ -86,6 +91,8 @@ impl Screen {
             overlay_until: None,
             media_tick: None,
             media_hold: None,
+            hypr_tx,
+            workspaces: Workspaces::default(),
         })
     }
 
@@ -210,6 +217,30 @@ impl Screen {
         if was { Ok(()) } else { self.draw_strip(deck) }
     }
 
+    /// Returns whether a shown workspace key or the scroll dial changed.
+    pub fn set_workspaces(&mut self, ws: Workspaces) -> bool {
+        let c = &self.store.current;
+        let shown = |w: &Workspaces| {
+            let keys = self.nav.keys(c);
+            let dials = self.nav.dials(c);
+            let keys: Vec<_> = keys
+                .iter()
+                .flatten()
+                .filter_map(hypr::workspace_of)
+                .map(|n| w.state(n))
+                .collect();
+            let scroll = dials
+                .iter()
+                .flatten()
+                .any(|b| b.action == hypr::SCROLL_ACTION)
+                .then_some(w.active);
+            (keys, scroll)
+        };
+        let changed = shown(&self.workspaces) != shown(&ws);
+        self.workspaces = ws;
+        changed
+    }
+
     /// Returns whether a shown dial changed.
     pub fn set_levels(&mut self, levels: Levels) -> bool {
         let old = std::mem::replace(&mut self.levels, levels);
@@ -240,11 +271,21 @@ impl Screen {
                 self.handle(deck, press, true)
             }
             Gesture::Tap(Control::Encoder(i)) => {
-                self.dial_job(i, Job::Press);
+                if self.is_scroll(i) {
+                    self.dispatch(hypr::SCROLL_PRESS.to_owned());
+                } else {
+                    self.dial_job(i, Job::Press);
+                }
                 return;
             }
             Gesture::Twist { encoder, delta, .. } => {
-                self.dial_job(encoder, |d| Job::Twist(d, i32::from(delta)));
+                if self.is_scroll(encoder) {
+                    if let Some(d) = hypr::scroll(i32::from(delta)) {
+                        self.dispatch(d);
+                    }
+                } else {
+                    self.dial_job(encoder, |d| Job::Twist(d, i32::from(delta)));
+                }
                 self.touch_dials(deck)
             }
             Gesture::StripSwipe((x0, _), (x1, _)) if x0.abs_diff(x1) >= SWIPE_MIN => {
@@ -264,6 +305,16 @@ impl Screen {
         self.nav.dials(&self.store.current)[usize::from(seg % 4)]
             .as_ref()
             .and_then(Dial::from_binding)
+    }
+
+    fn is_scroll(&self, seg: u8) -> bool {
+        self.nav.dials(&self.store.current)[usize::from(seg % 4)]
+            .as_ref()
+            .is_some_and(|b| b.action == hypr::SCROLL_ACTION)
+    }
+
+    fn dispatch(&self, lua: String) {
+        let _ = self.hypr_tx.send(lua);
     }
 
     fn dial_job(&self, seg: u8, job: impl FnOnce(Dial) -> Job) {
@@ -309,9 +360,15 @@ impl Screen {
             return;
         }
         let res = entry
-            .command(&b.action, &b.args)
+            .exec(&b.action, &b.args)
             .map_err(anyhow::Error::from)
-            .and_then(|spec| Ok(TokioRunner.spawn(&spec)?));
+            .and_then(|exec| match exec {
+                Exec::Command(spec) => Ok(TokioRunner.spawn(&spec)?),
+                Exec::Dispatch(lua) => {
+                    self.dispatch(lua);
+                    Ok(())
+                }
+            });
         match res {
             Ok(()) => tracing::info!(action = %b.action, "action started"),
             Err(e) => tracing::warn!(action = %b.action, error = %e, "action failed"),
@@ -320,6 +377,28 @@ impl Screen {
 
     fn key(&mut self, deck: &mut Deck, i: u8, pressed: bool) -> Result<()> {
         let binding = self.nav.keys(&self.store.current)[usize::from(i % 8)].take();
+        let bg = if pressed {
+            Role::LighterBackground
+        } else {
+            Role::Background
+        };
+        if let Some(b) = binding.as_ref().filter(|b| b.icon.is_none())
+            && let Some(n) = hypr::workspace_of(b)
+        {
+            let state = self.workspaces.state(n);
+            let view = GlyphView {
+                text: &n.to_string(),
+                marked: state == WorkspaceState::Active,
+                fg: match state {
+                    WorkspaceState::Active => Role::Accent,
+                    WorkspaceState::Occupied => Role::Foreground,
+                    WorkspaceState::Empty => Role::Muted,
+                },
+                bg,
+            };
+            let img = to_image(self.renderer.glyph_key(&self.theme, &view)?)?;
+            return deck.out.set_key(i, &img);
+        }
         let label = binding.as_ref().map(|b| self.label(b));
         let view = KeyView {
             icon: binding.as_ref().and_then(|b| self.icon(b)),
@@ -350,7 +429,12 @@ impl Screen {
             .as_ref()
             .and_then(Dial::from_binding)
             .map(|d| (d, self.levels.of(d)));
+        let scroll = binding
+            .as_ref()
+            .filter(|b| b.action == hypr::SCROLL_ACTION)
+            .and(self.workspaces.active);
         let text = match level {
+            _ if scroll.is_some() => scroll.map(|n| n.to_string()),
             Some((_, (_, true))) => Some("Muted".to_owned()),
             Some((_, (Some(pct), false))) => Some(format!("{pct}%")),
             _ => binding.as_ref().map(|b| self.label(b)),
@@ -419,6 +503,15 @@ impl Screen {
         }
         if let Some(k) = MediaKey::from_binding(b) {
             return icons::get(k.icon(playing(&self.players, b)));
+        }
+        if b.action == "window.focus" {
+            let dir = match b.args.get("dir").and_then(|v| v.as_str()) {
+                Some("l") => "focus-left",
+                Some("u") => "focus-up",
+                Some("d") => "focus-down",
+                _ => "focus-right",
+            };
+            return icons::get(dir);
         }
         if let Some(e) = self.catalog.get(&b.action) {
             return icons::get(e.icon.default_name());

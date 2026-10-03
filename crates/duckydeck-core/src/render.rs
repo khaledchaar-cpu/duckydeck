@@ -18,6 +18,10 @@ const LABEL_PX: f32 = 13.0;
 const LABEL_PAD: f32 = 6.0;
 /// Icon area top edge when a label is shown; label sits below it.
 const ICON_TOP_WITH_LABEL: f32 = 18.0;
+const GLYPH_PX: f32 = 56.0;
+const MARK_W: f32 = 40.0;
+const MARK_H: f32 = 6.0;
+const MARK_TOP: f32 = 98.0;
 
 /// One touchstrip segment (the strip is 800×100, one segment per encoder).
 pub const SEGMENT_W: u32 = 200;
@@ -65,6 +69,16 @@ impl Default for KeyView<'_> {
             bg: Role::Background,
         }
     }
+}
+
+/// A key showing one large glyph (workspace number), optionally marked
+/// with a bar below it in the same color.
+#[derive(Debug, Clone)]
+pub struct GlyphView<'a> {
+    pub text: &'a str,
+    pub marked: bool,
+    pub fg: Role,
+    pub bg: Role,
 }
 
 /// What one strip segment shows: icon top left, text top right, level bar
@@ -171,6 +185,27 @@ impl Renderer {
                 align: Align::Center,
             };
             self.draw_text(&mut pm, text, &text_box, fg);
+        }
+        Ok(to_rgb(&pm))
+    }
+
+    pub fn glyph_key(&mut self, theme: &Theme, view: &GlyphView) -> Result<RgbImage, RenderError> {
+        let bg = theme.get(view.bg);
+        let fg = theme.get(view.fg).readable_on(bg, MIN_CONTRAST);
+        let mut pm = canvas(KEY_SIZE, KEY_SIZE, bg)?;
+        let text_box = TextBox {
+            left: LABEL_PAD,
+            top: (KEY_SIZE as f32 - GLYPH_PX * 1.25) / 2.0,
+            width: KEY_SIZE as f32 - 2.0 * LABEL_PAD,
+            px: GLYPH_PX,
+            align: Align::Center,
+        };
+        if !view.text.is_empty() {
+            self.draw_text(&mut pm, view.text, &text_box, fg);
+        }
+        if view.marked {
+            let left = (KEY_SIZE as f32 - MARK_W) / 2.0;
+            fill_rect(&mut pm, left, MARK_TOP, MARK_W, MARK_H, fg);
         }
         Ok(to_rgb(&pm))
     }
@@ -403,6 +438,21 @@ mod tests {
         assert_eq!(img.pixel(100, 82), [0xe6, 0x8e, 0x0d]);
         assert_eq!(img.pixel(600, 82), [0x33, 0x33, 0x33]);
         insta::assert_snapshot!(ascii(&img, [0x12, 0x12, 0x12]));
+    }
+
+    #[test]
+    fn marked_glyph_key() {
+        let mut r = Renderer::new(vec![]);
+        // No font in tests: only the mark is checked.
+        let view = GlyphView {
+            text: "",
+            marked: true,
+            fg: Role::Accent,
+            bg: Role::Background,
+        };
+        let img = r.glyph_key(&theme(), &view).unwrap();
+        assert_eq!(img.pixel(60, 100), [0xe6, 0x8e, 0x0d]);
+        assert_eq!(img.pixel(10, 100), [0x12, 0x12, 0x12]);
     }
 
     #[test]

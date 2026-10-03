@@ -50,6 +50,30 @@ Groups relevant to DuckyDeck only. Full list: `omarchy commands --json`. ⚠ = r
 | `omarchy font list` |  | List available monospace fonts |
 | `omarchy font set` | <font-name> | Set the system monospace font |
 
+### hyprland
+
+| Route | Args | Summary |
+|---|---|---|
+| `omarchy hyprland focus app` | <app-name> | Focus a Hyprland window by application identity |
+| `omarchy hyprland monitor focused` |  | Print the name of the currently focused Hyprland monitor. |
+| `omarchy hyprland monitor focused apple` | [monitor] | Return success if the focused or named Hyprland monitor is an Apple display. |
+| `omarchy hyprland monitor internal` | <on\|off\|toggle\|recover> | Enable, disable, toggle, or recover the internal laptop display |
+| `omarchy hyprland monitor internal mirror` | <on\|off\|toggle\|recover> | Enable, disable, toggle, or recover mirroring the internal display to an external monitor |
+| `omarchy hyprland monitor laptop` |  | Print the name of the built-in laptop display, including disabled outputs. |
+| `omarchy hyprland monitor scaling` | [up\|down\|SCALE] | Show, set, or adjust focused Hyprland monitor scaling |
+| `omarchy hyprland monitor watch` |  | Watch Hyprland monitor events and recover monitor toggles when a monitor is removed |
+| `omarchy hyprland toggle` | <flag-name> [on\|off\|toggle] | Toggle permanent Hyprland flags by copying them into a directory that's sourced entirely. |
+| `omarchy hyprland toggle disabled` | <flag-name> | Check if a Hyprland toggle is currently disabled (missing). |
+| `omarchy hyprland toggle enabled` | <flag-name> | Check if a Hyprland toggle is currently enabled. |
+| `omarchy hyprland window close all` |  | Close all open windows |
+| `omarchy hyprland window gaps toggle` |  | Toggles the window gaps globally between no gaps and the default. |
+| `omarchy hyprland window pop` | [width height x y] | Toggle to pop-out a tile to stay fixed on a display basis. |
+| `omarchy hyprland window single square aspect toggle` |  | Toggle single-window square aspect ratio. |
+| `omarchy hyprland window tiled fullscreen toggle` |  | Toggle tiled fullscreen for the focused Hyprland window |
+| `omarchy hyprland window transparency toggle` |  | Toggles transparency for the currently focused window. |
+| `omarchy hyprland window width` | <save\|restore> | Save or restore the focused Hyprland window width |
+| `omarchy hyprland workspace layout toggle` |  | Toggle the layout on the current active workspace between dwindle and scrolling |
+
 ### launch
 
 | Route | Args | Summary |

@@ -1,7 +1,8 @@
 //! Declarative command actions from `actions/catalog.toml`.
 //!
-//! Each entry is "run a command + show an icon" and is executed by
-//! [`Entry::command`]. Actions with real logic are Rust code elsewhere.
+//! Each entry is "run a command (or a Hyprland dispatch) + show an icon" and
+//! is executed through [`Entry::exec`]. Actions with real logic are Rust code
+//! elsewhere.
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
@@ -16,12 +17,14 @@ pub const CATALOG: &str = include_str!("../../../actions/catalog.toml");
 pub enum CatalogError {
     #[error("invalid catalog: {0}")]
     Parse(#[from] toml::de::Error),
-    #[error("action `{0}` has an empty `run`")]
+    #[error("action `{0}` needs exactly one of `run` and `dispatch`")]
     EmptyRun(String),
     #[error("action `{action}` needs argument `{arg}`")]
     MissingArg { action: String, arg: String },
     #[error("action `{action}`: argument `{arg}` must be a string, number or bool")]
     BadArg { action: String, arg: String },
+    #[error("action `{action}`: argument `{arg}` may only contain letters, digits and `_+-:`")]
+    UnsafeArg { action: String, arg: String },
     #[error("invalid output of `omarchy commands --json`: {0}")]
     Routes(#[from] serde_json::Error),
 }
@@ -63,7 +66,10 @@ pub enum Confirm {
 pub struct Entry {
     pub label: String,
     pub icon: Icon,
+    #[serde(default)]
     pub run: Vec<String>,
+    /// Hyprland dispatcher in Lua (`hl.dsp.…`), sent over the IPC socket.
+    pub dispatch: Option<String>,
     /// Omarchy route that must exist; default: derived from `run`.
     pub requires: Option<String>,
     pub confirm: Option<Confirm>,
@@ -73,16 +79,29 @@ pub struct Entry {
 }
 
 impl Entry {
-    /// Builds the command, filling `{name}` placeholders from `args`, then `defaults`.
-    pub fn command(&self, id: &str, args: &toml::Table) -> Result<CommandSpec, CatalogError> {
-        let mut parts = self.run.iter().map(|a| self.fill(id, a, args));
+    /// What the action does, filling `{name}` placeholders from `args`, then
+    /// `defaults`. Dispatch values are restricted so they stay inside their
+    /// Lua string.
+    pub fn exec(&self, id: &str, args: &toml::Table) -> Result<Exec, CatalogError> {
+        if let Some(d) = &self.dispatch {
+            return Ok(Exec::Dispatch(self.fill(id, d, args, true)?));
+        }
+        let mut parts = self.run.iter().map(|a| self.fill(id, a, args, false));
         let program = parts
             .next()
             .ok_or_else(|| CatalogError::EmptyRun(id.to_owned()))??;
-        Ok(CommandSpec::new(program).args(parts.collect::<Result<Vec<_>, _>>()?))
+        Ok(Exec::Command(
+            CommandSpec::new(program).args(parts.collect::<Result<Vec<_>, _>>()?),
+        ))
     }
 
-    fn fill(&self, id: &str, arg: &str, args: &toml::Table) -> Result<String, CatalogError> {
+    fn fill(
+        &self,
+        id: &str,
+        arg: &str,
+        args: &toml::Table,
+        lua: bool,
+    ) -> Result<String, CatalogError> {
         let mut out = String::new();
         let mut rest = arg;
         while let Some(start) = rest.find('{') {
@@ -90,6 +109,12 @@ impl Entry {
                 break;
             };
             let name = &rest[start + 1..start + len];
+            // Lua tables (`{ mode = "x" }`) are not placeholders.
+            if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                out.push_str(&rest[..=start]);
+                rest = &rest[start + 1..];
+                continue;
+            }
             let value = args
                 .get(name)
                 .or_else(|| self.defaults.get(name))
@@ -97,11 +122,22 @@ impl Entry {
                     action: id.to_owned(),
                     arg: name.to_owned(),
                 })?;
-            out.push_str(&rest[..start]);
-            out.push_str(&scalar(value).ok_or_else(|| CatalogError::BadArg {
+            let value = scalar(value).ok_or_else(|| CatalogError::BadArg {
                 action: id.to_owned(),
                 arg: name.to_owned(),
-            })?);
+            })?;
+            if lua
+                && !value
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || "_+-:".contains(c))
+            {
+                return Err(CatalogError::UnsafeArg {
+                    action: id.to_owned(),
+                    arg: name.to_owned(),
+                });
+            }
+            out.push_str(&rest[..start]);
+            out.push_str(&value);
             rest = &rest[start + len + 1..];
         }
         out.push_str(rest);
@@ -132,6 +168,14 @@ impl Entry {
     }
 }
 
+/// How an entry is executed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Exec {
+    Command(CommandSpec),
+    /// Lua dispatcher expression for Hyprland.
+    Dispatch(String),
+}
+
 #[derive(Debug, Clone)]
 pub struct Catalog {
     entries: BTreeMap<String, Entry>,
@@ -144,7 +188,10 @@ impl Catalog {
             .into_iter()
             .flat_map(|(g, es)| es.into_iter().map(move |(n, e)| (format!("{g}.{n}"), e)))
             .collect();
-        if let Some((id, _)) = entries.iter().find(|(_, e)| e.run.is_empty()) {
+        if let Some((id, _)) = entries
+            .iter()
+            .find(|(_, e)| e.run.is_empty() == e.dispatch.is_none())
+        {
             return Err(CatalogError::EmptyRun(id.clone()));
         }
         Ok(Self { entries })
@@ -217,6 +264,13 @@ mod tests {
             .collect()
     }
 
+    fn command(e: &Entry, id: &str, args: &toml::Table) -> Result<CommandSpec, CatalogError> {
+        match e.exec(id, args)? {
+            Exec::Command(spec) => Ok(spec),
+            Exec::Dispatch(d) => panic!("{id} is a dispatch: {d}"),
+        }
+    }
+
     #[tokio::test]
     async fn builtin_catalog_is_valid() {
         let catalog = Catalog::builtin().unwrap();
@@ -230,7 +284,13 @@ mod tests {
                 assert!(routes.contains(&r), "{id}: unknown route `{r}`");
             }
             // Defaults complete every placeholder; the call goes out verbatim.
-            let spec = e.command(id, &toml::Table::new()).unwrap();
+            let spec = match e.exec(id, &toml::Table::new()).unwrap() {
+                Exec::Command(spec) => spec,
+                Exec::Dispatch(d) => {
+                    assert!(d.starts_with("hl.dsp."), "{id}: {d}");
+                    continue;
+                }
+            };
             assert!(!spec.args.iter().any(|a| a.contains('{')), "{id}");
             let runner = RecordingRunner::new();
             runner.spawn(&spec).unwrap();
@@ -246,12 +306,10 @@ mod tests {
         let e = c.get("capture.screenshot").unwrap();
         let mut args = toml::Table::new();
         args.insert("mode".into(), "region; rm -rf ~".into());
-        let spec = e.command("capture.screenshot", &args).unwrap();
+        let spec = command(e, "capture.screenshot", &args).unwrap();
         assert_eq!(spec.program, "omarchy");
         assert_eq!(spec.args, ["capture", "screenshot", "region; rm -rf ~"]);
-        let spec = e
-            .command("capture.screenshot", &toml::Table::new())
-            .unwrap();
+        let spec = command(e, "capture.screenshot", &toml::Table::new()).unwrap();
         assert_eq!(spec.args[2], "smart");
     }
 
@@ -261,15 +319,15 @@ mod tests {
             .unwrap();
         let e = c.get("x.y").unwrap();
         assert!(matches!(
-            e.command("x.y", &toml::Table::new()),
+            command(e, "x.y", &toml::Table::new()),
             Err(CatalogError::MissingArg { .. })
         ));
         let mut args = toml::Table::new();
         args.insert("n".into(), 3.into());
-        assert_eq!(e.command("x.y", &args).unwrap().args, ["--n=3"]);
+        assert_eq!(command(e, "x.y", &args).unwrap().args, ["--n=3"]);
         args.insert("n".into(), toml::Value::Array(vec![]));
         assert!(matches!(
-            e.command("x.y", &args),
+            command(e, "x.y", &args),
             Err(CatalogError::BadArg { .. })
         ));
     }
@@ -280,6 +338,28 @@ mod tests {
             Catalog::parse("[x.y]\nlabel = \"Y\"\nicon = \"a\"\nrun = [\"a\"]\nfoo = 1").is_err()
         );
         assert!(Catalog::parse("[x.y]\nlabel = \"Y\"\nicon = \"a\"\nrun = []").is_err());
+        assert!(Catalog::parse("[x.y]\nlabel = \"Y\"\nicon = \"a\"").is_err());
+        assert!(
+            Catalog::parse("[x.y]\nlabel = \"Y\"\nicon = \"a\"\nrun = [\"a\"]\ndispatch = \"b\"")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn dispatch_args_stay_inside_lua_strings() {
+        let c = Catalog::builtin().unwrap();
+        let e = c.get("window.workspace").unwrap();
+        let mut args = toml::Table::new();
+        args.insert("n".into(), 3.into());
+        assert_eq!(
+            e.exec("window.workspace", &args).unwrap(),
+            Exec::Dispatch(r#"hl.dsp.focus({ workspace = "3" })"#.into())
+        );
+        args.insert("n".into(), r#"1" }) os.exit() --"#.into());
+        assert!(matches!(
+            e.exec("window.workspace", &args),
+            Err(CatalogError::UnsafeArg { .. })
+        ));
     }
 
     #[test]

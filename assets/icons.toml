@@ -78,6 +78,8 @@ bluetooth-off = "bluetooth-off"
 vpn = "shield-lock"
 
 [window]
+workspace = "app-window"
+workspace-scroll = "arrows-horizontal"
 move-to-workspace = "arrow-move-right"
 close-window = "x"
 float = "layers-subtract"
