@@ -23,14 +23,14 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
 
 ## Offene Probleme / Notizen
-- Laufender Dev-Daemon nutzt altes Binary (neu starten). Auto-Profil/Toggle am echten Gerät noch nicht angesehen; leere Fenster (Menü/Launcher offen, leerer Workspace) fallen aufs manuelle Profil zurück
+- Leere Fenster (Menü/Launcher offen, leerer Workspace) fallen aufs manuelle Profil zurück
 - Tooltip-Text beim Hover noch nicht angesehen
 - Einmal zeigte das Profil-Dropdown nach Laufzeit-Profilwechsel den alten Wert (vor Shell-Neustart); nicht reproduzierbar
 - Menüeintrag wird nur bei neuer Paketversion aktualisiert (Setup-Marker)
 - `setup --remove` nimmt das Widget nicht aus dem Bar-Layout (keine Route zum Entfernen)
 - `scripts/check.sh` findet `cargo` nur mit `PATH=$HOME/.cargo/bin:$PATH`
-- Nicht am Gerät geprüft: Long-Press-Bestätigung, mehrseitige Profile/Swipe; Multi-Monitor-Actions (nur DP-1)
-- Catalog-Actions: Fehler innerhalb von 3 s (`spawn_watched`) → Shell-Benachrichtigung „<Label> failed“; am Gerät noch nicht gesehen. Nachtlicht-Status ohne Event
+- Am Gerät geprüft: Auto-Profil, Long-Press-Schutz (kurz), Toggle, Fehler-Benachrichtigung, Swipe (Schwelle 40 px, Gerät meldet nur ~50–100 px). Offen: Multi-Monitor-Actions (nur DP-1)
+- Catalog-Actions: Fehler innerhalb von 3 s (`spawn_watched`) → Shell-Benachrichtigung „<Label> failed“. Nachtlicht-Status ohne Event
 - Hyprland-Zugriff noch nicht hinter Trait (I/O nicht testbar)
 - Socket-Pfad (SUN_LEN): Tests mit kurzem `XDG_RUNTIME_DIR` unter `/tmp/claude-1000`
 - Paket 0.1.0 ist installiert: Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`; `/usr/bin/duckydeck` ist das Paket-Binary

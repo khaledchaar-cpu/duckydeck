@@ -34,8 +34,9 @@ use crate::toggles::Toggles;
 
 const FALLBACK_THEME: &str =
     "background = \"#121212\"\nforeground = \"#bebebe\"\naccent = \"#e68e0d\"";
-/// Minimum horizontal travel for a strip swipe to change the page.
-const SWIPE_MIN: u16 = 100;
+/// Minimum horizontal travel for a strip swipe to change the page. The
+/// device reports only ~50-100 px for a quick swipe (measured).
+const SWIPE_MIN: u16 = 40;
 /// How long dial values replace the media view after touching a dial.
 const OVERLAY: Duration = Duration::from_secs(2);
 /// Media view refresh while playing (progress and time).
