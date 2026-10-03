@@ -10,10 +10,11 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - Ein Plugin `duckydeck.widget` (Bar-Icon + Panel) wie Erstanbieter-Panels; Spec angepasst
 - Bar-Icon: gedimmt ohne Gerät/Daemon, Tooltip mit Profil/Seite, Reconnect per Backoff
 - Panel: Status/Serial, Profil-Dropdown, Seiten-Buttons (ab 2 Seiten), Helligkeit, Config öffnen, Neu laden – Anzeige geprüft
+- Tastatur im Panel: j/k Cursor, h/l Seite/Helligkeit(±5)/Profil, Enter aktiviert – Helligkeit per Tastatur geprüft
 - Menüeintrag → `omarchy-shell duckydeck.widget toggle`; `setup` macht `rescanPlugins` vor `bar put`
 
 ## Nächster Schritt
-- Panel-Bedienung am Gerät prüfen (Helligkeit, Profilwechsel mit 2. Profil, Seiten, Reload, Config); Tastatur-Cursor (j/k) im Panel ergänzen; dann M7 abschließen + Skill `shell-plugin`
+- Nutzer prüft Panel per Maus am Gerät (Profilwechsel mit 2. Profil, Seiten, Reload, Config, Tooltip); danach M7 abschließen und Skill `shell-plugin` anlegen, dann M8
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)

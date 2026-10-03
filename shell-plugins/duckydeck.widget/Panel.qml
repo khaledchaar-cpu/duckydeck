@@ -26,6 +26,55 @@ Panel {
     return list
   }
 
+  // Keyboard cursor (j/k move, h/l adjust, Enter activates); inactive until
+  // the first key so the mouse sees no stray highlight.
+  property bool cursorActive: false
+  property string cursor: "config"
+  readonly property var cursorItems: {
+    var items = ["config"]
+    if (deck.daemonUp) items.push("reload", "profile")
+    if (deck.daemonUp && pageOptions.length > 1) items.push("page")
+    if (deck.connected) items.push("brightness")
+    return items
+  }
+
+  function hasCursor(item) { return cursorActive && cursor === item }
+
+  function moveCursor(dy) {
+    var i = Math.max(0, cursorItems.indexOf(cursor))
+    cursor = cursorItems[Math.max(0, Math.min(cursorItems.length - 1, i + dy))]
+  }
+
+  function adjust(dx) {
+    if (!status) return
+    if (cursor === "config" || cursor === "reload") moveCursor(dx)
+    else if (cursor === "page") {
+      var page = Math.max(1, Math.min(status.pages, status.page + dx))
+      if (page !== status.page) run(["page", String(page)])
+    } else if (cursor === "brightness") {
+      var b = Math.max(0, Math.min(100, status.brightness + dx * 5))
+      if (b !== status.brightness) run(["brightness", String(b)])
+    } else if (cursor === "profile") {
+      var list = status.profiles
+      var next = list[(list.indexOf(status.profile) + dx + list.length) % list.length]
+      if (next !== status.profile) run(["profile", next])
+    }
+  }
+
+  function activate() {
+    if (cursor === "config") openConfig()
+    else if (cursor === "reload") run(["reload"])
+    else if (cursor === "profile") profileDropdown.open()
+  }
+
+  function openConfig() {
+    Quickshell.execDetached(["omarchy", "launch", "editor", Quickshell.env("HOME") + "/.config/duckydeck/config.toml"])
+    close()
+  }
+
+  onOpenedChanged: if (opened) { cursorActive = false; cursor = "config" }
+  onCursorItemsChanged: if (cursorItems.indexOf(cursor) < 0) cursor = "config"
+
   // One CLI call at a time; a newer one replaces a pending one.
   function run(args) {
     error = ""
@@ -86,6 +135,12 @@ Panel {
       id: keyCatcher
       anchors.fill: parent
       blocked: profileDropdown.popupOpen
+      onMoveRequested: function(dx, dy) {
+        if (!root.cursorActive) { root.cursorActive = true; return }
+        if (dy !== 0) root.moveCursor(dy)
+        else if (dx !== 0) root.adjust(dx)
+      }
+      onActivateRequested: if (root.cursorActive) root.activate()
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
 
@@ -123,10 +178,8 @@ Panel {
                 tooltipText: strings.openConfig
                 foreground: root.foreground
                 fontFamily: root.fontFamily
-                onClicked: {
-                  Quickshell.execDetached(["omarchy", "launch", "editor", Quickshell.env("HOME") + "/.config/duckydeck/config.toml"])
-                  root.close()
-                }
+                hasCursor: root.hasCursor("config")
+                onClicked: root.openConfig()
               }
               PanelActionButton {
                 iconText: "󰑐"
@@ -134,6 +187,7 @@ Panel {
                 foreground: root.foreground
                 fontFamily: root.fontFamily
                 enabled: deck.daemonUp
+                hasCursor: root.hasCursor("reload")
                 onClicked: root.run(["reload"])
               }
             }
@@ -154,6 +208,7 @@ Panel {
             id: profileDropdown
             width: parent.width
             showLabel: false
+            hasCursor: root.hasCursor("profile")
             options: root.status ? root.status.profiles : []
             value: root.status ? root.status.profile : ""
             foreground: root.foreground
@@ -174,6 +229,7 @@ Panel {
           }
           ButtonGroup {
             width: parent.width
+            cursorIndex: root.hasCursor("page") && root.status ? root.status.page - 1 : -1
             options: root.pageOptions
             value: root.status ? String(root.status.page) : ""
             foreground: root.foreground
@@ -192,12 +248,17 @@ Panel {
             foreground: root.foreground
             fontFamily: root.fontFamily
           }
-          Item {
+          CursorSurface {
             width: parent.width
             height: brightnessSlider.implicitHeight + Style.spacing.controlGap
+            hasCursor: root.hasCursor("brightness")
+            foreground: root.foreground
+            outline: true
             PanelSlider {
               id: brightnessSlider
               anchors.fill: parent
+              anchors.leftMargin: Style.space(6)
+              anchors.rightMargin: Style.space(6)
               bar: root.bar
               minimum: 0
               maximum: 100
