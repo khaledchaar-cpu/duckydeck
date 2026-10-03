@@ -7,6 +7,7 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
+- Idee 2: Icon-Raster im Editor mit Vorschau (`duckydeck icons --color`), 272 Icons inkl. `[general]` und `[adult]`; vom Nutzer getestet
 - Lückenanalyse Controls, Katalog-Teil: `system.panel`, `system.bluetooth` (mit Zustand), `system.power_profile`, `system.touchpad`, `system.keyboard_backlight`, `system.reminder`, `system.agent`, `media.output_switch`, `media.source_switch` (+ Icons)
 - `gen-omarchy-reference.sh` um `agent`, `bluetooth`, `powerprofiles`, `reminder` erweitert
 - Mit Fake-Daemon geprüft (`duckydeck actions` listet alle); am echten Gerät noch nicht gedrückt
@@ -17,7 +18,8 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 - `choice_icons`: Icon je Platzhalterwert (Shell-Panels, Fokus-Richtung statt Sonderfall im Daemon)
 
 ## Nächster Schritt
-- Idee 2 aus SPEC.md: Icon-Auswahl mit visueller Vorschau – Plan abstimmen
+- Idee 3 aus SPEC.md: eigene Icons (Upload) – Plan abstimmen
+- Release 0.1.1 erwägen (viele neue Features seit 0.1.0)
 - Danach Release 0.1.1 erwägen, dann Idee 2 (Icon-Auswahl)
 
 ## Offene Probleme / Notizen

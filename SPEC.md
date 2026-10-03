@@ -63,7 +63,7 @@ Jede Idee wird vor der Umsetzung einzeln abgestimmt; Entscheidungen landen in de
 | # | Idee | Notiz |
 |---|---|---|
 | 1 | Lückenanalyse Controls – erledigt 2026-10-03 (inkl. Status-Texte auf den Tasten; Regler Tastaturlicht gestrichen) | `actions.md` |
-| 2 | Icon-Auswahl mit visueller Vorschau des Katalogs – umgesetzt 2026-10-03, Test am Gerät offen | Editor (`ui.md`, `assets.md`) |
+| 2 | Icon-Auswahl mit visueller Vorschau des Katalogs – erledigt 2026-10-03 (inkl. 177 allgemeine + „Party & 18+“-Icons) | Editor (`ui.md`, `assets.md`) |
 | 3 | Eigene Icons (Upload) und freie Icon-Bibliotheken | KI-Generierung zurückgestellt; Netzwerk nur per expliziter Nutzer-Action (Regel 6) |
 | 4 | Weitere Stream-Deck-Modelle | über Gerätefähigkeiten, ungetestet → experimentell, Fake-Device pro Modell |
 | – | UX-Polishing | laufend, gesammelt aus konkreten Stolperstellen |
