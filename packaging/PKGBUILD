@@ -40,7 +40,7 @@ package() {
   install -d "$pkgdir/usr/lib/systemd/user/graphical-session.target.wants"
   ln -s ../duckydeck.service "$pkgdir/usr/lib/systemd/user/graphical-session.target.wants/duckydeck.service"
   install -d "$pkgdir/usr/share/duckydeck/shell-plugins"
-  cp -r --no-preserve=ownership shell-plugins/duckydeck.widget "$pkgdir/usr/share/duckydeck/shell-plugins/"
+  cp -r --no-preserve=ownership shell-plugins/duckydeck.widget shell-plugins/duckydeck.editor "$pkgdir/usr/share/duckydeck/shell-plugins/"
   install -Dm644 examples/profiles/*.toml -t "$pkgdir/usr/share/doc/$pkgname/examples/"
   install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
 }

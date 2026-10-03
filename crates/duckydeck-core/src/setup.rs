@@ -117,6 +117,10 @@ pub async fn install(paths: &Paths, runner: &dyn CommandRunner) -> Result<Vec<St
         omarchy(runner, ["bar", "put", WIDGET]).await?;
         done.push(format!("added {WIDGET} to the bar"));
     }
+    // Overlays (the editor) are only summoned when enabled.
+    for id in linked.iter().filter(|id| *id != WIDGET) {
+        omarchy(runner, ["plugin", "enable", id.as_str()]).await?;
+    }
     done.extend(linked.into_iter().map(|id| format!("linked plugin {id}")));
 
     let menu = paths.menu();
@@ -334,7 +338,8 @@ mod tests {
         let lines = runner.command_lines();
         assert_eq!(lines[0], "omarchy-shell shell rescanPlugins");
         assert_eq!(lines[1], "omarchy bar put duckydeck.widget");
-        assert!(lines[2].starts_with("omarchy hook install font-set "));
+        assert_eq!(lines[2], "omarchy plugin enable duckydeck.panel");
+        assert!(lines[3].starts_with("omarchy hook install font-set "));
         assert!(p.plugins().join("duckydeck.panel").is_symlink());
         assert!(!p.plugins().join("spike").exists());
         assert!(!needed(&p));

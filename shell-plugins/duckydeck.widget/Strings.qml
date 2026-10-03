@@ -10,6 +10,7 @@ QtObject {
   readonly property string page: "PAGE"
   readonly property string brightness: "BRIGHTNESS"
   readonly property string openConfig: "Open config"
+  readonly property string editLayout: "Edit layout"
   readonly property string reload: "Reload font, theme and config"
   readonly property string timeout: "DuckyDeck did not answer"
 

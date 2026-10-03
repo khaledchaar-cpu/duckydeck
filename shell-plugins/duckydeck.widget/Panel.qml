@@ -32,7 +32,7 @@ Panel {
   property string cursor: "config"
   readonly property var cursorItems: {
     var items = ["config"]
-    if (deck.daemonUp) items.push("reload", "profile")
+    if (deck.daemonUp) items.push("edit", "reload", "profile")
     if (deck.daemonUp && pageOptions.length > 1) items.push("page")
     if (deck.connected) items.push("brightness")
     return items
@@ -47,7 +47,7 @@ Panel {
 
   function adjust(dx) {
     if (!status) return
-    if (cursor === "config" || cursor === "reload") moveCursor(dx)
+    if (cursor === "config" || cursor === "edit" || cursor === "reload") moveCursor(dx)
     else if (cursor === "page") {
       var page = Math.max(1, Math.min(status.pages, status.page + dx))
       if (page !== status.page) run(["page", String(page)])
@@ -63,12 +63,18 @@ Panel {
 
   function activate() {
     if (cursor === "config") openConfig()
+    else if (cursor === "edit") openEditor()
     else if (cursor === "reload") run(["reload"])
     else if (cursor === "profile") profileDropdown.open()
   }
 
   function openConfig() {
     Quickshell.execDetached(["omarchy", "launch", "editor", Quickshell.env("HOME") + "/.config/duckydeck/config.toml"])
+    close()
+  }
+
+  function openEditor() {
+    Quickshell.execDetached(["omarchy-shell", "shell", "summon", "duckydeck.editor"])
     close()
   }
 
@@ -180,6 +186,15 @@ Panel {
                 fontFamily: root.fontFamily
                 hasCursor: root.hasCursor("config")
                 onClicked: root.openConfig()
+              }
+              PanelActionButton {
+                iconText: "󰏫"
+                tooltipText: strings.editLayout
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                enabled: deck.daemonUp
+                hasCursor: root.hasCursor("edit")
+                onClicked: root.openEditor()
               }
               PanelActionButton {
                 iconText: "󰑐"
