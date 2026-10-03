@@ -26,6 +26,12 @@ pub enum CatalogError {
     BadArg { action: String, arg: String },
     #[error("action `{action}`: argument `{arg}` may only contain letters, digits and `_+-:`")]
     UnsafeArg { action: String, arg: String },
+    #[error("action `{action}`: argument `{arg}` must be one of: {allowed}")]
+    NotAChoice {
+        action: String,
+        arg: String,
+        allowed: String,
+    },
     #[error(
         "action `{0}`: `state` needs exactly one of `file` and `command`; `elapsed` needs `file`"
     )]
@@ -88,6 +94,9 @@ pub struct Entry {
     /// Placeholder values used when the binding does not set them.
     #[serde(default)]
     pub defaults: toml::Table,
+    /// Allowed values per placeholder (offered as a choice in the editor).
+    #[serde(default)]
+    pub choices: BTreeMap<String, Vec<String>>,
     /// Where the toggle state comes from; needs an `{ on, off }` icon.
     pub state: Option<StateSource>,
 }
@@ -170,6 +179,15 @@ impl Entry {
                 return Err(CatalogError::UnsafeArg {
                     action: id.to_owned(),
                     arg: name.to_owned(),
+                });
+            }
+            if let Some(allowed) = self.choices.get(name)
+                && !allowed.contains(&value)
+            {
+                return Err(CatalogError::NotAChoice {
+                    action: id.to_owned(),
+                    arg: name.to_owned(),
+                    allowed: allowed.join(", "),
                 });
             }
             out.push_str(&rest[..start]);
@@ -363,14 +381,40 @@ mod tests {
     #[test]
     fn placeholders_stay_single_arguments() {
         let c = Catalog::builtin().unwrap();
+        let e = c.get("capture.screenrecording").unwrap();
+        let mut args = toml::Table::new();
+        args.insert("opts".into(), "--x; rm -rf ~".into());
+        let spec = command(e, "capture.screenrecording", &args).unwrap();
+        assert_eq!(spec.program, "omarchy");
+        assert_eq!(spec.args, ["capture", "screenrecording", "--x; rm -rf ~"]);
+        let spec = command(e, "capture.screenrecording", &toml::Table::new()).unwrap();
+        assert_eq!(spec.args[2], "--fullscreen");
+    }
+
+    #[test]
+    fn choices_are_enforced() {
+        let c = Catalog::builtin().unwrap();
+        for (id, e) in c.iter() {
+            for (name, allowed) in &e.choices {
+                assert!(
+                    e.placeholders().contains(name),
+                    "{id}: no placeholder `{name}`"
+                );
+                if let Some(d) = e.defaults.get(name) {
+                    assert!(
+                        allowed.contains(&scalar(d).unwrap()),
+                        "{id}: default not a choice"
+                    );
+                }
+            }
+        }
         let e = c.get("capture.screenshot").unwrap();
         let mut args = toml::Table::new();
         args.insert("mode".into(), "region; rm -rf ~".into());
-        let spec = command(e, "capture.screenshot", &args).unwrap();
-        assert_eq!(spec.program, "omarchy");
-        assert_eq!(spec.args, ["capture", "screenshot", "region; rm -rf ~"]);
-        let spec = command(e, "capture.screenshot", &toml::Table::new()).unwrap();
-        assert_eq!(spec.args[2], "smart");
+        let err = e.exec("capture.screenshot", &args).unwrap_err();
+        assert!(matches!(err, CatalogError::NotAChoice { .. }), "{err}");
+        args.insert("mode".into(), "region".into());
+        assert!(e.exec("capture.screenshot", &args).is_ok());
     }
 
     #[test]

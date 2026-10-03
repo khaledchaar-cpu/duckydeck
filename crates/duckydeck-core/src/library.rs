@@ -15,9 +15,28 @@ pub enum Slot {
     Dial,
 }
 
+/// What kind of field the editor shows for a parameter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ParamKind {
+    Text,
+    Integer,
+    /// One of `choices`.
+    Choice,
+    /// A folder of the same profile.
+    Folder,
+    /// Another profile.
+    Profile,
+    /// Nested bindings (`structure.multi` steps, `structure.toggle` states).
+    List,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Param {
     pub name: String,
+    pub kind: ParamKind,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub choices: Vec<String>,
     /// Used when the binding does not set it; `None` = required.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default: Option<toml::Value>,
@@ -40,14 +59,26 @@ pub struct Item {
     pub available: bool,
 }
 
-/// Built-in Rust actions: id, label, icon, slot, params (name, default, optional).
+/// Built-in Rust actions: id, label, icon, slot, params.
 type Builtin = (
     &'static str,
     &'static str,
     &'static str,
     Slot,
-    &'static [(&'static str, Option<i64>, bool)],
+    &'static [BuiltinParam],
 );
+
+/// Name, kind, default, optional, choices.
+type BuiltinParam = (
+    &'static str,
+    ParamKind,
+    Option<i64>,
+    bool,
+    &'static [&'static str],
+);
+
+const PLAYER: BuiltinParam = ("player", ParamKind::Text, None, true, &[]);
+const STEP: BuiltinParam = ("step", ParamKind::Integer, Some(5), false, &[]);
 
 const BUILTINS: &[Builtin] = &[
     (
@@ -55,36 +86,24 @@ const BUILTINS: &[Builtin] = &[
         "Play/Pause",
         "play",
         Slot::Key,
-        &[("player", None, true)],
+        &[PLAYER],
     ),
-    (
-        "media.next",
-        "Next",
-        "next",
-        Slot::Key,
-        &[("player", None, true)],
-    ),
+    ("media.next", "Next", "next", Slot::Key, &[PLAYER]),
     (
         "media.previous",
         "Previous",
         "previous",
         Slot::Key,
-        &[("player", None, true)],
+        &[PLAYER],
     ),
-    (
-        "media.volume",
-        "Volume",
-        "volume",
-        Slot::Dial,
-        &[("step", Some(5), false)],
-    ),
+    ("media.volume", "Volume", "volume", Slot::Dial, &[STEP]),
     ("media.mic", "Microphone", "mic", Slot::Dial, &[]),
     (
         "display.brightness",
         "Brightness",
         "brightness",
         Slot::Dial,
-        &[("step", Some(5), false)],
+        &[STEP],
     ),
     (
         "window.workspace_scroll",
@@ -98,7 +117,7 @@ const BUILTINS: &[Builtin] = &[
         "Folder",
         "folder",
         Slot::Key,
-        &[("folder", None, false)],
+        &[("folder", ParamKind::Folder, None, false, &[])],
     ),
     ("structure.back", "Back", "back", Slot::Key, &[]),
     (
@@ -106,28 +125,31 @@ const BUILTINS: &[Builtin] = &[
         "Page",
         "page-next",
         Slot::Key,
-        &[("n", None, true), ("to", None, true)],
+        &[
+            ("n", ParamKind::Integer, None, true, &[]),
+            ("to", ParamKind::Choice, None, true, &["next", "prev"]),
+        ],
     ),
     (
         "structure.profile",
         "Profile",
         "profile",
         Slot::Key,
-        &[("profile", None, false)],
+        &[("profile", ParamKind::Profile, None, false, &[])],
     ),
     (
         "structure.multi",
         "Multi action",
         "multi-action",
         Slot::Key,
-        &[("steps", None, false)],
+        &[("steps", ParamKind::List, None, false, &[])],
     ),
     (
         "structure.toggle",
         "Toggle",
         "toggle",
         Slot::Key,
-        &[("states", None, false)],
+        &[("states", ParamKind::List, None, false, &[])],
     ),
 ];
 
@@ -142,10 +164,23 @@ pub fn items(catalog: &Catalog, unavailable: &BTreeSet<String>) -> Vec<Item> {
         params: e
             .placeholders()
             .into_iter()
-            .map(|name| Param {
-                default: e.defaults.get(&name).cloned(),
-                name,
-                optional: false,
+            .map(|name| {
+                let default = e.defaults.get(&name).cloned();
+                let choices = e.choices.get(&name).cloned().unwrap_or_default();
+                let kind = if !choices.is_empty() {
+                    ParamKind::Choice
+                } else if matches!(default, Some(toml::Value::Integer(_))) {
+                    ParamKind::Integer
+                } else {
+                    ParamKind::Text
+                };
+                Param {
+                    name,
+                    kind,
+                    choices,
+                    default,
+                    optional: false,
+                }
             })
             .collect(),
         long_press: e.confirm == Some(Confirm::LongPress),
@@ -161,8 +196,10 @@ pub fn items(catalog: &Catalog, unavailable: &BTreeSet<String>) -> Vec<Item> {
             slot,
             params: params
                 .iter()
-                .map(|&(name, default, optional)| Param {
+                .map(|&(name, kind, default, optional, choices)| Param {
                     name: name.to_owned(),
+                    kind,
+                    choices: choices.iter().map(|c| (*c).to_owned()).collect(),
                     default: default.map(toml::Value::Integer),
                     optional,
                 })

@@ -4,6 +4,8 @@
 #
 # Placeholders like "{mode}" are filled from the binding's `args` (falling
 # back to `defaults`) and always stay inside their own argument.
+# `choices` lists the allowed values of a placeholder (checked, and offered
+# as a selection in the editor).
 
 # ── System ────────────────────────────────────────────────────────────
 [system.lock]
@@ -80,6 +82,7 @@ label    = "Screenshot"
 icon     = "screenshot-region"
 run      = ["omarchy", "capture", "screenshot", "{mode}"]
 defaults = { mode = "smart" }
+choices  = { mode = ["smart", "region", "windows", "fullscreen"] }
 
 # The script toggles itself and writes the file while recording; its mtime
 # is the start time. `opts` passes one script option instead of the default
@@ -175,6 +178,7 @@ label    = "Focus"
 icon     = "focus-right"
 dispatch = 'hl.dsp.focus({ direction = "{dir}" })'
 defaults = { dir = "r" }
+choices  = { dir = ["l", "r", "u", "d"] }
 
 [window.scratchpad]
 label    = "Scratchpad"
@@ -211,6 +215,7 @@ label    = "Move"
 icon     = "move-window"
 dispatch = 'hl.dsp.window.swap({ direction = "{dir}" })'
 defaults = { dir = "r" }
+choices  = { dir = ["l", "r", "u", "d"] }
 
 [window.to_monitor]
 label    = "To monitor"
@@ -223,12 +228,14 @@ label    = "Laptop"
 icon     = "monitor"
 run      = ["omarchy", "hyprland", "monitor", "internal", "{mode}"]
 defaults = { mode = "toggle" }
+choices  = { mode = ["on", "off", "toggle", "recover"] }
 
 [window.monitor_mirror]
 label    = "Mirror"
 icon     = "monitor-mirror"
 run      = ["omarchy", "hyprland", "monitor", "internal", "mirror", "{mode}"]
 defaults = { mode = "toggle" }
+choices  = { mode = ["on", "off", "toggle", "recover"] }
 
 # Any Hyprland dispatcher, e.g. expr = 'hl.dsp.window.move({ monitor = "+1" })'.
 # The profile value must start with `hl.dsp.` and be a single line.

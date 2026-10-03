@@ -27,6 +27,7 @@ commands:
                         <json> = {action, args?, label?, icon?} as JSON)
   reload                re-read system font, theme and config
   actions               list every action (id, slot, label) for the editor
+  icons                 list the built-in icon names (no daemon needed)
   preview <profile> [<page>|<folder>]
                         render a page or folder to PNG files (paths printed)
   subscribe             print status events as JSON lines until killed
@@ -51,6 +52,18 @@ async fn main() -> Result<()> {
     }
     match args.iter().map(String::as_str).collect::<Vec<_>>()[..] {
         ["check"] => return check(),
+        ["icons"] => {
+            let names: Vec<&str> = duckydeck_core::icons::names().collect();
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({ "v": 1, "ok": true, "icons": names })
+                );
+            } else {
+                println!("{}", names.join("\n"));
+            }
+            return Ok(());
+        }
         ["export", id] if json => return export_json(id),
         ["export", id] => return export(id),
         ["edit", ref rest @ ..] => {
@@ -60,7 +73,7 @@ async fn main() -> Result<()> {
             }
             return Ok(());
         }
-        ["check", ..] | ["export", ..] => {
+        ["check", ..] | ["export", ..] | ["icons", ..] => {
             eprintln!("duckydeck: wrong arguments for {}\n\n{USAGE}", args[0]);
             std::process::exit(2);
         }

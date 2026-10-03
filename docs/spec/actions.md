@@ -27,6 +27,7 @@ run   = ["omarchy", "toggle", "nightlight"]
 state = { command = ["omarchy", "toggle", "nightlight", "--status"], json = "enabled" }
 ```
 
+- `choices = { mode = ["smart", "region"] }`: erlaubte Werte eines Platzhalters; andere Werte meldet `check`, der Editor bietet sie als Auswahl an.
 - `dispatch = 'hl.dsp.window.close()'` statt `run`: Hyprland-Dispatcher als Lua-Ausdruck (Hyprland ≥ 0.55 mit Lua-Config), direkt über `.socket.sock` gesendet. Platzhalterwerte dürfen nur Buchstaben, Ziffern und `_+-:` enthalten (bleiben im Lua-String); `{ … }` ohne Bezeichner ist eine Lua-Tabelle, kein Platzhalter. `raw = ["expr"]` erlaubt für diesen Platzhalter einen ganzen Ausdruck aus dem Profil (muss mit `hl.dsp.` beginnen, einzeilig).
 - `requires = "omarchy capture screenshot"`: Route, die beim Start gegen `omarchy commands --json` geprüft wird (Default: aus `run` abgeleitet).
 - Parameter aus dem Profil per Platzhalter als **eigenes Argument** (`"{n}"`, auch innerhalb eines Arguments wie `"--size={n}"`), nie String-Verkettung in einer Shell. `defaults = { mode = "smart" }` liefert Werte, die das Profil nicht setzt.

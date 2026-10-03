@@ -11,6 +11,11 @@ pub fn get(name: &str) -> Option<&'static [u8]> {
         .map(|i| ICONS[i].1)
 }
 
+/// Names of all built-in icons, sorted.
+pub fn names() -> impl Iterator<Item = &'static str> {
+    ICONS.iter().map(|(n, _)| *n)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
