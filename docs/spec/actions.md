@@ -35,7 +35,7 @@ state = { command = ["omarchy", "toggle", "nightlight", "--status"], json = "ena
 - Ohne passende `omarchy`-Route (z. B. Suspend: `systemctl suspend`) entfällt die Routenprüfung.
 - `state` (Toggle-Status, braucht ein `{ on, off }`-Icon; unbekannt = `off`), genau eine Quelle:
   - `file = "~/…"`: per inotify beobachtet (nächstes existierendes Verzeichnis); existiert = an, mit `json = "key"` zählt ein boolescher Schlüssel darin.
-  - `command = [...]`: läuft beim Start und 0,3 s/2,5 s nach jedem Druck der Action, kein Polling (Nachtlicht: Änderungen per Tastatur erst beim nächsten Druck sichtbar). Ohne `json` zählt der Exit-Code.
+  - `command = [...]`: läuft beim Start und 0,3 s/2,5 s nach jedem Druck der Action, kein Polling (Nachtlicht: Änderungen per Tastatur erst beim nächsten Druck sichtbar – weder hyprsunset noch der Shell-Dienst melden Änderungen). Ohne `json` zählt der Exit-Code.
   - `elapsed = true` (nur mit `file`): solange an, zeigt die Taste statt des Labels die Zeit seit mtime (`m:ss`); Neuzeichnen sekündlich nur dann.
 - Ein einziger Test prüft den ganzen Katalog: Icons existieren, Routen sind gültig, Platzhalter vollständig, Aufrufe über `RecordingRunner` korrekt.
 
