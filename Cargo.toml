@@ -9,6 +9,7 @@ edition = "2024"
 [workspace.dependencies]
 duckydeck-core = { path = "crates/duckydeck-core" }
 anyhow = "1"
+regex-lite = "0.1"
 cosmic-text = { version = "0.19", default-features = false, features = ["std", "swash"] }
 insta = "1"
 resvg = { version = "0.48", default-features = false }

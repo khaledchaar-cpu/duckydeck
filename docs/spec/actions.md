@@ -84,7 +84,7 @@ Seite / Ordner / Zurück, Profil wechseln, Multi-Action (Sequenz mit Delays), To
 
 ## Profile & Kontext
 - Profile mit beliebig vielen Seiten (8 Tasten + 4 Regler + Strip).
-- Auto-Profilwechsel über Hyprland-Event `activewindow` (Match `class`/`title`, Regex) – M8.
+- Auto-Profilwechsel über Hyprland-Event `activewindow` (Match `class`/`title`, Regex via `regex-lite`; angegebene Felder müssen alle passen). Erstes passendes Profil in Id-Reihenfolge gewinnt; ohne Match gilt das manuell gewählte Profil (`config.profile` bzw. letzte Wahl über CLI/Panel). Eine manuelle Wahl bleibt bis zum nächsten Fensterwechsel. Ungültige Regex = Config-Fehler.
 - Default-Profil „Omarchy“:
   - Tasten: Workspace 1–4, Terminal, Browser, Screenshot, Omarchy-Menü
   - Regler: Lautstärke, Mikrofon, Helligkeit, Workspace-Scroll

@@ -78,7 +78,7 @@ pub struct Profile {
     pub folders: BTreeMap<String, Page>,
 }
 
-/// Regexes against the active Hyprland window (evaluated in M8).
+/// Regexes against the active Hyprland window, see [`crate::context`].
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WindowMatch {
@@ -239,7 +239,11 @@ impl Loaded {
                 continue;
             };
             let src = read_optional(&path)?.unwrap_or_default();
-            profiles.insert(id.to_owned(), Profile::parse(&src, &path)?);
+            let profile = Profile::parse(&src, &path)?;
+            if let Some(m) = &profile.matcher {
+                crate::context::Rule::new(id, m).map_err(|e| invalid(&path, &e))?;
+            }
+            profiles.insert(id.to_owned(), profile);
         }
         if !profiles.contains_key(&config.profile) {
             return Err(invalid(

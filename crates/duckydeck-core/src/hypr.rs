@@ -28,6 +28,8 @@ pub enum Event {
     Active(i32),
     /// Windows or workspaces changed; occupancy must be re-read.
     Changed,
+    /// The focused window changed: class and title (empty when none).
+    Window(String, String),
 }
 
 /// Parses one `.socket2.sock` line; `None` for events that do not matter.
@@ -37,10 +39,27 @@ pub fn parse_event(line: &str) -> Option<Event> {
         // `workspacev2>>ID,NAME`, `focusedmonv2>>MON,WSID`
         "workspacev2" => data.split(',').next()?.parse().ok().map(Event::Active),
         "focusedmonv2" => data.rsplit(',').next()?.parse().ok().map(Event::Active),
+        // `activewindow>>CLASS,TITLE`; the title may contain commas.
+        "activewindow" => {
+            let (class, title) = data.split_once(',').unwrap_or((data, ""));
+            Some(Event::Window(class.to_owned(), title.to_owned()))
+        }
         "openwindow" | "closewindow" | "movewindowv2" | "createworkspacev2"
         | "destroyworkspacev2" | "moveworkspacev2" => Some(Event::Changed),
         _ => None,
     }
+}
+
+/// Class and title from `j/activewindow` (`{}` when nothing has focus).
+pub fn active_window(json: &str) -> Result<(String, String), serde_json::Error> {
+    #[derive(Deserialize, Default)]
+    #[serde(default)]
+    struct W {
+        class: String,
+        title: String,
+    }
+    let w: W = serde_json::from_str(json)?;
+    Ok((w.class, w.title))
 }
 
 /// Focused workspace and which workspaces have windows.
@@ -135,7 +154,10 @@ mod tests {
             Some(Event::Changed)
         );
         assert_eq!(parse_event("workspace>>3"), None);
-        assert_eq!(parse_event("activewindow>>a,b"), None);
+        assert_eq!(
+            parse_event("activewindow>>kitty,a, b"),
+            Some(Event::Window("kitty".into(), "a, b".into()))
+        );
         assert_eq!(parse_event("garbage"), None);
         assert_eq!(parse_event("workspacev2>>x,special"), None);
     }

@@ -36,6 +36,8 @@ pub enum DeckEvent {
     Media(duckydeck_core::media::Players),
     /// The focused workspace or workspace occupancy changed.
     Workspaces(duckydeck_core::hypr::Workspaces),
+    /// The focused window changed (class, title); may switch the profile.
+    Window(String, String),
     /// A catalog toggle (night light, recording …) changed state.
     Toggles(crate::toggles::Toggles),
     /// A CLI request; answered on the channel.

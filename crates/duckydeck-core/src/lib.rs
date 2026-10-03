@@ -4,6 +4,7 @@ pub mod catalog;
 pub mod check;
 pub mod command;
 pub mod config;
+pub mod context;
 pub mod dial;
 pub mod font;
 pub mod hypr;

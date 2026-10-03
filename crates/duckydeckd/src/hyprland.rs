@@ -1,4 +1,4 @@
-//! Hyprland over its IPC sockets: workspace events in, dispatches out.
+//! Hyprland over its IPC sockets: workspace and window events in, dispatches out.
 //!
 //! Events from `.socket2.sock` drive the state; occupancy is re-read with
 //! `j/workspaces` only after window/workspace events. Each request (query or
@@ -66,6 +66,17 @@ async fn watch(
     if events.send(DeckEvent::Workspaces(ws.clone())).is_err() {
         return Ok(true);
     }
+    match request(cmd, "j/activewindow")
+        .await
+        .and_then(|r| Ok(hypr::active_window(&r)?))
+    {
+        Ok((class, title)) => {
+            if events.send(DeckEvent::Window(class, title)).is_err() {
+                return Ok(true);
+            }
+        }
+        Err(e) => tracing::debug!(error = %e, "reading active window failed"),
+    }
     loop {
         tokio::select! {
             line = lines.next_line() => {
@@ -77,6 +88,12 @@ async fn watch(
                         if let Err(e) = refresh(cmd, &mut ws, false).await {
                             tracing::debug!(error = %e, "reading workspaces failed");
                         }
+                    }
+                    Some(Event::Window(class, title)) => {
+                        if events.send(DeckEvent::Window(class, title)).is_err() {
+                            return Ok(true);
+                        }
+                        continue;
                     }
                     None => continue,
                 }

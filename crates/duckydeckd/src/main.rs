@@ -207,6 +207,14 @@ async fn main() -> Result<()> {
                     tracing::warn!(error = %e, "redraw after workspace change failed");
                 }
             }
+            DeckEvent::Window(class, title) => {
+                if painter.focus(&class, &title)
+                    && let Some(d) = &mut deck
+                    && let Err(e) = painter.draw(d)
+                {
+                    tracing::warn!(error = %e, "redraw after profile switch failed");
+                }
+            }
             DeckEvent::Toggles(t) => {
                 if painter.set_toggles(t)
                     && let Some(d) = &mut deck

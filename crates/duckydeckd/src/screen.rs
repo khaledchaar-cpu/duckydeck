@@ -10,6 +10,7 @@ use std::time::{Duration, Instant, SystemTime};
 use anyhow::{Context, Result};
 use duckydeck_core::catalog::{Catalog, Confirm, Exec};
 use duckydeck_core::config::{Binding, FOLDER_ACTION, Store};
+use duckydeck_core::context::Context as WindowContext;
 use duckydeck_core::dial::{Dial, Levels};
 use duckydeck_core::hypr::{self, WorkspaceState, Workspaces};
 use duckydeck_core::icons;
@@ -74,6 +75,8 @@ pub struct Screen {
     toggles: Toggles,
     /// Pressed toggle actions for the [`toggles`](crate::toggles) task.
     toggle_tx: UnboundedSender<String>,
+    /// Automatic profile switching by active window.
+    context: WindowContext,
     /// IPC `set_brightness` override until the next config change.
     brightness: Option<u8>,
 }
@@ -91,6 +94,7 @@ impl Screen {
             None => Theme::parse(FALLBACK_THEME).context("fallback theme")?,
         };
         let nav = Nav::new(&store.current);
+        let context = WindowContext::new(&store.current);
         Ok(Self {
             renderer: Renderer::new(font.into_iter().collect()),
             theme,
@@ -109,6 +113,7 @@ impl Screen {
             workspaces: Workspaces::default(),
             toggles: Toggles::new(),
             toggle_tx: tasks.toggles,
+            context,
             brightness: None,
         })
     }
@@ -134,9 +139,14 @@ impl Screen {
             return false;
         }
         self.brightness = None;
-        if self.store.current.config.profile != configured {
-            // `profile` in config.toml changed: switch to it.
-            self.nav = Nav::new(&self.store.current);
+        let reset = self.store.current.config.profile != configured;
+        self.context.reload(&self.store.current, reset);
+        let wanted = self.context.wanted().to_owned();
+        if wanted != self.nav.profile {
+            // `profile` in config.toml or a `match` changed: switch.
+            if let Err(e) = self.nav.set_profile(&self.store.current, &wanted) {
+                tracing::warn!(error = %e, "profile switch after reload failed");
+            }
         } else {
             self.nav.reconcile(&self.store.current);
         }
@@ -189,7 +199,9 @@ impl Screen {
                 return Ok(());
             }
             ipc::Command::SetProfile { profile } => {
-                self.nav.set_profile(&self.store.current, profile)?
+                let press = self.nav.set_profile(&self.store.current, profile)?;
+                self.context.set_manual(profile);
+                press
             }
             ipc::Command::SetPage { page } => self.nav.set_page(
                 &self.store.current,
@@ -214,6 +226,19 @@ impl Screen {
             self.draw(d).map_err(|e| e.to_string())?;
         }
         Ok(())
+    }
+
+    /// A window got focus; returns whether the profile changed.
+    pub fn focus(&mut self, class: &str, title: &str) -> bool {
+        let wanted = self.context.focus(class, title);
+        if wanted == self.nav.profile {
+            return false;
+        }
+        tracing::info!(profile = wanted, class, "switching profile for window");
+        let wanted = wanted.to_owned();
+        self.nav
+            .set_profile(&self.store.current, &wanted)
+            .is_ok_and(|p| p == Press::Navigated)
     }
 
     pub fn draw_keys(&mut self, deck: &mut Deck) -> Result<()> {

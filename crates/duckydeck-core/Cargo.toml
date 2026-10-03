@@ -8,6 +8,7 @@ toml.workspace = true
 
 [dependencies]
 cosmic-text.workspace = true
+regex-lite.workspace = true
 resvg.workspace = true
 serde.workspace = true
 serde_json.workspace = true
