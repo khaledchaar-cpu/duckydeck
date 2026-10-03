@@ -2,7 +2,7 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M8 – Kontext & Release (Auto-Profil, Multi/Toggle, CI erledigt; offen: Packaging, Doku, AUR)
+**Aktueller Milestone:** M9 – Editor (v2); funktionales Design in docs/spec/ui.md abgestimmt. M8 fertig bis auf AUR (zurückgestellt)
 
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
@@ -16,7 +16,7 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - M8: Auto-Profilwechsel (`duckydeck_core::context`, Event `activewindow` + `j/activewindow` beim Verbinden) – mit Fake-Device gegen echtes Hyprland geprüft
 
 ## Nächster Schritt
-- M8 bis auf Release fertig. AUR zurückgestellt (Nutzer: Repo bleibt vorerst privat). Bis dahin: offene Punkte unten abarbeiten oder Paket lokal per `makepkg -d` neu bauen
+- M9a: API für den Editor (siehe docs/spec/ui.md, Milestones)
 - Später: Repo öffentlich, Tag `v0.1.0`, `sha256sums` + `.SRCINFO`, AUR (Account + SSH-Key nötig)
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
