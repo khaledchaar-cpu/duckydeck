@@ -32,6 +32,8 @@ pub enum DeckEvent {
     Input(Input),
     /// Volume, mic or brightness changed.
     Levels(duckydeck_core::dial::Levels),
+    /// An MPRIS player appeared, left or changed state.
+    Media(duckydeck_core::media::Players),
 }
 
 /// Handle used for output (images, brightness). Input runs on a separate

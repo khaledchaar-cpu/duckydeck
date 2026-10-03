@@ -11,6 +11,7 @@ use duckydeck_core::catalog::{Catalog, Confirm};
 use duckydeck_core::config::{Binding, FOLDER_ACTION, Store};
 use duckydeck_core::dial::{Dial, Levels};
 use duckydeck_core::icons;
+use duckydeck_core::media::{self, MediaKey, Players, Status};
 use duckydeck_core::nav::{BACK_ACTION, Nav, PAGE_ACTION, Press};
 use duckydeck_core::render::{KeyView, Renderer, SegmentView};
 use duckydeck_core::theme::{Role, Theme};
@@ -21,6 +22,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::device::Deck;
 use crate::gesture::{Control, Gesture};
 use crate::levels::Job;
+use crate::mpris;
 use crate::surface::{KEY_SIZE, STRIP_H};
 
 const FALLBACK_THEME: &str =
@@ -38,6 +40,8 @@ pub struct Screen {
     unavailable: BTreeSet<String>,
     jobs: UnboundedSender<Job>,
     levels: Levels,
+    media_tx: UnboundedSender<mpris::Press>,
+    players: Players,
 }
 
 impl Screen {
@@ -47,6 +51,7 @@ impl Screen {
         catalog: Catalog,
         unavailable: BTreeSet<String>,
         jobs: UnboundedSender<Job>,
+        media_tx: UnboundedSender<mpris::Press>,
     ) -> Result<Self> {
         let theme = match load_theme() {
             Some(t) => t,
@@ -62,6 +67,8 @@ impl Screen {
             unavailable,
             jobs,
             levels: Levels::default(),
+            media_tx,
+            players: Players::default(),
         })
     }
 
@@ -90,10 +97,29 @@ impl Screen {
     pub fn draw(&mut self, deck: &mut Deck) -> Result<()> {
         deck.out
             .set_brightness(self.store.current.config.brightness)?;
-        for i in 0..8 {
-            self.key(deck, i, false)?;
-        }
+        self.draw_keys(deck)?;
         self.draw_strip(deck)
+    }
+
+    pub fn draw_keys(&mut self, deck: &mut Deck) -> Result<()> {
+        (0..8u8).try_for_each(|i| self.key(deck, i, false))?;
+        deck.out.flush()
+    }
+
+    /// Returns whether a shown media key changed its icon.
+    pub fn set_media(&mut self, players: Players) -> bool {
+        let keys = self.nav.keys(&self.store.current);
+        let icons = |ps: &Players| {
+            keys.iter()
+                .flatten()
+                .filter_map(|b| Some((MediaKey::from_binding(b)?, b)))
+                .map(|(k, b)| k.icon(playing(ps, b)))
+                .collect::<Vec<_>>()
+        };
+        let before = icons(&self.players);
+        let after = icons(&players);
+        self.players = players;
+        before != after
     }
 
     pub fn draw_strip(&mut self, deck: &mut Deck) -> Result<()> {
@@ -178,6 +204,11 @@ impl Screen {
 
     /// Runs a catalog action detached. Failures are logged, never fatal.
     fn run(&self, b: &Binding, long: bool) {
+        if let Some(key) = MediaKey::from_binding(b) {
+            let wanted = media::wanted_player(b).map(str::to_owned);
+            let _ = self.media_tx.send(mpris::Press { key, wanted });
+            return;
+        }
         let Some(entry) = self.catalog.get(&b.action) else {
             tracing::info!(action = %b.action, "action not implemented yet");
             return;
@@ -293,6 +324,9 @@ impl Screen {
         if self.unavailable.contains(&b.action) {
             return icons::get("warning");
         }
+        if let Some(k) = MediaKey::from_binding(b) {
+            return icons::get(k.icon(playing(&self.players, b)));
+        }
         if let Some(e) = self.catalog.get(&b.action) {
             return icons::get(e.icon.default_name());
         }
@@ -306,6 +340,13 @@ impl Screen {
         };
         icons::get(&name)
     }
+}
+
+/// Whether the player a media key controls is playing.
+fn playing(players: &Players, b: &Binding) -> bool {
+    players
+        .active(media::wanted_player(b))
+        .is_some_and(|p| p.status == Status::Playing)
 }
 
 fn dial_icon(d: Dial, pct: Option<u8>, muted: bool) -> &'static str {

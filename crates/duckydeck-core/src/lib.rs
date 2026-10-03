@@ -6,6 +6,7 @@ pub mod config;
 pub mod dial;
 pub mod font;
 pub mod icons;
+pub mod media;
 pub mod nav;
 
 pub use command::{

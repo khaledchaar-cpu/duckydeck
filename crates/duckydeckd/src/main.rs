@@ -5,6 +5,7 @@ mod device;
 mod gesture;
 mod input;
 mod levels;
+mod mpris;
 mod screen;
 mod surface;
 mod themewatch;
@@ -69,7 +70,9 @@ async fn main() -> Result<()> {
     let (jobs_tx, jobs_rx) = mpsc::unbounded_channel();
     tokio::spawn(levels::worker(runner.clone(), jobs_rx, tx.clone()));
     tokio::spawn(levels::watch_audio(jobs_tx.clone()));
-    let mut painter = screen::Screen::new(font, store, catalog, unavailable, jobs_tx)?;
+    let (media_tx, media_rx) = mpsc::unbounded_channel();
+    tokio::spawn(mpris::run(media_rx, tx.clone()));
+    let mut painter = screen::Screen::new(font, store, catalog, unavailable, jobs_tx, media_tx)?;
     let mut deck = try_connect(&mut painter, &tx);
     let mut gestures = Recognizer::default();
     loop {
@@ -127,6 +130,14 @@ async fn main() -> Result<()> {
                     && let Err(e) = painter.draw_strip(d)
                 {
                     tracing::warn!(error = %e, "strip redraw failed");
+                }
+            }
+            DeckEvent::Media(p) => {
+                if painter.set_media(p)
+                    && let Some(d) = &mut deck
+                    && let Err(e) = painter.draw_keys(d)
+                {
+                    tracing::warn!(error = %e, "key redraw failed");
                 }
             }
             DeckEvent::Disconnected => {

@@ -14,6 +14,8 @@ tokio-stream = "0.1.19"
 tracing.workspace = true
 tracing-subscriber.workspace = true
 udev = "0.9"
+# MPRIS media players on the session bus.
+zbus = { version = "5", default-features = false, features = ["tokio"] }
 
 [lints]
 workspace = true
