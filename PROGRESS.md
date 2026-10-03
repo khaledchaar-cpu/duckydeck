@@ -2,18 +2,19 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M2 – Rendering & Theme (siehe SPEC.md)
+**Aktueller Milestone:** M3 – Icons (M2 abgeschlossen)
 
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
-- M2 Teil 1: `theme.rs` (colors.toml, Fallbacks für unvollständige Nutzer-Themes, WCAG-Kontrast, `readable_on` hebt Farben auf ≥ 4.5:1)
-- `render.rs`: Tasten-Renderer (resvg-Icon mit `currentColor` → Token, cosmic-text-Label mit Ellipse), Snapshot nur für Tasten ohne Text
-- `font.rs`: Schrift über `omarchy font current` + `fc-match`, Renderer lädt nur diese eine Datei
-- Daemon: Demo-Tasten mit echtem Renderer, am Gerät verifiziert; RSS Release 10,4 MB
+- M2 Teil 2: `Renderer::segment` (Strip-Segment 200×100: Icon, rechtsbündiger Text, Balken mit `muted`-Spur), Snapshot- und Pixeltests
+- Demo-Strip im Daemon nutzt den Renderer, am Gerät verifiziert
+- Theme-Wechsel: inotify auf `~/.local/state/omarchy/current/` (`omarchy theme set` ersetzt `theme/` per `mv`) → Neu-Rendern; Spec angepasst
+- Font-Reload kommt in M6 (Hook `font-set.d/duckydeck` → `duckydeck reload`), bis dahin nur beim Start
+- `--debug` filtert `cosmic_text`-Fallback-Meldungen
 
 ## Nächster Schritt
-- M2 Teil 2: Strip-Renderer (800×100, Reglerwerte: Balken + Prozent + Icon) und Theme-/Font-Hooks (Neu-Rendern bei `theme-set`/`font-set`)
+- M3: `assets/icons.toml` + `scripts/fetch-icons.sh` (Tabler) laut `docs/spec/assets.md`, Validierung
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M3: `add-icon` (Tabler-Name suchen, icons.toml, fetch-icons.sh, Validierung)
