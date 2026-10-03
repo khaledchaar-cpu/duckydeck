@@ -46,6 +46,7 @@ commands:
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
+    quiet_broken_pipe();
     let mut json = false;
     let mut args = Vec::new();
     for a in std::env::args().skip(1) {
@@ -465,6 +466,23 @@ fn print_status(s: &Status) {
         None => println!("page:       {}/{}", s.page, s.pages),
     }
     println!("brightness: {} %", s.brightness);
+}
+
+/// `println!` panics when stdout is closed early (`duckydeck … | head`); exit
+/// quietly instead, like other CLI tools do on SIGPIPE.
+fn quiet_broken_pipe() {
+    let default = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let msg = info
+            .payload()
+            .downcast_ref::<String>()
+            .map(String::as_str)
+            .unwrap_or_default();
+        if msg.contains("failed printing to stdout") && msg.contains("Broken pipe") {
+            std::process::exit(0);
+        }
+        default(info);
+    }));
 }
 
 #[cfg(test)]

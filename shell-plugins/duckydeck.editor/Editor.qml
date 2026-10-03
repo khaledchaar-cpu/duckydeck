@@ -1767,6 +1767,8 @@ Item {
                               horizontalAlignment: Text.AlignHCenter
                               anchors.verticalCenter: parent.verticalCenter
                               text: modelData[0]
+                              // A multi needs at least one step.
+                              visible: modelData[1] !== 0 || root.selected.args.steps.length > 1
                               color: root.foreground
                               opacity: entryButton.containsMouse ? 1.0 : 0.5
                               font.family: root.fontFamily
