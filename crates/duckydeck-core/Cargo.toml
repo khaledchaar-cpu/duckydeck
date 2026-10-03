@@ -16,6 +16,8 @@ tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+anyhow.workspace = true
+image = { version = "0.25", default-features = false, features = ["png"] }
 insta.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 
