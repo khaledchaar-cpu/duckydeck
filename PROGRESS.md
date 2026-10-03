@@ -7,20 +7,13 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- Idee 2: Icon-Raster im Editor mit Vorschau (`duckydeck icons --color`), 272 Icons inkl. `[general]` und `[adult]`; vom Nutzer getestet
-- Lückenanalyse Controls, Katalog-Teil: `system.panel`, `system.bluetooth` (mit Zustand), `system.power_profile`, `system.touchpad`, `system.keyboard_backlight`, `system.reminder`, `system.agent`, `media.output_switch`, `media.source_switch` (+ Icons)
-- `gen-omarchy-reference.sh` um `agent`, `bluetooth`, `powerprofiles`, `reminder` erweitert
-- Mit Fake-Daemon geprüft (`duckydeck actions` listet alle); am echten Gerät noch nicht gedrückt
-- Status-Text statt Label (Katalogfeld `text`): Output zeigt Ausgabegerät, Quelle zeigt aktiven Player; Icons Lautsprecher/Note
-- Schritt 2: Bluetooth zeigt verbundenes Gerät, aktives Energieprofil leuchtet (D-Bus-Events); größere Schrift für Labels/Regler/Strip
-- Am Gerät bestätigt (Nutzer): Bluetooth-Name, Panels, Status-Texte. Regler Tastaturlicht gestrichen (nicht testbar, Taste reicht); Testprofil gelöscht
-- Schritt 3: Erinnerung zeigt Fälligkeit, Tastaturlicht Stufe (ungetestet, Desktop ohne Tastaturlicht)
-- `choice_icons`: Icon je Platzhalterwert (Shell-Panels, Fokus-Richtung statt Sonderfall im Daemon)
+- Idee 1 Lückenanalyse: 9 neue Controls (Panels, Bluetooth, Energieprofil, Audio-Ausgabe/Quelle, Touchpad, Tastaturlicht, Erinnerung, Agent); Katalogfelder `text` (Live-Status statt Label, Events via pactl/MPRIS/D-Bus), `choice_icons`, `active`
+- Größere Schrift (Labels 16 px, Regler 28 px, Strip)
+- Idee 2: Icon-Raster im Editor (`duckydeck icons --color`), 272 Icons inkl. `[general]` und `[adult]`
+- Alles vom Nutzer am Gerät getestet (außer Tastaturlicht: kein Gerät); Build-Artefakte aus lokaler Historie entfernt, `.gitignore` ergänzt
 
 ## Nächster Schritt
-- Idee 3 aus SPEC.md: eigene Icons (Upload) – Plan abstimmen
-- Release 0.1.1 erwägen (viele neue Features seit 0.1.0)
-- Danach Release 0.1.1 erwägen, dann Idee 2 (Icon-Auswahl)
+- Release 0.1.1 (Version in PKGBUILD/Cargo erhöhen, damit `setup` neu läuft; push + GitHub-Release nur nach Nutzer-OK), danach Idee 3 (eigene Icons) – Plan abstimmen
 
 ## Offene Probleme / Notizen
 - Erinnerung/Tastaturlicht-Text nur nach Druck, Start und (Erinnerung) Fälligkeit aktuell – außerhalb gesetzte Erinnerungen erst danach sichtbar
