@@ -1,1 +1,1 @@
-  "duckydeck": {"icon":"󰕮","label":"Stream Deck","description":"Edit the DuckyDeck configuration","action":"omarchy launch editor ~/.config/duckydeck/config.toml"},
+  "duckydeck": {"icon":"󰕮","label":"Stream Deck","description":"Stream Deck + profile, page and brightness","action":"omarchy-shell duckydeck.widget toggle"},

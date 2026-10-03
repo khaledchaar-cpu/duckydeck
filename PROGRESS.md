@@ -7,12 +7,13 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
-- Entscheidung: ein Plugin `duckydeck.widget` (Bar-Icon + Panel) wie Erstanbieter-Panels; Spec angepasst
-- Bar-Icon (`shell-plugins/duckydeck.widget`): gedimmt ohne Gerät/Daemon, Tooltip mit Profil/Seite, reconnect per Backoff – im Bar geprüft
-- `setup` ruft nach dem Verlinken `omarchy-shell shell rescanPlugins` vor `bar put` (sonst „not a known widget“)
+- Ein Plugin `duckydeck.widget` (Bar-Icon + Panel) wie Erstanbieter-Panels; Spec angepasst
+- Bar-Icon: gedimmt ohne Gerät/Daemon, Tooltip mit Profil/Seite, Reconnect per Backoff
+- Panel: Status/Serial, Profil-Dropdown, Seiten-Buttons (ab 2 Seiten), Helligkeit, Config öffnen, Neu laden – Anzeige geprüft
+- Menüeintrag → `omarchy-shell duckydeck.widget toggle`; `setup` macht `rescanPlugins` vor `bar put`
 
 ## Nächster Schritt
-- M7: Panel (`KeyboardPanel` in `Panel.qml`): Profil, Seite, Helligkeit, „Config öffnen“, „Neu laden“; Menüeintrag auf `omarchy-shell duckydeck.widget toggle` umstellen
+- Panel-Bedienung am Gerät prüfen (Helligkeit, Profilwechsel mit 2. Profil, Seiten, Reload, Config); Tastatur-Cursor (j/k) im Panel ergänzen; dann M7 abschließen + Skill `shell-plugin`
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
@@ -20,6 +21,8 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Offene Probleme / Notizen
 - Tooltip-Text beim Hover noch nicht angesehen
+- Hot-Reload greift für verlinkte Plugins nicht (inotifywait folgt keinem Symlink, auch Neu-Verlinken lädt das Bar-Widget nicht neu) → in der Entwicklung `omarchy restart shell`
+- Menüeintrag wird nur bei neuer Paketversion aktualisiert (Setup-Marker)
 - `setup --remove` nimmt das Widget nicht aus dem Bar-Layout (keine Route zum Entfernen)
 - `scripts/check.sh` findet `cargo` nur mit `PATH=$HOME/.cargo/bin:$PATH`
 - RSS ~27 MB (Debug) statt < 15 MB – laut Nutzer unkritisch; Release noch nicht gemessen
