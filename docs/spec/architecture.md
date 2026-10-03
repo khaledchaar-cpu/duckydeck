@@ -91,6 +91,8 @@ Genauso wird der Hyprland-Zugriff hinter einem Trait gekapselt (Fake mit vorgege
    - Menüeintrag in `omarchy-menu.jsonc` (eigener, markierter Block)
    - Hook `font-set.d/duckydeck` per `omarchy hook install` (Theme-Wechsel erkennt der Daemon selbst)
    - `duckydeck setup --remove` macht alles rückgängig
+   - Quellen: Plugins aus `$DUCKYDECK_SHARE_DIR/shell-plugins` bzw. `/usr/share/duckydeck/shell-plugins` (Debug-Build ohne Installation: Repo); Menüblock und Hook sind ins Binary eingebettet (`packaging/omarchy/`)
+   - Marker `~/.local/state/duckydeck/setup` (Version bzw. `removed`): der Daemon führt das Setup beim Start nur bei neuer Version aus, ein `--remove` bleibt bestehen
 3. Einstecken → Hotplug (auch nach Suspend/Resume) → Default-Profil, Shell-Benachrichtigung „Stream Deck + connected“. Ziel: < 1 s.
 
 ## Nicht-funktionale Anforderungen

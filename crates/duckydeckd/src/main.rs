@@ -54,6 +54,7 @@ async fn main() -> Result<()> {
     }
 
     let runner = duckydeck_core::TokioRunner;
+    first_start_setup(&runner).await;
     let config_dir = duckydeck_core::config::dir()
         .ok_or_else(|| anyhow::anyhow!("neither XDG_CONFIG_HOME nor HOME is set"))?;
     let store = duckydeck_core::config::Store::open(config_dir.clone(), &runner)?;
@@ -324,5 +325,19 @@ fn try_connect(p: &mut screen::Screen, tx: &mpsc::UnboundedSender<DeckEvent>) ->
             tracing::info!(reason = %e, "waiting for Stream Deck +");
             None
         }
+    }
+}
+
+/// Plug & Play: run `duckydeck setup` once per installed version.
+async fn first_start_setup(runner: &duckydeck_core::TokioRunner) {
+    use duckydeck_core::setup;
+    let paths = match setup::Paths::detect() {
+        Ok(p) if setup::needed(&p) => p,
+        Ok(_) => return,
+        Err(e) => return tracing::warn!(error = %e, "setup skipped"),
+    };
+    match setup::install(&paths, runner).await {
+        Ok(done) => tracing::info!(?done, "setup done"),
+        Err(e) => tracing::warn!(error = %e, "setup failed"),
     }
 }

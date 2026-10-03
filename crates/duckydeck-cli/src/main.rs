@@ -3,6 +3,7 @@
 
 use anyhow::{Context, Result, bail};
 use duckydeck_core::ipc::{self, Command, Request, Response, Status};
+use duckydeck_core::setup;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::net::UnixStream;
 use tokio::net::unix::OwnedReadHalf;
@@ -16,6 +17,7 @@ commands:
   page <n>              open page n (1-based) of the active profile
   brightness <0-100>    set the brightness (until the next config change)
   subscribe             print status events as JSON lines until killed
+  setup [--remove]      link shell plugins, add menu entry and font hook (or undo)
   version               print the version";
 
 #[tokio::main(flavor = "current_thread")]
@@ -31,6 +33,17 @@ async fn main() -> Result<()> {
             }
             _ => args.push(a),
         }
+    }
+    if args.first().is_some_and(|a| a == "setup") {
+        let remove = match &args[1..] {
+            [] => false,
+            [flag] if flag == "--remove" => true,
+            _ => {
+                eprintln!("duckydeck: setup takes only --remove\n\n{USAGE}");
+                std::process::exit(2);
+            }
+        };
+        return setup(remove).await;
     }
     let cmd = match parse(&args) {
         Ok(Some(cmd)) => cmd,
@@ -86,6 +99,22 @@ fn parse(args: &[String]) -> Result<Option<Command>> {
         other => bail!("unknown command or arguments: {other}"),
     };
     Ok(Some(cmd))
+}
+
+async fn setup(remove: bool) -> Result<()> {
+    let paths = setup::Paths::detect()?;
+    let done = if remove {
+        setup::remove(&paths)?
+    } else {
+        setup::install(&paths, &duckydeck_core::TokioRunner).await?
+    };
+    if done.is_empty() {
+        println!("nothing to do");
+    }
+    for line in done {
+        println!("{line}");
+    }
+    Ok(())
 }
 
 async fn run(cmd: Command, json: bool) -> Result<()> {

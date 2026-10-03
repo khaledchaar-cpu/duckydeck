@@ -15,5 +15,6 @@ pub use command::{
     CommandError, CommandOutput, CommandRunner, CommandSpec, RecordingRunner, TokioRunner,
 };
 pub mod render;
+pub mod setup;
 pub mod theme;
 pub mod toggle;

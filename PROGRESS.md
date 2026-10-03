@@ -2,7 +2,7 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M6 – IPC & CLI (Teil 1: Socket + CLI-Grundgerüst fertig)
+**Aktueller Milestone:** M6 – IPC & CLI (Teil 2: `setup` fertig)
 
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
@@ -11,9 +11,10 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - Daemon: Socket-Server, Status-Events (`device_connected/disconnected`, `profile_changed`) mit vollem Status
 - CLI: `status | profile | page | brightness | subscribe | version`, `--json`
 - Am Gerät abgenommen (Helligkeit, Ab-/Anstecken über `subscribe`)
+- `duckydeck setup [--remove]` (`core::setup`): Plugin-Symlinks `duckydeck.*`, `omarchy bar put duckydeck.widget`, markierter Menüblock, Hook `font-set.d/duckydeck`; Daemon führt es pro Version einmal aus
 
 ## Nächster Schritt
-- M6 Teil 2: `duckydeck setup [--remove]` (Plugin-Symlinks, Menüblock, Hook) laut `docs/spec/architecture.md`; danach `reload`/`check`/`export`, `get_config`/`list_actions`
+- M6 Teil 3: `reload` (vom Font-Hook bereits aufgerufen), `check`, `export`, `get_config`/`list_actions`
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
@@ -33,3 +34,5 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - `profile`/`brightness` per CLI nur zur Laufzeit (Reset bei Config-Änderung) – vom Nutzer nicht beanstandet
 - Socket-Pfad darf nicht zu lang sein (SUN_LEN): Tests mit kurzem `XDG_RUNTIME_DIR` unter `/tmp/claude-1000`
 - `duckydeck.service` fehlt noch (Packaging); Kontrasttest braucht `/usr/share/omarchy/themes`
+- Menüeintrag „Stream Deck“ öffnet vorerst die Config im Editor – bei M7 auf das Panel umstellen (`packaging/omarchy/menu.jsonc`)
+- `setup --remove` nimmt das Widget nicht aus dem Bar-Layout (keine `omarchy bar`-Route zum Entfernen)
