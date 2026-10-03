@@ -2,18 +2,14 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M9 – Editor (v2): M9c fertig bis auf Apps, nächster Schritt M9d. M8 fertig bis auf AUR (zurückgestellt, Repo bleibt vorerst privat)
+**Aktueller Milestone:** M9 – Editor (v2): M9c fertig bis auf Apps, M9d Teil 1 fertig, nächster Schritt M9d Teil 2. M8 fertig bis auf AUR (zurückgestellt, Repo bleibt vorerst privat)
 
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- M9b: Overlay-Plugin `duckydeck.editor` (`Editor.qml`): Profil-/Seitenleiste, Gerätevorschau aus `preview`, Auswahl per Klick, Pfeiltasten und Gerät (`learn`), schließt nur per Esc, Ordner per Enter/Doppelklick mit Breadcrumb, Inspector nur lesend – am Gerät geprüft
-- Panel: Knopf „Edit layout“ (`omarchy-shell shell summon duckydeck.editor`)
-- `setup` aktiviert verlinkte Overlays per `omarchy plugin enable` (sonst verweigert die Shell `summon`); PKGBUILD kopiert das Editor-Plugin
-
-- M9c: Bibliothek (`actions --json`, gruppiert, Suche – Tippen sucht sofort, daher kein hjkl mehr), unpassende/fehlende Actions ausgegraut; Belegen per Enter/Doppelklick/Drag & Drop, Slot→Slot tauschen per Drag oder Strg+X/V, Entf leert, Undo/Redo (Strg+Z / Strg+Umschalt+Z); nach jedem Edit `duckydeck reload`, dann Vorschau – am Gerät geprüft (Suche, Enter, Drag & Drop)
-
-- M9d Teil 1: Katalog `choices` (geprüft), Parameter-Typen in `actions --json`, `duckydeck icons [--json]`; Inspector mit Label, Icon (Suche), Parametern (Auswahl/Zahl/Text, Ordner/Profil), „Clear slot“ – sofort gespeichert, Undo – am Gerät geprüft
+- M9c: Bibliothek (`actions --json`, gruppiert, Suche – Tippen sucht sofort, daher kein hjkl mehr), unpassende/fehlende Actions ausgegraut; Belegen per Enter/Doppelklick/Drag & Drop, Tauschen per Drag oder Strg+X/V, Entf leert, Undo/Redo; nach jedem Edit `duckydeck reload`, dann Vorschau
+- M9d Teil 1: Katalog `choices` (geprüft), Parameter-Typen in `actions --json`, `duckydeck icons [--json]`; Inspector mit Label, Icon (Suche), Parametern (Auswahl/Zahl/Text, Ordner/Profil), „Clear slot“ – sofort gespeichert, Undo
+- Am Gerät geprüft: Suche, Enter, Drag & Drop, Inspector. Noch nicht: Entf, Strg+X/V, Undo/Redo
 
 ## Nächster Schritt
 - M9d Teil 2: Multi/Toggle (Schritte/Zustände im Inspector, Verzögerung), Slot kopieren/einfügen
@@ -34,5 +30,6 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 - Dev-Test der Shell mit neuer CLI: Shell nutzt `/usr/bin/duckydeck` → lokales Paket bauen (Working Tree als `duckydeck-0.1.0.tar.gz` neben PKGBUILD, `makepkg -d -f`), Nutzer installiert per `sudo pacman -U`. Version bleibt 0.1.0 → `setup` läuft nicht automatisch neu
 - Menüeintrag „Stream Deck → Edit“ fehlt noch (M9e); externe Dateiänderung lädt den Editor noch nicht neu
 - `duckydeck … | head` → Panic „Broken pipe“ (println!), harmlos
+- Dev-Loop Editor: `setup` aus Debug-Build ändert vorhandene Paket-Links nicht → Paket bauen (Tarball ohne target/.git), Nutzer installiert; bei CLI-/Katalog-Änderung auch `systemctl --user restart duckydeck`
 - Daemon beenden mit `kill $(pgrep -x duckydeckd)` – `pkill -f` trifft auch die eigene Shell
 - Später: Repo öffentlich, Tag `v0.1.0`, `sha256sums` + `.SRCINFO`, AUR (Account + SSH-Key)
