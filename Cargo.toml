@@ -9,6 +9,11 @@ edition = "2024"
 [workspace.dependencies]
 duckydeck-core = { path = "crates/duckydeck-core" }
 anyhow = "1"
+cosmic-text = { version = "0.19", default-features = false, features = ["std", "swash"] }
+insta = "1"
+resvg = { version = "0.48", default-features = false }
+serde = { version = "1", features = ["derive"] }
+toml = { version = "1", default-features = false, features = ["parse", "serde"] }
 thiserror = "2"
 tokio = { version = "1", features = ["process", "time", "rt", "macros"] }
 tracing = "0.1"

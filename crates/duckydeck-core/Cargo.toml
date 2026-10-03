@@ -4,11 +4,16 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+cosmic-text.workspace = true
+resvg.workspace = true
+serde.workspace = true
 thiserror.workspace = true
+toml.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+insta.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 
 [lints]

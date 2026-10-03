@@ -5,3 +5,5 @@ pub mod command;
 pub use command::{
     CommandError, CommandOutput, CommandRunner, CommandSpec, RecordingRunner, TokioRunner,
 };
+pub mod render;
+pub mod theme;
