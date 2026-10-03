@@ -83,6 +83,7 @@ icon     = "shell-panel"
 run      = ["omarchy-shell", "shell", "toggle", "{panel}", "{}"]
 defaults = { panel = "omarchy.audio" }
 choices  = { panel = ["omarchy.audio", "omarchy.bluetooth", "omarchy.network", "omarchy.power"] }
+choice_icons = { panel = { "omarchy.audio" = "volume", "omarchy.bluetooth" = "bluetooth", "omarchy.network" = "wifi", "omarchy.power" = "battery" } }
 
 [system.bluetooth]
 label = "Bluetooth"
@@ -237,6 +238,7 @@ icon     = "focus-right"
 dispatch = 'hl.dsp.focus({ direction = "{dir}" })'
 defaults = { dir = "r" }
 choices  = { dir = ["l", "r", "u", "d"] }
+choice_icons = { dir = { l = "focus-left", r = "focus-right", u = "focus-up", d = "focus-down" } }
 
 [window.scratchpad]
 label    = "Scratchpad"

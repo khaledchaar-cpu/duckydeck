@@ -982,17 +982,8 @@ impl Screen {
         if let Some(k) = MediaKey::from_binding(b) {
             return icons::get(k.icon(playing(&self.players, b)));
         }
-        if b.action == "window.focus" {
-            let dir = match b.args.get("dir").and_then(|v| v.as_str()) {
-                Some("l") => "focus-left",
-                Some("u") => "focus-up",
-                Some("d") => "focus-down",
-                _ => "focus-right",
-            };
-            return icons::get(dir);
-        }
         if let Some(e) = self.catalog.get(&b.action) {
-            return icons::get(e.icon.name(self.toggles.get(&b.action).map(|t| t.on)));
+            return icons::get(e.icon_name(&b.args, self.toggles.get(&b.action).map(|t| t.on)));
         }
         let name = match b.action.as_str() {
             BACK_ACTION => "back".to_owned(),

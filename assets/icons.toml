@@ -84,6 +84,7 @@ wifi-off = "wifi-off"
 bluetooth = "bluetooth"
 bluetooth-off = "bluetooth-off"
 vpn = "shield-lock"
+battery = "battery"
 
 [window]
 workspace = "app-window"

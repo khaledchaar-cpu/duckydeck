@@ -106,9 +106,24 @@ pub struct Entry {
     pub state: Option<StateSource>,
     /// Status text shown instead of the label.
     pub text: Option<TextSource>,
+    /// Icon per placeholder value, e.g. one per shell panel; beats `icon`.
+    #[serde(default)]
+    pub choice_icons: BTreeMap<String, BTreeMap<String, String>>,
 }
 
 impl Entry {
+    /// Icon for a binding: by placeholder value (from `args`, then
+    /// `defaults`), else by toggle state.
+    pub fn icon_name(&self, args: &toml::Table, on: Option<bool>) -> &str {
+        self.choice_icons
+            .iter()
+            .find_map(|(name, icons)| {
+                let v = args.get(name).or_else(|| self.defaults.get(name))?;
+                icons.get(v.as_str()?)
+            })
+            .map_or_else(|| self.icon.name(on), String::as_str)
+    }
+
     /// What the action does, filling `{name}` placeholders from `args`, then
     /// `defaults`. Dispatch values are restricted so they stay inside their
     /// Lua string.
@@ -357,7 +372,11 @@ mod tests {
         let routes = reference_routes();
         assert!(routes.contains("omarchy system lock"));
         for (id, e) in catalog.iter() {
-            for name in e.icon.names() {
+            for name in e.icon.names().into_iter().chain(
+                e.choice_icons
+                    .values()
+                    .flat_map(|m| m.values().map(String::as_str)),
+            ) {
                 assert!(icons::get(name).is_some(), "{id}: unknown icon `{name}`");
             }
             if let Some(r) = e.route(&routes) {
@@ -391,6 +410,10 @@ mod tests {
             assert!(line.starts_with(&e.run[0]), "{id}: {line}");
         }
         assert!(catalog.unavailable(&routes).is_empty());
+        let panel = catalog.get("system.panel").unwrap();
+        assert_eq!(panel.icon_name(&toml::Table::new(), None), "volume");
+        let bt = toml::toml! { panel = "omarchy.bluetooth" };
+        assert_eq!(panel.icon_name(&bt, None), "bluetooth");
         let app = catalog.get("launcher.app").unwrap();
         assert!(app.exec("launcher.app", &toml::Table::new()).is_err());
     }

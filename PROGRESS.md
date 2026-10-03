@@ -11,6 +11,7 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 - `gen-omarchy-reference.sh` um `agent`, `bluetooth`, `powerprofiles`, `reminder` erweitert
 - Mit Fake-Daemon geprüft (`duckydeck actions` listet alle); am echten Gerät noch nicht gedrückt
 - Status-Text statt Label (Katalogfeld `text`): Output zeigt Ausgabegerät, Quelle zeigt aktiven Player; Icons Lautsprecher/Note
+- `choice_icons`: Icon je Platzhalterwert (Shell-Panels, Fokus-Richtung statt Sonderfall im Daemon)
 
 ## Nächster Schritt
 - Neue Actions am Gerät testen (Paket bauen), v. a. `system.panel` und Bluetooth-Zustand
