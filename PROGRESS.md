@@ -7,13 +7,13 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
-- M1 abgeschlossen. Teil 2: `Surface`-Trait (echtes Gerät / `FakeSurface` → `$XDG_RUNTIME_DIR/duckydeck/fake/deck.png`), eigenes `Input`-Enum mit Fixture-Parser
-- Fake-Input: `DUCKYDECK_FAKE_DEVICE=1`, Events im Fixture-Format über stdin (`cat fixture | duckydeckd`)
-- `gesture.rs`: Tap/Long-Press (500 ms, feuert noch während des Haltens) für Tasten und Regler, Drehen bei gedrücktem Regler hebt Tap/Long-Press auf; Wartezeit über `sleep_until(deadline)`, kein Polling
-- Am Gerät verifiziert: Tap/Long-Press bei Tasten und Reglern, Strip-Tap/Long-Press/Swipe (mit sichtbarem Feedback im Testmuster); Drehen mit Schrittweite bis ±3
+- M2 Teil 1: `theme.rs` (colors.toml, Fallbacks für unvollständige Nutzer-Themes, WCAG-Kontrast, `readable_on` hebt Farben auf ≥ 4.5:1)
+- `render.rs`: Tasten-Renderer (resvg-Icon mit `currentColor` → Token, cosmic-text-Label mit Ellipse), Snapshot nur für Tasten ohne Text
+- `font.rs`: Schrift über `omarchy font current` + `fc-match`, Renderer lädt nur diese eine Datei
+- Daemon: Demo-Tasten mit echtem Renderer, am Gerät verifiziert; RSS Release 10,4 MB
 
 ## Nächster Schritt
-- M2 Teil 1: Tasten-Renderer (`tiny-skia` + `cosmic-text` + `resvg`) und `colors.toml`-Parser in `duckydeck-core`, Snapshot-Tests (`insta`); das Testmuster ersetzen
+- M2 Teil 2: Strip-Renderer (800×100, Reglerwerte: Balken + Prozent + Icon) und Theme-/Font-Hooks (Neu-Rendern bei `theme-set`/`font-set`)
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M3: `add-icon` (Tabler-Name suchen, icons.toml, fetch-icons.sh, Validierung)
