@@ -74,7 +74,7 @@ Shell ↔ Daemon **über die CLI**, nicht direkt: Das QML-Plugin startet `duckyd
 
 ## Prozessaufrufe & Tests
 
-Alle externen Prozesse (omarchy, pactl, notify-send, Apps) laufen über einen `CommandRunner`-Trait in `duckydeck-core`:
+Alle externen Prozesse (omarchy, pactl, notify-send, Apps) laufen über einen `CommandRunner`-Trait in `duckydeck-core`: Ausnahme: der Dauer-Stream `pactl subscribe` läuft direkt über `tokio::process::Command` (Argumentliste), weil der Trait nur beendete Befehle kennt.
 - Produktion: `TokioRunner` (`tokio::process::Command`, Argumentliste, Timeout, kein Shell-String).
 - Tests: `RecordingRunner` zeichnet nur auf, was aufgerufen worden wäre. Kein Test führt echte `omarchy`-Befehle aus.
 

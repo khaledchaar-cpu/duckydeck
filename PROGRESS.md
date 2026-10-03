@@ -2,28 +2,27 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M5a – Actions: Medien (M5 abgeschlossen)
+**Aktueller Milestone:** M5b – Actions: Window Management (M5a abgeschlossen)
 
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
-- M5: `actions/catalog.toml` (System, Capture, Launcher) + `duckydeck_core::catalog` (Platzhalter mit `defaults`, `confirm = "long-press"`, Routenableitung)
-- Katalog-Test gegen `docs/omarchy-reference.md`: Icons, Routen, Platzhalter, Aufrufe über `RecordingRunner`
-- Daemon: Routenprüfung beim Start per `omarchy commands --json` (fehlend → Warn-Icon), Labels/Icons aus dem Katalog, Ausführung detached
-- Am Gerät abgenommen: Terminal, Browser, Screenshot, Menü
+- M5a: Regler Lautstärke/Mikrofon/Helligkeit (`duckydeck_core::dial`, Daemon-Worker `levels` fasst Drehungen zusammen, Status via `pactl subscribe`)
+- MPRIS über `zbus` (`duckydeck_core::media`, Daemon `mpris`): Medientasten, Player-Auswahl, Play/Pause-Icon nach Status
+- Touchstrip-Medienansicht (`Renderer::media`), 2 s Regler-Overlay, 1,5 s Nachlauf beim Spulen
+- Alles am Gerät abgenommen
 
 ## Nächster Schritt
-- M5a: Regler Lautstärke/Mikrofon/Helligkeit (`omarchy audio …`, `omarchy brightness display ±N%`) als Rust-Actions, Status via `pactl subscribe`
+- M5b: Hyprland-Socket-Modul (eigene Anbindung, Events `workspace`/`activewindow`), `window.workspace` + Workspace-Scroll-Regler
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
-- nach M5a: `add-action` nur für Rust-Actions mit Logik (Katalog-Einträge brauchen keinen Skill) – ggf. ganz weglassen
+- nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
 - nach M7: `shell-plugin` (QML-Regeln, Manifest-Muster, Reload) – Details dann aus CLAUDE.md entfernen
 
 ## Offene Probleme / Notizen
-- Catalog-Actions laufen per `spawn` – Exit-Code/Fehler von `omarchy` werden nicht gemeldet; ggf. bei M5c auf `run` + Benachrichtigung umstellen
-- Long-Press-Bestätigung (Power off) noch nicht am Gerät geprüft
-- toml-Fehlertext ist mehrzeilig (mit Quell-Ausschnitt) – für die Benachrichtigung ggf. auf erste Zeile + „line N“ kürzen
-- Seitenwechsel per Swipe (≥ 100 px) und Ordner-Navigation am Gerät noch nicht mit einem mehrseitigen Profil geprüft
-- Erstanbieter-Panels sind Plugins vom Typ `bar-widget` (`entryPoints.barWidget: Panel.qml`), nicht `panel` – bei M7 berücksichtigen
-- `duckydeck.service` existiert noch nicht (kommt mit Packaging); Daemon zum Testen direkt starten
-- Kontrasttest liest `/usr/share/omarchy/themes` → setzt Omarchy-Build-Umgebung voraus
+- RSS ~27 MB (Debug) statt < 15 MB – laut Nutzer unkritisch; Release-Build noch nicht gemessen
+- Strip zeigt immer den automatisch gewählten Player, Tasten mit `player = …` ggf. einen anderen
+- Catalog-Actions per `spawn` – Fehler von `omarchy` werden nicht gemeldet (ggf. M5c)
+- Long-Press-Bestätigung (Power off) und mehrseitige Profile/Swipe noch nicht am Gerät geprüft
+- Erstanbieter-Panels sind `bar-widget`-Plugins (`entryPoints.barWidget`) – bei M7 beachten
+- `duckydeck.service` fehlt noch (Packaging); Kontrasttest braucht `/usr/share/omarchy/themes`
