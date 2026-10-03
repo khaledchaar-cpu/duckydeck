@@ -7,6 +7,7 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
+- Repo öffentlich auf GitHub (`khaledchaar-cpu/duckydeck`), History auf noreply-Adresse umgeschrieben; CI erster Lauf grün
 - `README.md` (Englisch): Installation, Bedienung, Config, Action-Tabelle, Multi/Toggle, Entfernen; Beispiele mit `duckydeck check` validiert
 - Shell-Benachrichtigung „Stream Deck + connected“ beim Einstecken (und nach Erst-Setup) – vom Nutzer am Gerät bestätigt
 - M8: `packaging/PKGBUILD`, `duckydeck.service`, udev-Regel startet den Dienst beim Einstecken, `LICENSE` (MIT); Paket installiert und am Gerät geprüft: Einstecken startet den Dienst, Setup automatisch, RSS 13,5 MB
@@ -15,7 +16,7 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - M8: Auto-Profilwechsel (`duckydeck_core::context`, Event `activewindow` + `j/activewindow` beim Verbinden) – mit Fake-Device gegen echtes Hyprland geprüft
 
 ## Nächster Schritt
-- Nutzer: GitHub-Repo `khaledchaar-cpu/duckydeck` anlegen + pushen (CI läuft erstmals), Tag `v0.1.0`; danach `sha256sums` im PKGBUILD + `.SRCINFO`, AUR-Upload
+- Tag `v0.1.0` + GitHub-Release, dann `sha256sums` im PKGBUILD + `.SRCINFO`, AUR-Upload (Nutzer braucht AUR-Account mit SSH-Key)
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
@@ -34,4 +35,4 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - Paket 0.1.0 ist installiert: Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`; `/usr/bin/duckydeck` ist das Paket-Binary
 - Dienst zeigt `is-enabled: disabled` (global über `/usr/lib/…/wants`); abschalten nur per `systemctl --user mask duckydeck` → in README erwähnen
 - `duckydeck check` meldet Fehler ohne Shell-Benachrichtigung; der Daemon prüft Action-Ids beim Laden noch nicht (unbekannte → Log „not implemented yet“)
-- PKGBUILD-Quelle `$url/archive/v$pkgver.tar.gz` existiert erst mit Repo + Tag; `sha256sums` dann eintragen. Rust beim Nutzer per rustup → lokal `makepkg -d`
+- Rust beim Nutzer per rustup → lokal `makepkg -d`
