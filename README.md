@@ -1,26 +1,43 @@
-# DuckyDeck
+<div align="center">
 
-The Elgato **Stream Deck +** as a native part of [Omarchy](https://omarchy.org):
-8 keys, 4 dials and the touch strip, styled by your Omarchy theme, controlled from
-the Omarchy shell, actions running through the `omarchy` CLI.
+# 🦆 DuckyDeck
 
-Plug it in – it works.
+**The Elgato Stream Deck + as a native part of [Omarchy](https://omarchy.org).**
 
-- Keys follow the active theme and font, live
-- Dials for volume, mic, brightness and workspaces; the strip shows their levels or the playing media
-- Bar icon and panel in the Omarchy shell (profile, page, brightness)
-- Profiles with pages and folders as plain TOML, reloaded on save
-- Automatic profile switching by the focused window
-- Multi actions (sequences with delays) and toggle keys
-- Small and quiet: one Rust daemon, ~14 MB RAM, no polling, no network, no root
+8 keys, 4 dials and the touch strip – styled by your Omarchy theme, controlled from
+the Omarchy shell, every action running through the `omarchy` CLI.
 
-Only for current Omarchy and only for the Stream Deck + (USB `0fd9:0084`).
+*Plug it in – it works.*
+
+[![Release](https://img.shields.io/github/v/release/khaledchaar-cpu/duckydeck)](https://github.com/khaledchaar-cpu/duckydeck/releases/latest)
+![Platform](https://img.shields.io/badge/platform-Omarchy-blue)
+![Rust](https://img.shields.io/badge/made%20with-Rust-orange)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+<img src="docs/screenshots/deck-page1.png" width="420" alt="Page 1: workspaces, launchers and the playing media on the touch strip">
+<img src="docs/screenshots/deck-page2.png" width="420" alt="Page 2: media keys, capture tools, theme and power">
+
+</div>
+
+## Highlights
+
+- 🎨 **Looks like your desktop.** Keys follow the active Omarchy theme and font, live – switch theme and the deck follows.
+- 🎛️ **Dials that mean something.** Volume, mic, brightness, workspaces – and **per-app volume**: press and turn to pick a playing app, turn to set its level, press to mute it.
+- 📺 **A useful touch strip.** Shows the dial levels or the playing media with progress; swipe to change pages.
+- 🖱️ **Graphical editor.** Drag & drop actions onto keys and dials in a shell overlay, with icon browser (Tabler, Lucide or your own images) and a learn mode – press a key on the deck to select it.
+- 🧩 **Built into the shell.** Bar icon and panel for profile, page and brightness; entry in the Omarchy menu; notifications and OSD from Omarchy itself.
+- 🔁 **Smart profiles.** Pages and folders as plain TOML, reloaded on save; automatic switching by the focused window.
+- ⚡ **Live keys.** Keys show state: current audio output, active player, next reminder, night light, do-not-disturb …
+- 🧱 **Multi actions and toggles.** Sequences with delays, keys that alternate between two actions.
+- 🪶 **Small and quiet.** One Rust daemon, ~14 MB RAM, events instead of polling, no network, no telemetry, no root.
+
+Made for current Omarchy. Reference device is the Stream Deck + (USB `0fd9:0084`).
 
 ## Install
 
 ```bash
-curl -LO https://github.com/khaledchaar-cpu/duckydeck/releases/latest/download/duckydeck-0.1.0-1-x86_64.pkg.tar.zst
-sudo pacman -U duckydeck-0.1.0-1-x86_64.pkg.tar.zst
+curl -LO https://github.com/khaledchaar-cpu/duckydeck/releases/latest/download/duckydeck-0.1.3-1-x86_64.pkg.tar.zst
+sudo pacman -U duckydeck-0.1.3-1-x86_64.pkg.tar.zst
 ```
 
 The package is unsigned, so pacman only installs it from a local file. Packages for every version are on the [releases page](https://github.com/khaledchaar-cpu/duckydeck/releases).
@@ -33,6 +50,7 @@ the bar widget, an Omarchy menu entry and a font hook. You get a
 
 ## Use
 
+- **Editor:** *Edit layout* in the panel, *Stream Deck → Edit* in the Omarchy menu or `duckydeck edit`. Arrange keys and dials by drag & drop; every change is saved and shown on the deck immediately, Ctrl+Z undoes. Esc closes.
 - **Bar icon / panel:** click the deck icon in the bar to switch profile and page,
   set the brightness or reload. Also in the Omarchy menu as *Stream Deck*.
 - **Touch strip:** swipe left/right to change the page.
@@ -45,6 +63,7 @@ duckydeck page <n>               # open page n
 duckydeck brightness <0-100>
 duckydeck check                  # validate your config without restarting
 duckydeck export omarchy > ~/.config/duckydeck/profiles/mine.toml
+duckydeck edit                   # open the graphical editor
 duckydeck reload
 ```
 
@@ -94,11 +113,11 @@ profile you picked last in the panel or CLI.
 
 | Group | Actions |
 |---|---|
-| `system` | `lock`, `suspend`, `reboot`, `shutdown`, `logout`, `menu`, `theme`, `wallpaper`, `nightlight`, `idle`, `dnd`, `dismiss_notifications` |
+| `system` | `lock`, `suspend`, `reboot`, `shutdown`, `logout`, `menu`, `panel`, `theme`, `wallpaper`, `nightlight`, `idle`, `dnd`, `dismiss_notifications`, `bluetooth`, `power_profile`, `touchpad`, `keyboard_backlight`, `reminder`, `agent` |
 | `capture` | `screenshot`, `screenrecording`, `color_picker`, `ocr`, `qr` |
 | `launcher` | `terminal`, `browser`, `files`, `app` (`app = "<desktop-entry id>"`, e.g. `"omacalc"`) |
 | `window` | `workspace`, `move_to_workspace`, `close`, `float`, `fullscreen`, `tiled_fullscreen`, `pseudo`, `split`, `pop`, `focus`, `move`, `scratchpad`, `transparency`, `gaps`, `layout`, `to_monitor`, `monitor_internal`, `monitor_mirror`, `dispatch` |
-| `media` | `play_pause`, `next`, `previous` (keys); `volume`, `mic` (dials) |
+| `media` | `play_pause`, `next`, `previous`, `output_switch`, `source_switch` (keys); `volume`, `mic`, `app_volume` (dials) |
 | `display` | `brightness` (dial) |
 | `window` (dial) | `workspace_scroll` |
 | `structure` | `folder`, `page`, `back`, `profile`, `multi`, `toggle` |
