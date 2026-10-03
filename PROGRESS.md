@@ -13,8 +13,10 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - Demo-Bild im Daemon nutzt echte Icons, am Gerät geprüft (sieht gut aus)
 - Skill `add-icon` angelegt
 
+- M4 (1/2): `duckydeck_core::config` – Typen + Parser + Validierung für `config.toml` und Profile (Seiten, Ordner, leere Slots), `Loaded::load(dir)`; Default-Profil `examples/profiles/omarchy.toml` eingebettet; Schema in `docs/spec/config.md`
+
 ## Nächster Schritt
-- M4: Config-Format laut `docs/spec/config.md` – Typen + Parser für `config.toml` und Profile (Seiten/Ordner) in `duckydeck-core`, mit Tests
+- M4 (2/2): Live-Reload per inotify im Daemon (letzte gültige Config bleibt, Fehler mit Datei+Zeile), Seiten/Ordner-Navigation im Daemon (Zurück-Taste), Profil am Gerät rendern
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik (Katalog-Einträge brauchen keinen Skill) – ggf. ganz weglassen

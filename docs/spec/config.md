@@ -8,26 +8,15 @@
 
 Da Layouts in v1 von Hand bearbeitet werden, gilt: Format kurz und lesbar halten, `examples/profiles/` mit kommentierten Beispielprofilen pflegen, `duckydeck check` validiert ohne Neustart.
 
-## Beispiel (Richtwert, finales Schema in M4)
+## Schema (M4)
 
-```toml
-name = "Omarchy"
-match = { class = "^(Alacritty|kitty)$" }   # optional: Auto-Profilwechsel
+`config.toml` (alle Felder optional): `brightness = 60` (0–100), `screensaver_minutes = 10` (0 = aus), `profile = "omarchy"` (Datei-Stamm unter `profiles/`).
 
-[[pages]]
-keys = [
-  { action = "window.workspace", args = { n = 1 } },
-  { action = "launcher.app", args = { desktop = "firefox.desktop" }, label = "Web" },
-  { action = "capture.screenshot", args = { mode = "region" } },
-  { action = "system.menu" },
-]
-dials = [
-  { action = "media.volume", step = 5 },
-  { action = "media.mic" },
-  { action = "display.brightness", step = 5 },
-  { action = "window.workspace_scroll" },
-]
-```
+Profil: kommentiertes Referenzbeispiel = Default-Profil [`examples/profiles/omarchy.toml`](../../examples/profiles/omarchy.toml) (eingebettet, Id `omarchy`, durch eine gleichnamige Nutzerdatei überschreibbar).
+- `name`, optional `match = { class, title }` (Regex, M8), `[[pages]]` (≥ 1) mit `keys` (≤ 8) und `dials` (≤ 4)
+- Slot: `{ action, args = {…}, label, icon }`; `{}` = leer. Parameter wie `step` immer in `args`.
+- Ordner: `[folders.<name>]` mit ≤ 7 Tasten (letzte Taste = automatisches Zurück), geöffnet per `{ action = "structure.folder", args = { folder = "<name>" } }`.
+- Unbekannte Felder sind Fehler; ob eine Action-Id existiert, prüft der Katalog (M5).
 
 ## CLI
 

@@ -1,0 +1,36 @@
+# Default profile, shipped with DuckyDeck.
+# Copy to ~/.config/duckydeck/profiles/<name>.toml and edit; changes reload live.
+# Check a file without restarting: `duckydeck check`.
+
+name = "Omarchy"
+# Optional: switch to this profile automatically when the active window matches.
+# match = { class = "^(Alacritty|kitty)$" }
+
+# Each page has up to 8 keys (left to right, top row first) and up to 4 dials.
+# `{}` leaves a slot empty. `label` and `icon` override the action's defaults.
+[[pages]]
+keys = [
+  { action = "window.workspace", args = { n = 1 } },
+  { action = "window.workspace", args = { n = 2 } },
+  { action = "window.workspace", args = { n = 3 } },
+  { action = "window.workspace", args = { n = 4 } },
+  { action = "launcher.terminal" },
+  { action = "launcher.browser" },
+  { action = "capture.screenshot", args = { mode = "region" } },
+  { action = "system.menu" },
+]
+dials = [
+  { action = "media.volume", args = { step = 5 } },
+  { action = "media.mic" },
+  { action = "display.brightness", args = { step = 5 } },
+  { action = "window.workspace_scroll" },
+]
+
+# Folders are extra pages opened by a key with `structure.folder`.
+# A folder shows a back key in its last slot automatically.
+# [folders.power]
+# keys = [
+#   { action = "system.lock" },
+#   { action = "system.suspend" },
+#   { action = "system.shutdown" },
+# ]
