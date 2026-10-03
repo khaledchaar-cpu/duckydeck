@@ -16,12 +16,12 @@ Diese Datei ist der **Einstieg**. Details stehen in Themen-Dateien – nur die l
 
 ## Vision
 
-DuckyDeck macht das Elgato Stream Deck + (8 LCD-Tasten, 4 Drehregler, Touchstrip) zu einem festen Bestandteil von Omarchy: Bedienung in der Omarchy-Shell, Look aus dem aktiven Theme, Feedback über OSD und Shell-Benachrichtigungen, Aktionen über die `omarchy`-CLI. Einstecken – funktioniert.
+DuckyDeck macht Elgato Stream Decks – Referenz: Stream Deck + (8 LCD-Tasten, 4 Drehregler, Touchstrip) – zu einem festen Bestandteil von Omarchy: Bedienung in der Omarchy-Shell, Look aus dem aktiven Theme, Feedback über OSD und Shell-Benachrichtigungen, Aktionen über die `omarchy`-CLI. Einstecken – funktioniert.
 
 ## Abgrenzung
 
-- **Zielgruppe:** Omarchy-Nutzer mit Stream Deck +.
-- **Nicht-Ziele:** andere Distros/Desktops, ältere Omarchy-Versionen (Waybar/Walker/mako), andere Stream-Deck-Modelle, Elgato-Plugins, Cloud-Sync, eigenständige GTK/Qt-App.
+- **Zielgruppe:** Omarchy-Nutzer mit Stream Deck (Stream Deck + voll getestet, andere Modelle experimentell).
+- **Nicht-Ziele:** andere Distros/Desktops, ältere Omarchy-Versionen (Waybar/Walker/mako), Elgato-Plugins, Cloud-Sync, eigenständige GTK/Qt-App.
 
 ## Umfang v1 / v2
 
@@ -56,14 +56,14 @@ Ein Schritt = etwa eine Claude-Sitzung. Fortschritt steht in [PROGRESS.md](PROGR
 | M8 | Kontext & Release | Auto-Profilwechsel, Multi-/Toggle-Actions, CI (GitHub Actions: fmt/clippy/test), PKGBUILD, Doku, Release-Paket auf GitHub (kein AUR) |
 | M9 | Editor (v2) | Schritte M9a–M9e siehe [docs/spec/ui.md](docs/spec/ui.md) |
 
-## Ideen (offen, noch nicht abgestimmt)
+## Ideen (in Scope, Reihenfolge abgestimmt 2026-10-03)
 
 Jede Idee wird vor der Umsetzung einzeln abgestimmt; Entscheidungen landen in der passenden `docs/spec/*.md`, Schritte als neue Milestones.
 
-| Idee | Notiz |
-|---|---|
-| Icon-Auswahl mit visueller Vorschau des Katalogs | Editor (`ui.md`, `assets.md`) |
-| Eigene Icons (Upload), freie Icon-Bibliotheken, ggf. KI-generiert | Netzwerk/KI nur per expliziter Nutzer-Action (Regel 6) |
-| Andere Stream-Deck-Modelle | Widerspricht Regel 1; nur Stream Deck + zum Testen vorhanden |
-| Lückenanalyse Controls (Audio-Ein-/Ausgabe, Bluetooth, …) | `actions.md` |
-| UX-Polishing allgemein | |
+| # | Idee | Notiz |
+|---|---|---|
+| 1 | Lückenanalyse Controls (Audio-Ein-/Ausgabe, Bluetooth, WLAN, Nicht stören, …) | `actions.md` |
+| 2 | Icon-Auswahl mit visueller Vorschau des Katalogs | Editor (`ui.md`, `assets.md`) |
+| 3 | Eigene Icons (Upload) und freie Icon-Bibliotheken | KI-Generierung zurückgestellt; Netzwerk nur per expliziter Nutzer-Action (Regel 6) |
+| 4 | Weitere Stream-Deck-Modelle | über Gerätefähigkeiten, ungetestet → experimentell, Fake-Device pro Modell |
+| – | UX-Polishing | laufend, gesammelt aus konkreten Stolperstellen |

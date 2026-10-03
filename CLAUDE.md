@@ -1,6 +1,6 @@
 # CLAUDE.md – DuckyDeck
 
-Steuerungs-App für das **Elgato Stream Deck +**, ausschließlich für **Omarchy Linux**: Rust-Daemon für das Gerät, Oberfläche als Plugin der Omarchy-Shell (Quickshell/QML).
+Steuerungs-App für **Elgato Stream Decks** (Referenzgerät: Stream Deck +), ausschließlich für **Omarchy Linux**: Rust-Daemon für das Gerät, Oberfläche als Plugin der Omarchy-Shell (Quickshell/QML).
 
 ## Wo steht was
 - **Zuerst [PROGRESS.md](PROGRESS.md)** lesen: aktueller Stand und nächster Schritt.
@@ -8,7 +8,7 @@ Steuerungs-App für das **Elgato Stream Deck +**, ausschließlich für **Omarchy
 - Omarchy-Routen und Shell-APIs: **`docs/omarchy-reference.md`** (generiert von `scripts/gen-omarchy-reference.sh`).
 
 ## Harte Regeln
-1. **Nur aktuelles Omarchy, nur Stream Deck +** (PID `0x0084`). Keine Abstraktionen für andere Distros, Desktops oder Geräte. Waybar, Walker, mako, SwayOSD gibt es nicht – nicht verwenden.
+1. **Nur aktuelles Omarchy.** Keine Abstraktionen für andere Distros oder Desktops. Geräte: Stream Deck + (PID `0x0084`) ist Referenz und einziges Testgerät; weitere Elgato-Modelle über die Gerätefähigkeiten (Tasten, Regler, Touchstrip, Bildgrößen) aus `elgato-streamdeck`, nie über modellspezifische Sonderfälle in UI/Config. Waybar, Walker, mako, SwayOSD gibt es nicht – nicht verwenden.
 2. **Omarchy-Standards vor Eigenbau:** Actions rufen `omarchy <group> <action>` auf; UI ist ein Shell-Plugin mit Shell-Komponenten; Feedback über Omarchy-OSD und Shell-Benachrichtigungen; Farben nur aus `colors.toml` (Daemon) bzw. Shell-Tokens (QML).
 3. **Plug & Play:** nach der Paketinstallation kein manueller Schritt.
 4. **Effizienz:** Daemon < 15 MB RSS, ~0 % CPU im Leerlauf, Events statt Polling.
@@ -51,7 +51,7 @@ omarchy restart shell                            # Plugin-Änderungen laden (Hot
 ## Arbeitsweise
 - Vor größeren Änderungen kurz den Plan nennen; kleine Fixes direkt umsetzen.
 - Klein und oft committen (nach jedem grünen `scripts/check.sh` mit Zwischenstand). Läuft ein Ansatz fest: lieber per `git` zurückrollen und neu ansetzen als lange debuggen.
-- Ein Stream Deck + ist angeschlossen: Hardware-Verhalten am echten Gerät prüfen, der Fake ersetzt das nicht.
+- Ein Stream Deck + ist angeschlossen: Hardware-Verhalten am echten Gerät prüfen, der Fake ersetzt das nicht. Andere Modelle sind ungetestet (Blindflug): nur über Fake-Device mit deren Fähigkeiten testen und im Release als „experimentell“ kennzeichnen.
 - Alle Milestones sind fertig; neue v2-Features (offene Punkte in SPEC.md) erst nach Absprache beginnen.
 - Shell-APIs und `omarchy`-Routen vor Nutzung verifizieren, nicht raten.
 - Widerspricht eine Entscheidung der Spezifikation: nachfragen, danach die betroffene `docs/spec/*.md` aktualisieren.
