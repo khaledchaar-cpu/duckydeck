@@ -13,7 +13,7 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 - Editor: großer Icon-Browser über Aktionsliste/Deck (Kategorien, Suche, Bibliotheken seitenweise); vom Nutzer getestet
 
 ## Nächster Schritt
-- Idee 4 (weitere Modelle): Plan mit Nutzer abstimmen
+- Offen: nächstes Thema mit Nutzer abstimmen (Idee 4 „weitere Modelle“ auf späteres Release zurückgestellt, Entscheidung 2026-10-03)
 
 ## Offene Probleme / Notizen
 - Erinnerung/Tastaturlicht-Text nur nach Druck, Start und (Erinnerung) Fälligkeit aktuell – außerhalb gesetzte Erinnerungen erst danach sichtbar
