@@ -64,6 +64,12 @@ Groups relevant to DuckyDeck only. Full list: `omarchy commands --json`. ⚠ = r
 | `omarchy capture text` |  | Extract text from a screenshot region with OCR |
 | `omarchy capture webcam resize` | <smaller\|larger\|reset\|small\|medium\|large> | Resize the active webcam recording overlay |
 
+### file
+
+| Route | Args | Summary |
+|---|---|---|
+| `omarchy file select` | [--title <title>] [--multiple] [--directory] [--extensions "<ext ext...>"] | Pick files with the desktop file chooser |
+
 ### font
 
 | Route | Args | Summary |

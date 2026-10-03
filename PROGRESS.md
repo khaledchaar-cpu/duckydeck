@@ -7,13 +7,13 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- Idee 1 Lückenanalyse: 9 neue Controls (Panels, Bluetooth, Energieprofil, Audio-Ausgabe/Quelle, Touchpad, Tastaturlicht, Erinnerung, Agent); Katalogfelder `text` (Live-Status statt Label, Events via pactl/MPRIS/D-Bus), `choice_icons`, `active`
-- Größere Schrift (Labels 16 px, Regler 28 px, Strip)
-- Idee 2: Icon-Raster im Editor (`duckydeck icons --color`), 272 Icons inkl. `[general]` und `[adult]`
-- Alles vom Nutzer am Gerät getestet (außer Tastaturlicht: kein Gerät); Build-Artefakte aus lokaler Historie entfernt, `.gitignore` ergänzt
+- Release v0.1.1 auf GitHub
+- Idee 3: eigene Icons (`~/.config/duckydeck/icons`, `icons add/remove`, Import im Editor über `omarchy file select`)
+- Freie Bibliotheken Tabler/Lucide: Download auf Klick (gepinnt + sha256), `icons library/search/browse`
+- Editor: großer Icon-Browser über Aktionsliste/Deck (Kategorien, Suche, Bibliotheken seitenweise); vom Nutzer getestet
 
 ## Nächster Schritt
-- Release 0.1.1 (Version in PKGBUILD/Cargo erhöhen, damit `setup` neu läuft; push + GitHub-Release nur nach Nutzer-OK), danach Idee 3 (eigene Icons) – Plan abstimmen
+- Release 0.1.2 mit Idee 3 (Version erhöhen, Paket bauen, push/Release nach Nutzer-OK); danach Idee 4 (weitere Modelle) – Plan abstimmen
 
 ## Offene Probleme / Notizen
 - Erinnerung/Tastaturlicht-Text nur nach Druck, Start und (Erinnerung) Fälligkeit aktuell – außerhalb gesetzte Erinnerungen erst danach sichtbar
