@@ -34,7 +34,8 @@ Item {
 
   // `duckydeck actions --json`, the search query and the library cursor.
   property var actions: []
-  // Built-in icon names from `duckydeck icons --json`.
+  // Built-in icons {name, category, svg} from `duckydeck icons --color`,
+  // drawn in the editor's foreground color.
   property var icons: []
   // Installed apps ({id, name}) from `duckydeck apps --json`.
   property var apps: []
@@ -771,7 +772,7 @@ Item {
 
   Process {
     id: iconsProc
-    command: ["duckydeck", "icons", "--json"]
+    command: ["duckydeck", "icons", "--color", "#" + root.foreground.toString().slice(-6)]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -1674,16 +1675,17 @@ Item {
               font.family: root.fontFamily
               font.pixelSize: Style.font.bodySmall
             }
-            SearchableDropdown {
+            IconPicker {
               width: parent.width
-              showLabel: false
-              options: [strings.defaultIcon].concat(root.icons)
-              value: root.selected && root.selected.icon ? root.selected.icon : strings.defaultIcon
-              placeholderText: strings.searchIcons
+              icons: root.icons
+              value: root.selected && root.selected.icon ? root.selected.icon : ""
+              defaultName: root.selectedAction ? root.selectedAction.icon : ""
+              strings: strings
               foreground: root.foreground
+              accent: root.accent
               fontFamily: root.fontFamily
-              onChanged: function(v) {
-                root.updateSelected({ icon: v === strings.defaultIcon ? "" : v })
+              onPicked: function(name) {
+                root.updateSelected({ icon: name })
                 root.focusDeck()
               }
             }
@@ -1907,17 +1909,18 @@ Item {
                           font.family: root.fontFamily
                           font.pixelSize: Style.font.bodySmall
                         }
-                        SearchableDropdown {
+                        IconPicker {
                           visible: !entries.isMulti
                           width: parent.width
-                          showLabel: false
-                          options: [strings.defaultIcon].concat(root.icons)
-                          value: entry.modelData.icon || strings.defaultIcon
-                          placeholderText: strings.searchIcons
+                          icons: root.icons
+                          value: entry.modelData.icon || ""
+                          defaultName: entry.action ? entry.action.icon : ""
+                          strings: strings
                           foreground: root.foreground
+                          accent: root.accent
                           fontFamily: root.fontFamily
-                          onChanged: function(v) {
-                            root.setEntryField(entries.listName, entry.index, "icon", v === strings.defaultIcon ? "" : v)
+                          onPicked: function(name) {
+                            root.setEntryField(entries.listName, entry.index, "icon", name)
                           }
                         }
                         Repeater {

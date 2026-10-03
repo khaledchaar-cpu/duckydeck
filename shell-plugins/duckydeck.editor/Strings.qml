@@ -12,7 +12,8 @@ QtObject {
   readonly property string unavailable: "missing in Omarchy"
   readonly property var groups: ({
     system: "System", capture: "Capture", media: "Media", launcher: "Launcher",
-    window: "Window", display: "Display", structure: "Structure", apps: "Apps"
+    window: "Window", display: "Display", structure: "Structure", apps: "Apps",
+    network: "Network", custom: "Other"
   })
   readonly property string inspector: "SLOT"
   readonly property string empty: "Empty"

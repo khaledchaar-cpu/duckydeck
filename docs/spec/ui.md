@@ -36,7 +36,7 @@ Eigenes Plugin vom Typ `overlay`, zusätzlich zum Panel aus v1 (das Panel bleibt
 - Nur zum gewählten Slot passende Actions sind aktiv (Regler-Actions nur für Regler); fehlende Omarchy-Routen ausgegraut mit Hinweis.
 
 ### Inspector
-- Action (wechselbar), Label (leer = Standardlabel), Icon (eingebaute Icons mit Suche; eigene Bilddateien erst später).
+- Action (wechselbar), Label (leer = Standardlabel), Icon: Button mit aktuellem Icon, Klick klappt ein Raster aller eingebauten Icons nach Kategorie auf (Suche, Name beim Hover, erste Kachel = Standard-Icon der Action). Bilder aus `duckydeck icons --color <hex>` (Data-URLs in Vordergrundfarbe; Entscheidung 2026-10-03). Eigene Bilddateien erst später.
 - Parameter als passende Felder: Auswahl bei festen Werten, Zahlenfeld, Text. Ungültige Werte werden sofort markiert (gleiche Prüfung wie `duckydeck check`).
 - Multi/Toggle: Liste der Schritte bzw. Zustände, jeder Eintrag aufklappbar und wie ein Slot bearbeitbar; Verzögerung bei Multi als Zahlenfeld.
 - Slot leeren, kopieren, einfügen.
