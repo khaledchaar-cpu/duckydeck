@@ -30,7 +30,7 @@ DUCKYDECK_FAKE_DEVICE=1 cargo run -p duckydeckd  # ohne Gerät → Gesamtbild $X
 #   Eingaben per stdin, eine pro Zeile: ButtonDown(0) / ButtonUp(0) / EncoderTwist(0, -1) / TouchScreenSwipe((600, 50), (200, 50))
 #   Endet nicht bei stdin-EOF → im Hintergrund starten und per pkill beenden. Tests mit XDG_CONFIG_HOME=<scratchpad>, nie die echte Config
 cargo run -p duckydeck-cli -- setup              # Plugins (Symlinks), Menü, Hooks installieren
-omarchy-shell shell rescanPlugins                # Plugins neu laden
+omarchy restart shell                            # Plugin-Änderungen laden (Hot-Reload greift bei Symlinks nicht)
 ```
 
 ## Konventionen
@@ -38,7 +38,7 @@ omarchy-shell shell rescanPlugins                # Plugins neu laden
 - **Actions:** Befehl-Actions nur als Eintrag in `actions/catalog.toml` (kein neuer Rust-Code). Rust-Implementierungen des `Action`-Traits nur bei echter Logik (siehe `docs/spec/actions.md`). Jede Action hat ein Icon in `assets/icons.toml`.
 - **Prozesse nur über den `CommandRunner`-Trait**; Tests nutzen `RecordingRunner` und führen nie echte `omarchy`-Befehle aus.
 - Rendering deterministisch, Snapshot-Tests (`insta`).
-- QML: asynchrone IPC mit Timeout; UI-Texte (v1 nur Englisch) zentral in `Strings.qml`.
+- QML/Shell-Plugin: Skill **`shell-plugin`**.
 - Code, Kommentare, Commits auf Englisch.
 
 ## Token-sparend arbeiten

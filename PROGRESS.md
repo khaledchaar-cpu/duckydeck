@@ -2,27 +2,23 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M7 – Shell-Plugins (Bar-Icon fertig, Panel offen)
+**Aktueller Milestone:** M7 – Shell-Plugins fertig → nächster: M8 Kontext & Release
 
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
-- Ein Plugin `duckydeck.widget` (Bar-Icon + Panel) wie Erstanbieter-Panels; Spec angepasst
-- Bar-Icon: gedimmt ohne Gerät/Daemon, Tooltip mit Profil/Seite, Reconnect per Backoff
-- Panel: Status/Serial, Profil-Dropdown, Seiten-Buttons (ab 2 Seiten), Helligkeit, Config öffnen, Neu laden – Anzeige geprüft
-- Tastatur im Panel: j/k Cursor, h/l Seite/Helligkeit(±5)/Profil, Enter aktiviert – Helligkeit per Tastatur geprüft
-- Menüeintrag → `omarchy-shell duckydeck.widget toggle`; `setup` macht `rescanPlugins` vor `bar put`
+- M7 fertig: `duckydeck.widget` (Bar-Icon + Panel, Tastatur j/k/h/l/Enter), Menüeintrag öffnet das Panel – vom Nutzer am Gerät geprüft, Profilwechsel mit Testprofil
+- Skill `shell-plugin` angelegt (QML-Regeln, Test-Loop); CLAUDE.md verweist darauf
 
 ## Nächster Schritt
-- Nutzer prüft Panel per Maus am Gerät (Profilwechsel mit 2. Profil, Seiten, Reload, Config, Tooltip); danach M7 abschließen und Skill `shell-plugin` anlegen, dann M8
+- M8: Auto-Profilwechsel nach aktivem Fenster (Hyprland-Events) – zuerst Abschnitt Kontextwechsel in `docs/spec/actions.md` lesen
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
-- nach M7: `shell-plugin` (QML-Regeln, Manifest-Muster, Reload) – Details dann aus CLAUDE.md entfernen
 
 ## Offene Probleme / Notizen
 - Tooltip-Text beim Hover noch nicht angesehen
-- Hot-Reload greift für verlinkte Plugins nicht (inotifywait folgt keinem Symlink, auch Neu-Verlinken lädt das Bar-Widget nicht neu) → in der Entwicklung `omarchy restart shell`
+- Einmal zeigte das Profil-Dropdown nach Laufzeit-Profilwechsel den alten Wert (vor Shell-Neustart); nicht reproduzierbar
 - Menüeintrag wird nur bei neuer Paketversion aktualisiert (Setup-Marker)
 - `setup --remove` nimmt das Widget nicht aus dem Bar-Layout (keine Route zum Entfernen)
 - `scripts/check.sh` findet `cargo` nur mit `PATH=$HOME/.cargo/bin:$PATH`
