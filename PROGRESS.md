@@ -7,13 +7,14 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
+- M8: CI-Workflow `.github/workflows/ci.yml` (fmt/clippy/test, `--locked`); noch nie gelaufen – es gibt kein GitHub-Remote. Kontrasttest wird ohne `/usr/share/omarchy/themes` übersprungen
 - M8: `structure.profile`/`structure.multi`/`structure.toggle` (`duckydeck_core::compound`) – mit Fake-Device geprüft
 - M8: Auto-Profilwechsel (`duckydeck_core::context`, Event `activewindow` + `j/activewindow` beim Verbinden) – mit Fake-Device gegen echtes Hyprland geprüft
 - M7 fertig: `duckydeck.widget` (Bar-Icon + Panel, Tastatur j/k/h/l/Enter), Menüeintrag öffnet das Panel – vom Nutzer am Gerät geprüft, Profilwechsel mit Testprofil
 - Skill `shell-plugin` angelegt (QML-Regeln, Test-Loop); CLAUDE.md verweist darauf
 
 ## Nächster Schritt
-- M8: CI (GitHub Actions: fmt/clippy/test), danach PKGBUILD inkl. `duckydeck.service`, Doku, AUR
+- M8: PKGBUILD inkl. `duckydeck.service` (Plug & Play: udev-Regel, User-Service, Setup-Hook), danach Doku, AUR
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
@@ -30,6 +31,6 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - Catalog-Actions per `spawn`: Fehler von `omarchy` werden nicht gemeldet; Nachtlicht-Status ohne Event
 - Hyprland-Zugriff noch nicht hinter Trait (I/O nicht testbar)
 - Socket-Pfad (SUN_LEN): Tests mit kurzem `XDG_RUNTIME_DIR` unter `/tmp/claude-1000`
-- `duckydeck.service` fehlt noch (Packaging); Kontrasttest braucht `/usr/share/omarchy/themes`
+- `duckydeck.service` fehlt noch (Packaging)
 - Hook ruft `duckydeck` über PATH: in der Entwicklung `~/.local/bin/duckydeck` → `target/debug/duckydeck` verlinkt
 - `duckydeck check` meldet Fehler ohne Shell-Benachrichtigung; der Daemon prüft Action-Ids beim Laden noch nicht (unbekannte → Log „not implemented yet“)
