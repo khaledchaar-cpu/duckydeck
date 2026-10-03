@@ -105,10 +105,16 @@ impl Screen {
 
     /// Returns whether the deck needs a redraw.
     pub fn reload_config(&mut self, runner: &dyn CommandRunner) -> bool {
+        let configured = self.store.current.config.profile.clone();
         if !self.store.reload(runner) {
             return false;
         }
-        self.nav.reconcile(&self.store.current);
+        if self.store.current.config.profile != configured {
+            // `profile` in config.toml changed: switch to it.
+            self.nav = Nav::new(&self.store.current);
+        } else {
+            self.nav.reconcile(&self.store.current);
+        }
         let c = &self.store.current;
         tracing::info!(
             profile = %self.nav.profile,
