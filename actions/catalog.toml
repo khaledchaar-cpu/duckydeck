@@ -112,12 +112,16 @@ run   = ["omarchy", "toggle", "touchpad", "toggle"]
 label = "Key light"
 icon  = "keyboard-backlight"
 run   = ["omarchy", "brightness", "keyboard", "cycle"]
+# sysfs has no change event: read at startup and after each press.
+text  = { builtin = "keyboard-backlight" }
 
 [system.reminder]
 label    = "Reminder"
 icon     = "reminder"
 run      = ["omarchy", "reminder", "{minutes}"]
 defaults = { minutes = "10" }
+# Due time of the next reminder; read again when it is due.
+text     = { builtin = "reminder" }
 
 [system.agent]
 label = "Agent"

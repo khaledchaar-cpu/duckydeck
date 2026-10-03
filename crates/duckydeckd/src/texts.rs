@@ -5,7 +5,7 @@
 //! from MPRIS). Every change goes out as one full map.
 
 use std::collections::HashMap;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use duckydeck_core::TokioRunner;
 use duckydeck_core::catalog::Catalog;
@@ -38,13 +38,13 @@ pub async fn run(
     if sources.is_empty() {
         return;
     }
+    let (due_tx, mut due) = mpsc::unbounded_channel::<String>();
     let mut texts = Texts::new();
     for (id, s) in &sources {
-        set(&mut texts, id, s.read(&TokioRunner).await);
+        set(&mut texts, id, read(id, s, &due_tx).await);
     }
     let _ = tx.send(DeckEvent::Texts(texts.clone()));
 
-    let (due_tx, mut due) = mpsc::unbounded_channel::<String>();
     loop {
         let mut ids: Vec<&str> = Vec::new();
         tokio::select! {
@@ -88,7 +88,7 @@ pub async fn run(
         let mut next = texts.clone();
         for id in ids {
             if let Some((_, s)) = sources.iter().find(|(s, _)| s == id) {
-                set(&mut next, id, s.read(&TokioRunner).await);
+                set(&mut next, id, read(id, s, &due_tx).await);
             }
         }
         if next != texts {
@@ -99,6 +99,20 @@ pub async fn run(
             }
         }
     }
+}
+
+/// Reads a text; schedules another read when the reading says so.
+async fn read(id: &str, s: &TextSource, due_tx: &UnboundedSender<String>) -> Option<String> {
+    let r = s.read(&TokioRunner).await;
+    if let Some(at) = r.due {
+        let wait = at.duration_since(SystemTime::now()).unwrap_or_default();
+        let (due_tx, id) = (due_tx.clone(), id.to_owned());
+        tokio::spawn(async move {
+            tokio::time::sleep(wait).await;
+            let _ = due_tx.send(id);
+        });
+    }
+    r.text
 }
 
 fn set(t: &mut Texts, id: &str, text: Option<String>) {

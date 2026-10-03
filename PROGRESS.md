@@ -12,16 +12,17 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 - Mit Fake-Daemon geprüft (`duckydeck actions` listet alle); am echten Gerät noch nicht gedrückt
 - Status-Text statt Label (Katalogfeld `text`): Output zeigt Ausgabegerät, Quelle zeigt aktiven Player; Icons Lautsprecher/Note
 - Schritt 2: Bluetooth zeigt verbundenes Gerät, aktives Energieprofil leuchtet (D-Bus-Events); größere Schrift für Labels/Regler/Strip
+- Schritt 3: Erinnerung zeigt Fälligkeit, Tastaturlicht Stufe (ungetestet, Desktop ohne Tastaturlicht)
 - `choice_icons`: Icon je Platzhalterwert (Shell-Panels, Fokus-Richtung statt Sonderfall im Daemon)
 
 ## Nächster Schritt
-- Status-Text Schritt 3: Tastaturlicht-Stufe, Restzeit der Erinnerung (Grundsatz: Live-Infos überall, wo sie Mehrwert bringen)
 - Am Gerät prüfen: Bluetooth-Gerätename (beim Test war kein Gerät verbunden), größere Schrift
 - Rust-Teil aus Idee 1: Regler Tastaturbeleuchtung (Energieprofil-Zyklus entfällt, aktive Taste leuchtet)
 - Testprofil `~/.config/duckydeck/profiles/test-controls.toml` danach löschen
 - Danach Release 0.1.1 erwägen, dann Idee 2 (Icon-Auswahl)
 
 ## Offene Probleme / Notizen
+- Erinnerung/Tastaturlicht-Text nur nach Druck, Start und (Erinnerung) Fälligkeit aktuell – außerhalb gesetzte Erinnerungen erst danach sichtbar
 - Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)
 - Multi-Monitor-Actions nur mit DP-1 geprüft; Bar-Tooltip noch nicht angesehen
 - Profil-Dropdown zeigte einmal alten Wert nach Laufzeit-Profilwechsel; nicht reproduzierbar

@@ -6,6 +6,9 @@
 //! after each press of the action and on the events named in `refresh`.
 //! Nothing is polled.
 
+use std::path::Path;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
 use serde::Deserialize;
 
 use crate::{CommandRunner, CommandSpec};
@@ -36,6 +39,24 @@ pub enum Builtin {
     AudioOutput,
     /// Name of the connected Bluetooth device ("Name +1" for more).
     BluetoothDevice,
+    /// Due time of the next Omarchy reminder ("22:54", "22:54 +1").
+    Reminder,
+    /// Keyboard backlight step from sysfs ("2/3"), only if there is one.
+    KeyboardBacklight,
+}
+
+/// A read status text.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Reading {
+    pub text: Option<String>,
+    /// Read again at this time (e.g. when a reminder is due).
+    pub due: Option<SystemTime>,
+}
+
+impl From<Option<String>> for Reading {
+    fn from(text: Option<String>) -> Self {
+        Self { text, due: None }
+    }
 }
 
 /// Event that re-reads a status text.
@@ -88,12 +109,17 @@ impl TextSource {
     }
 
     /// Reads the current text.
-    pub async fn read(&self, runner: &dyn CommandRunner) -> Option<String> {
+    pub async fn read(&self, runner: &dyn CommandRunner) -> Reading {
         match self.builtin {
-            Some(Builtin::AudioOutput) => return audio_output(runner).await,
-            Some(Builtin::BluetoothDevice) => return bluetooth_device(runner).await,
-            None => {}
+            Some(Builtin::AudioOutput) => audio_output(runner).await.into(),
+            Some(Builtin::BluetoothDevice) => bluetooth_device(runner).await.into(),
+            Some(Builtin::Reminder) => reminder(runner).await,
+            Some(Builtin::KeyboardBacklight) => keyboard_backlight(Path::new(LEDS_DIR)).into(),
+            None => self.read_command(runner).await.into(),
         }
+    }
+
+    async fn read_command(&self, runner: &dyn CommandRunner) -> Option<String> {
         let (program, args) = self.command.split_first()?;
         let spec = CommandSpec::new(program.clone()).args(args.to_vec());
         match runner.run(&spec).await {
@@ -121,6 +147,70 @@ pub async fn audio_output(runner: &dyn CommandRunner) -> Option<String> {
         .ok()
         .filter(|o| o.success())?;
     sink_name(&list.stdout, &name)
+}
+
+const LEDS_DIR: &str = "/sys/class/leds";
+
+/// Next reminder from `omarchy reminder show --json`.
+pub async fn reminder(runner: &dyn CommandRunner) -> Reading {
+    let out = runner
+        .run(&CommandSpec::omarchy(["reminder", "show", "--json"]))
+        .await
+        .ok()
+        .filter(|o| o.success());
+    out.map(|o| next_reminder(&o.stdout)).unwrap_or_default()
+}
+
+/// Due time of the earliest reminder (shown as Omarchy formats it), plus
+/// how many more are set; read again once it is due.
+pub fn next_reminder(json: &str) -> Reading {
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(json) else {
+        return Reading::default();
+    };
+    let mut items: Vec<(u64, &str)> = v
+        .get("reminders")
+        .and_then(|r| r.as_array())
+        .into_iter()
+        .flatten()
+        .filter_map(|r| Some((r.get("at")?.as_u64()?, r.get("atTime")?.as_str()?)))
+        .collect();
+    items.sort_unstable();
+    let Some(&(at, time)) = items.first() else {
+        return Reading::default();
+    };
+    let text = match items.len() {
+        1 => time.to_owned(),
+        n => format!("{time} +{}", n - 1),
+    };
+    Reading {
+        text: Some(text),
+        due: Some(UNIX_EPOCH + Duration::from_secs(at + 1)),
+    }
+}
+
+/// Step of the first `*kbd_backlight` LED under `leds` as "now/max".
+pub fn keyboard_backlight(leds: &Path) -> Option<String> {
+    let mut dirs: Vec<_> = std::fs::read_dir(leds)
+        .ok()?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.ends_with("kbd_backlight"))
+        })
+        .collect();
+    dirs.sort();
+    let dir = dirs.first()?;
+    let read = |f: &str| -> Option<u32> {
+        std::fs::read_to_string(dir.join(f))
+            .ok()?
+            .trim()
+            .parse()
+            .ok()
+    };
+    let (now, max) = (read("brightness")?, read("max_brightness")?);
+    (max > 0).then(|| format!("{now}/{max}"))
 }
 
 /// Connected Bluetooth devices, via `bluetoothctl devices Connected`.
@@ -217,6 +307,31 @@ mod tests {
         assert_eq!(sink_name(SINKS, "bare"), Some("Bare Sink".into()));
         assert_eq!(sink_name(SINKS, "gone"), None);
         assert_eq!(sink_name("nope", "usb"), None);
+    }
+
+    #[test]
+    fn reminders() {
+        assert_eq!(
+            next_reminder(r#"{"count":0,"reminders":[]}"#),
+            Reading::default()
+        );
+        let two = r#"{"reminders":[
+          {"at":2000,"atTime":"23:10"},{"at":1000,"atTime":"22:54"}]}"#;
+        let r = next_reminder(two);
+        assert_eq!(r.text.as_deref(), Some("22:54 +1"));
+        assert_eq!(r.due, Some(UNIX_EPOCH + Duration::from_secs(1001)));
+    }
+
+    #[test]
+    fn keyboard_backlight_steps() {
+        let dir = std::env::temp_dir().join(format!("dd-leds-{}", std::process::id()));
+        let led = dir.join("tpacpi::kbd_backlight");
+        std::fs::create_dir_all(&led).unwrap();
+        assert_eq!(keyboard_backlight(&dir.join("missing")), None);
+        std::fs::write(led.join("brightness"), "1\n").unwrap();
+        std::fs::write(led.join("max_brightness"), "2\n").unwrap();
+        assert_eq!(keyboard_backlight(&dir), Some("1/2".into()));
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
