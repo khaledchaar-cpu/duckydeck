@@ -34,7 +34,27 @@ QtObject {
   readonly property string clear: "Clear slot"
   readonly property string openFolder: "Enter opens the folder"
   readonly property string pages: "Page"
+  readonly property string addPage: "+ Page"
+  readonly property string profileSettings: "Profile…"
+  readonly property string profileHeader: "PROFILE"
+  readonly property string name: "Name"
+  readonly property string autoSwitch: "Switch automatically for window class (regex)"
+  readonly property string matchPlaceholder: "off"
+  readonly property string moveLeft: "← Move"
+  readonly property string moveRight: "Move →"
+  readonly property string removePage: "Remove page"
+  readonly property string confirm: "Click again to confirm"
+  readonly property string newProfile: "NEW PROFILE"
+  readonly property string newProfileId: "id, e.g. gaming"
+  readonly property string createEmpty: "Create empty"
+  readonly property string createCopy: "Copy this one"
+  readonly property string deleteProfile: "Delete profile"
+  readonly property string resetProfile: "Reset to default"
   readonly property string hints: "Arrows select · type or / searches · Tab switches · Enter assigns or opens a folder · Del clears · Ctrl+C/V copies · Ctrl+X/V moves · Ctrl+Z undo · Esc closes"
+
+  function useWindow(appId) {
+    return "Use current window (" + appId + ")"
+  }
 
   function waitMs(ms) {
     return "Wait " + ms + " ms"
