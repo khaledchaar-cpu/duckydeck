@@ -133,6 +133,13 @@ const BUILTINS: &[Builtin] = &[
         ],
     ),
     (
+        "structure.page_scroll",
+        "Pages",
+        "page-scroll",
+        Slot::Dial,
+        &[],
+    ),
+    (
         "structure.profile",
         "Profile",
         "profile",

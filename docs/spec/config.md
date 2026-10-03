@@ -16,7 +16,7 @@ Profil: kommentiertes Referenzbeispiel = Default-Profil [`examples/profiles/omar
 - `name`, optional `match = { class, title }` (Regex, siehe Kontextwechsel in `actions.md`), `[[pages]]` (≥ 1) mit `keys` (≤ 8) und `dials` (≤ 4)
 - Slot: `{ action, args = {…}, label, icon }`; `{}` = leer. Parameter wie `step` immer in `args`.
 - Ordner: `[folders.<name>]` mit ≤ 7 Tasten (letzte Taste = automatisches Zurück), geöffnet per `{ action = "structure.folder", args = { folder = "<name>" } }`.
-- Seiten: `{ action = "structure.page", args = { n = 2 } }` bzw. `args = { to = "next" | "prev" }`; Swipe auf dem Touchstrip (≥ 100 px) wechselt ebenfalls die Seite (nach links = nächste, zyklisch).
+- Seiten: `{ action = "structure.page", args = { n = 2 } }` bzw. `args = { to = "next" | "prev" }`; Swipe auf dem Touchstrip (≥ 100 px) wechselt ebenfalls die Seite (nach links = nächste, zyklisch); als Regler `{ action = "structure.page_scroll" }`.
 - Profil: `{ action = "structure.profile", args = { profile = "<id>" } }` (zählt als manuelle Wahl, siehe Kontextwechsel).
 - Multi: `{ action = "structure.multi", args = { steps = [{ action = "…", args = {…} }, { delay_ms = 300 }, …] } }` – Schritte nacheinander, `delay_ms` 0–10000. Ein langer Druck gilt für alle Schritte (Long-Press-Bestätigung).
 - Toggle: `{ action = "structure.toggle", args = { states = [{ action, args, label, icon }, { … }] } }` – genau 2 Zustände, abwechselnd ausgeführt; die Taste zeigt den Zustand, den der nächste Druck ausführt. Zustand nur im Speicher (Reset bei Config-Reload/Neustart).

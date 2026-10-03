@@ -83,6 +83,7 @@ Unten steht bei jeder Kategorie, was Katalog (K) und was Rust (R) ist.
 
 ## Struktur (M4/M8) – R
 Seite / Ordner / Zurück, Profil wechseln, Multi-Action (Sequenz mit Delays), Toggle-Action.
+- **Regler** `structure.page_scroll` (Entscheidung Nutzer 2026-10-03): Drehen blättert die Seiten des Profils (zyklisch wie der Swipe, aus einem Ordner heraus), Druck = Seite 1; Strip zeigt „Seite/Anzahl“.
 
 ## Profile & Kontext
 - Profile mit beliebig vielen Seiten (8 Tasten + 4 Regler + Strip).

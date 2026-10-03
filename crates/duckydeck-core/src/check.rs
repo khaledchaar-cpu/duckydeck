@@ -9,7 +9,7 @@ use crate::config::{Binding, FOLDER_ACTION, Loaded, Page};
 use crate::dial::Dial;
 use crate::hypr::SCROLL_ACTION;
 use crate::media::MediaKey;
-use crate::nav::{BACK_ACTION, PAGE_ACTION};
+use crate::nav::{BACK_ACTION, PAGE_ACTION, PAGE_SCROLL_ACTION};
 
 /// One problem per line, e.g. `profile "dev", page 2, key 3: unknown action "x"`.
 pub fn problems(loaded: &Loaded, catalog: &Catalog) -> Vec<String> {
@@ -69,7 +69,10 @@ fn check_page(
         }
     }
     for (i, b) in bindings(&page.dials) {
-        if Dial::from_binding(b).is_none() && b.action != SCROLL_ACTION {
+        if Dial::from_binding(b).is_none()
+            && b.action != SCROLL_ACTION
+            && b.action != PAGE_SCROLL_ACTION
+        {
             report(format!("dial {i}"), not_a(b, "dial", catalog));
         }
     }

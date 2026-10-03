@@ -6,6 +6,8 @@ use crate::config::{Binding, DIALS, FOLDER_ACTION, KEYS, Loaded, Page, Profile};
 pub const BACK_ACTION: &str = "structure.back";
 /// Args: `n = <1-based page>` or `to = "next" | "prev"`.
 pub const PAGE_ACTION: &str = "structure.page";
+/// Dial: twist pages through the profile, press opens page 1.
+pub const PAGE_SCROLL_ACTION: &str = "structure.page_scroll";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Nav {
@@ -146,6 +148,11 @@ impl Nav {
             }
             _ => Press::Run(b),
         }
+    }
+
+    /// Page-scroll dial pressed: back to the first page.
+    pub fn first_page(&mut self) -> Press {
+        self.go(0)
     }
 
     /// Opens the 0-based `page` of the active profile (IPC `set_page`).

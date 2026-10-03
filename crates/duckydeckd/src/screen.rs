@@ -17,7 +17,7 @@ use duckydeck_core::hypr::{self, WorkspaceState, Workspaces};
 use duckydeck_core::icons;
 use duckydeck_core::ipc;
 use duckydeck_core::media::{self, MediaKey, Players, Status};
-use duckydeck_core::nav::{BACK_ACTION, Nav, PAGE_ACTION, Press};
+use duckydeck_core::nav::{BACK_ACTION, Nav, PAGE_ACTION, PAGE_SCROLL_ACTION, Press};
 use duckydeck_core::render::{GlyphView, KeyView, MediaView, Renderer, SegmentView};
 use duckydeck_core::theme::{Role, Theme};
 use duckydeck_core::toggle;
@@ -535,6 +535,14 @@ impl Screen {
                 .and_then(|()| self.segment(deck, i, false)),
             Gesture::Tap(Control::Key(i)) => self.press(deck, i, false),
             Gesture::LongPress(Control::Key(i)) => self.press(deck, i, true),
+            Gesture::Tap(Control::Encoder(i)) if self.dial_is(i, PAGE_SCROLL_ACTION) => {
+                let press = self.nav.first_page();
+                self.handle(deck, press, false)
+            }
+            Gesture::Twist { encoder, delta, .. } if self.dial_is(encoder, PAGE_SCROLL_ACTION) => {
+                let press = self.nav.step_page(&self.store.current, isize::from(delta));
+                self.handle(deck, press, false)
+            }
             Gesture::Tap(Control::Encoder(i)) => {
                 if self.is_scroll(i) {
                     self.dispatch(hypr::SCROLL_PRESS.to_owned());
@@ -573,9 +581,13 @@ impl Screen {
     }
 
     fn is_scroll(&self, seg: u8) -> bool {
+        self.dial_is(seg, hypr::SCROLL_ACTION)
+    }
+
+    fn dial_is(&self, seg: u8, action: &str) -> bool {
         self.nav.dials(&self.store.current)[usize::from(seg % 4)]
             .as_ref()
-            .is_some_and(|b| b.action == hypr::SCROLL_ACTION)
+            .is_some_and(|b| b.action == action)
     }
 
     fn dispatch(&self, lua: String) {
@@ -795,8 +807,14 @@ impl Screen {
             .as_ref()
             .filter(|b| b.action == hypr::SCROLL_ACTION)
             .and(self.workspaces.active);
+        let pages = binding
+            .as_ref()
+            .filter(|b| b.action == PAGE_SCROLL_ACTION)
+            .and_then(|_| self.store.current.profiles.get(&nav.profile))
+            .map(|p| format!("{}/{}", nav.page + 1, p.pages.len()));
         let text = match level {
             _ if scroll.is_some() => scroll.map(|n| n.to_string()),
+            _ if pages.is_some() => pages,
             Some((_, (_, true))) => Some("Muted".to_owned()),
             Some((_, (Some(pct), false))) => Some(format!("{pct}%")),
             _ => binding.as_ref().map(|b| self.label(b)),
