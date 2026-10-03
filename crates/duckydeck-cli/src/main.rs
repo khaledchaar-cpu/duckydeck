@@ -4,10 +4,13 @@
 use anyhow::{Context, Result, bail};
 use duckydeck_core::catalog::Catalog;
 use duckydeck_core::ipc::{self, Command, Request, Response, Status};
-use duckydeck_core::{check, config, custom_icons, setup};
+use duckydeck_core::{check, config, custom_icons, icon_libraries, setup};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::net::UnixStream;
 use tokio::net::unix::OwnedReadHalf;
+
+/// Hits of `icons search`; enough for a picker, small enough for QML.
+const SEARCH_LIMIT: usize = 60;
 
 const USAGE: &str = "\
 usage: duckydeck <command> [--json]
@@ -42,6 +45,12 @@ commands:
   icons add <file.svg|png> [<name>] | icons remove <name>
                         import or delete a user icon in ~/.config/duckydeck/icons
                         (use it with icon = \"<name>\")
+  icons library [install|remove <id>]
+                        list the free icon libraries (Tabler, Lucide) or
+                        download one (network!) / delete it
+  icons search <query> [--color #rrggbb]
+                        search downloaded libraries (max. 60 hits); import a
+                        hit with icons add <path> <library>-<name>
   apps                  list installed apps: desktop-entry id and name (no daemon needed)
   preview <profile> [<page>|<folder>]
                         render a page or folder to PNG files (paths printed)
@@ -129,6 +138,100 @@ async fn main() -> Result<()> {
                 }
                 Err(e) => fail(json, &e.to_string()),
             }
+        }
+        ["icons", "library"] => {
+            let base = icon_libraries::dir().context("neither XDG_DATA_HOME nor HOME is set")?;
+            let libs: Vec<_> = icon_libraries::LIBRARIES
+                .iter()
+                .map(|l| {
+                    serde_json::json!({
+                        "id": l.id,
+                        "name": l.name,
+                        "license": l.license,
+                        "version": l.version,
+                        "installed": icon_libraries::installed(&base, l),
+                    })
+                })
+                .collect();
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({ "v": 1, "ok": true, "libraries": libs })
+                );
+            } else {
+                for l in icon_libraries::LIBRARIES {
+                    let state = if icon_libraries::installed(&base, l) {
+                        "installed"
+                    } else {
+                        "-"
+                    };
+                    println!(
+                        "{}\t{} {} ({})\t{state}",
+                        l.id, l.name, l.version, l.license
+                    );
+                }
+            }
+            return Ok(());
+        }
+        ["icons", "library", op @ ("install" | "remove"), id] => {
+            let base = icon_libraries::dir().context("neither XDG_DATA_HOME nor HOME is set")?;
+            let lib = match icon_libraries::get(id) {
+                Ok(l) => l,
+                Err(e) => fail(json, &e.to_string()),
+            };
+            let result = if op == "install" {
+                std::fs::create_dir_all(&base)?;
+                icon_libraries::install(&duckydeck_core::TokioRunner, &base, lib)
+                    .await
+                    .map(|n| format!("{} {}: {n} icons", lib.name, lib.version))
+            } else {
+                icon_libraries::remove(&base, lib).map(|_| format!("{} removed", lib.name))
+            };
+            match result {
+                Ok(msg) if json => {
+                    println!(
+                        "{}",
+                        serde_json::json!({ "v": 1, "ok": true, "message": msg })
+                    )
+                }
+                Ok(msg) => println!("{msg}"),
+                Err(e) => fail(json, &e.to_string()),
+            }
+            return Ok(());
+        }
+        ["icons", "search", query] => {
+            let base = icon_libraries::dir().context("neither XDG_DATA_HOME nor HOME is set")?;
+            if let Some(c) = &color
+                && duckydeck_core::icons::data_url(b"", c).is_none()
+            {
+                fail(json, "--color needs #rrggbb");
+            }
+            let hits = icon_libraries::search(&base, query, SEARCH_LIMIT);
+            if json || color.is_some() {
+                let list: Vec<_> = hits
+                    .iter()
+                    .map(|h| {
+                        let svg = color.as_deref().and_then(|c| {
+                            duckydeck_core::icons::data_url(&std::fs::read(&h.path).ok()?, c)
+                        });
+                        serde_json::json!({
+                            "library": h.library,
+                            "name": h.name,
+                            "path": h.path,
+                            "svg": svg,
+                        })
+                    })
+                    .collect();
+                println!(
+                    "{}",
+                    serde_json::json!({ "v": 1, "ok": true, "icons": list })
+                );
+            } else {
+                for h in hits {
+                    println!("{}\t{}\t{}", h.library, h.name, h.path.display());
+                }
+            }
+            return Ok(());
         }
         ["icons", "remove", name] => {
             let dir = custom_icons::dir().context("neither XDG_CONFIG_HOME nor HOME is set")?;

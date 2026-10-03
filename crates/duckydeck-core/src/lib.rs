@@ -13,6 +13,7 @@ pub mod dial;
 pub mod edit;
 pub mod font;
 pub mod hypr;
+pub mod icon_libraries;
 pub mod icons;
 pub mod ipc;
 pub mod library;
