@@ -37,8 +37,6 @@ pub enum DeckEvent {
 pub struct Deck {
     pub serial: String,
     pub out: Box<dyn Surface>,
-    /// Test pattern state (0-100 per encoder); goes away with the M2 renderer.
-    pub levels: [u8; 4],
     input: Option<InputSource>,
 }
 
@@ -71,7 +69,6 @@ pub fn connect() -> Result<Deck> {
         return Ok(Deck {
             serial: "FAKE".into(),
             out: Box::new(FakeSurface::new()?),
-            levels: [50; 4],
             input: Some(InputSource::Stdin),
         });
     }
@@ -87,7 +84,6 @@ pub fn connect() -> Result<Deck> {
     Ok(Deck {
         serial,
         out: Box::new(out),
-        levels: [50; 4],
         input: Some(InputSource::Hid(input)),
     })
 }

@@ -16,6 +16,7 @@ Profil: kommentiertes Referenzbeispiel = Default-Profil [`examples/profiles/omar
 - `name`, optional `match = { class, title }` (Regex, M8), `[[pages]]` (≥ 1) mit `keys` (≤ 8) und `dials` (≤ 4)
 - Slot: `{ action, args = {…}, label, icon }`; `{}` = leer. Parameter wie `step` immer in `args`.
 - Ordner: `[folders.<name>]` mit ≤ 7 Tasten (letzte Taste = automatisches Zurück), geöffnet per `{ action = "structure.folder", args = { folder = "<name>" } }`.
+- Seiten: `{ action = "structure.page", args = { n = 2 } }` bzw. `args = { to = "next" | "prev" }`; Swipe auf dem Touchstrip wechselt ebenfalls die Seite.
 - Unbekannte Felder sind Fehler; ob eine Action-Id existiert, prüft der Katalog (M5).
 
 ## CLI

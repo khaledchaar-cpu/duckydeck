@@ -4,8 +4,8 @@ mod configwatch;
 mod device;
 mod gesture;
 mod input;
+mod screen;
 mod surface;
-mod testpattern;
 mod themewatch;
 
 use std::time::{Duration, Instant};
@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
     let runner = duckydeck_core::TokioRunner;
     let config_dir = duckydeck_core::config::dir()
         .ok_or_else(|| anyhow::anyhow!("neither XDG_CONFIG_HOME nor HOME is set"))?;
-    let mut store = duckydeck_core::config::Store::open(config_dir.clone(), &runner)?;
+    let store = duckydeck_core::config::Store::open(config_dir.clone(), &runner)?;
     log_config(&store);
     {
         let tx = tx.clone();
@@ -63,7 +63,7 @@ async fn main() -> Result<()> {
     }
 
     let font = duckydeck_core::font::system_font(&duckydeck_core::TokioRunner).await;
-    let mut painter = testpattern::Painter::new(font)?;
+    let mut painter = screen::Screen::new(font, store)?;
     let mut deck = try_connect(&mut painter, &tx);
     let mut gestures = Recognizer::default();
     loop {
@@ -94,7 +94,7 @@ async fn main() -> Result<()> {
             DeckEvent::Added => {}
             DeckEvent::BootDone => {
                 if let Some(d) = &mut deck
-                    && let Err(e) = testpattern::draw_strip(&mut painter, d)
+                    && let Err(e) = painter.draw_strip(d)
                 {
                     tracing::warn!(error = %e, "strip redraw failed");
                 }
@@ -102,14 +102,17 @@ async fn main() -> Result<()> {
             DeckEvent::ThemeChanged => {
                 painter.reload_theme();
                 if let Some(d) = &mut deck
-                    && let Err(e) = testpattern::draw(&mut painter, d)
+                    && let Err(e) = painter.draw(d)
                 {
                     tracing::warn!(error = %e, "redraw after theme change failed");
                 }
             }
             DeckEvent::ConfigChanged => {
-                if store.reload(&runner) {
-                    log_config(&store);
+                if painter.reload_config(&runner)
+                    && let Some(d) = &mut deck
+                    && let Err(e) = painter.draw(d)
+                {
+                    tracing::warn!(error = %e, "redraw after config change failed");
                 }
             }
             DeckEvent::Disconnected => {
@@ -138,10 +141,10 @@ fn log_config(store: &duckydeck_core::config::Store) {
     );
 }
 
-fn on_gesture(p: &mut testpattern::Painter, deck: &mut Option<Deck>, g: gesture::Gesture) {
+fn on_gesture(p: &mut screen::Screen, deck: &mut Option<Deck>, g: gesture::Gesture) {
     tracing::info!(gesture = ?g, "gesture");
     if let Some(d) = deck {
-        testpattern::on_gesture(p, d, g);
+        p.on_gesture(d, g);
     }
 }
 
@@ -170,15 +173,12 @@ fn spawn_hotplug(hotplug_tx: mpsc::UnboundedSender<DeckEvent>) -> Result<()> {
     Ok(())
 }
 
-fn try_connect(
-    p: &mut testpattern::Painter,
-    tx: &mpsc::UnboundedSender<DeckEvent>,
-) -> Option<Deck> {
+fn try_connect(p: &mut screen::Screen, tx: &mpsc::UnboundedSender<DeckEvent>) -> Option<Deck> {
     match device::connect() {
         Ok(mut d) => {
             tracing::info!(serial = %d.serial, "Stream Deck + connected");
-            if let Err(e) = testpattern::draw(p, &mut d) {
-                tracing::warn!(error = %e, "drawing test pattern failed");
+            if let Err(e) = p.draw(&mut d) {
+                tracing::warn!(error = %e, "initial draw failed");
             }
             if let Err(e) = d.start_input(tx.clone()) {
                 tracing::error!(error = %e, "starting input failed");
