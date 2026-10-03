@@ -2,19 +2,18 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M9 – Editor (v2): M9a–M9d fertig, nächster Schritt M9e. M8 fertig bis auf AUR (zurückgestellt, Repo bleibt vorerst privat)
+**Aktueller Milestone:** M9 – Editor (v2): M9a–M9d fertig, M9e größtenteils (Rest: Menüeintrag, Tastatur-Feinschliff). M8 fertig bis auf AUR (zurückgestellt, Repo bleibt vorerst privat)
 
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- M9d Teil 2: Multi-Schritte (aufklappbar, ↑↓✕, „+ Add step or delay“, Verzögerung) und Toggle-Zustände (Action, Label, Icon, Parameter) im Inspector; Strg+C/V kopiert Slots
-- Belegen aus der Bibliothek setzt gültige Startwerte (Multi, Toggle, Pflichtparameter ohne Default) – vorher lehnte `check` ab
-- `duckydeck apps [--json]` (XDG-.desktop), Parameter-Typ `app` → Suchfeld, Bibliotheksgruppe „Apps“ (Shell-`AppLibrary` gibt es nur für `menu`-Plugins)
-- Auswahlfelder zeigen Namen, ID als durchsuchbare Beschreibung
-- Am Gerät geprüft: Multi mit App, Toggle, App-Auswahl
+- M9e: `duckydeck edit <id> page add|remove|move`, `name`, `match`, `title`, `create <name> [<von>]`, `delete` (Standardprofil wird zurückgesetzt); `duckydeck profiles`
+- Editor: „+ Page“, „+ New profile…“ im Profil-Dropdown (Id aus Name), Inspector-Reiter „Key / Dial | Profile“ mit Name, Auto-Wechsel als App-Auswahl, Advanced (Klassen-/Titel-Regex), Seite verschieben/entfernen, Löschen mit Bestätigung
+- Apps liefern `wm_class` (`StartupWMClass`)
+- Regler `structure.page_scroll` (Drehen blättert, Druck = Seite 1, Strip „n/m“); Spec actions/config/ui aktualisiert
 
 ## Nächster Schritt
-- M9e: Profil- und Seitenverwaltung im Editor (Profil anlegen/umbenennen/löschen, Seiten hinzufügen/entfernen) – vorher `docs/spec/ui.md` M9e lesen
+- Neues Paket am Gerät prüfen (Profil anlegen/kopieren/löschen, Auto-Wechsel nach App und Titel, Pages-Regler); dann M9e-Rest: Menüeintrag „Stream Deck → Edit“, Tastatur-Feinschliff
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
@@ -30,7 +29,8 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 - Letzten Multi-Schritt löschen → `check` lehnt ab (Fehler im Editor); App-Icons auf dem Gerät fehlen noch (`generic-app`)
 - Lernmodus: jede Regler-Rastung erzeugt ein `slot_pressed` (Editor entprellt); Strip-Tippen am Gerät noch nicht gesehen
 - Dev-Test der Shell mit neuer CLI: Shell nutzt `/usr/bin/duckydeck` → lokales Paket bauen (Working Tree als `duckydeck-0.1.0.tar.gz` neben PKGBUILD, `makepkg -d -f`), Nutzer installiert per `sudo pacman -U`. Version bleibt 0.1.0 → `setup` läuft nicht automatisch neu
-- Menüeintrag „Stream Deck → Edit“ fehlt noch (M9e); externe Dateiänderung lädt den Editor noch nicht neu
+- Externe Dateiänderung lädt den Editor noch nicht neu; „Never“ im Auto-Wechsel-Dropdown (Wert "") am Gerät noch nicht geprüft
+- Seite entfernen / Profil löschen leeren den Undo-Verlauf (nicht rückgängig machbar)
 - `duckydeck … | head` → Panic „Broken pipe“ (println!), harmlos
 - Dev-Loop Editor: `setup` aus Debug-Build ändert vorhandene Paket-Links nicht → Paket bauen (Tarball ohne target/.git), Nutzer installiert; bei CLI-/Katalog-Änderung auch `systemctl --user restart duckydeck`
 - Daemon beenden mit `kill $(pgrep -x duckydeckd)` – `pkill -f` trifft auch die eigene Shell
