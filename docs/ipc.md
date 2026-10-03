@@ -34,8 +34,8 @@ Der Daemon bricht den Start ab, wenn schon ein Daemon auf dem Socket lauscht; ei
 ```
 
 `device_connected`, `device_disconnected`, `profile_changed` (Profil, Seite, Ordner oder Helligkeit). Jedes Event enthält den vollständigen Status – Clients müssen nichts zusammensetzen. Langsame Clients verlieren ältere Events (Puffer 32), das nächste Event ist trotzdem vollständig.
-Noch nicht umgesetzt: `get_config`, `list_actions`, `key_state`, `config_error`.
+Noch nicht umgesetzt: `key_state`, `config_error`; erst v2 (Editor): `get_config`, `list_actions`.
 
 ## CLI
 
-`duckydeck status | reload | profile <name> | page <n> | brightness <0-100> | subscribe | version`, jeweils mit `--json` (Antwort-Zeile unverändert). `subscribe` gibt immer JSON-Zeilen aus, die erste ist die Status-Antwort. Exit-Code 1 bei Fehlern des Daemons, 2 bei falscher Bedienung.
+`duckydeck check | export <profil>` arbeiten ohne Daemon direkt auf den Dateien. `duckydeck status | reload | profile <name> | page <n> | brightness <0-100> | subscribe | version`, jeweils mit `--json` (Antwort-Zeile unverändert). `subscribe` gibt immer JSON-Zeilen aus, die erste ist die Status-Antwort. Exit-Code 1 bei Fehlern des Daemons, 2 bei falscher Bedienung.

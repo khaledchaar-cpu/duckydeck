@@ -2,18 +2,17 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M6 – IPC & CLI (Teil 3a: `reload` fertig)
+**Aktueller Milestone:** M6 – IPC & CLI fertig → nächster: M7 Shell-Plugins
 
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
-- `duckydeck setup [--remove]` (`core::setup`): Plugin-Symlinks `duckydeck.*`, `omarchy bar put duckydeck.widget`, markierter Menüblock, Hook `font-set.d/duckydeck`
-- Daemon führt Setup einmal pro Version aus (Marker `~/.local/state/duckydeck/setup`)
 - `duckydeck reload` (IPC `reload`): Systemschrift, Theme, Config neu laden + neu zeichnen; am Gerät geprüft, auch über den Font-Hook (`omarchy font set`)
-- Am echten System geprüft: Menüeintrag „Stream Deck“ erscheint und öffnet den Editor
+- `duckydeck check` (Actions aller Profile gegen Katalog/eingebaute Actions, `core::check`), `duckydeck export <profil>`
+- `get_config`/`list_actions` auf v2 (Editor) verschoben – Entscheidung Nutzer 2026-10-03
 
 ## Nächster Schritt
-- M6 Teil 3b: `duckydeck check`, `export`, `get_config`/`list_actions`
+- M7: Bar-Widget `duckydeck.widget` (Status via `duckydeck subscribe`), dann Panel `duckydeck.panel`, Menüeintrag aufs Panel umstellen
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
@@ -31,3 +30,4 @@ Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 - Socket-Pfad (SUN_LEN): Tests mit kurzem `XDG_RUNTIME_DIR` unter `/tmp/claude-1000`
 - `duckydeck.service` fehlt noch (Packaging); Kontrasttest braucht `/usr/share/omarchy/themes`
 - Hook ruft `duckydeck` über PATH: in der Entwicklung `~/.local/bin/duckydeck` → `target/debug/duckydeck` verlinkt
+- `duckydeck check` meldet Fehler ohne Shell-Benachrichtigung; der Daemon prüft Action-Ids beim Laden noch nicht (unbekannte → Log „not implemented yet“)

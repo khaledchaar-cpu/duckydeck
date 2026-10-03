@@ -68,7 +68,7 @@ Shell ↔ Daemon **über die CLI**, nicht direkt: Das QML-Plugin startet `duckyd
 - Plugin-Pfad im QML: `Qt.resolvedUrl("datei")`; die echte CLI wird über `PATH` (`duckydeck`) gestartet.
 - `omarchy plugin enable` kennt ein neues Plugin erst nach `omarchy-shell shell rescanPlugins`.
 
-- Requests: `status`, `get_config`, `set_profile`, `set_page`, `set_brightness`, `list_actions`, `subscribe`
+- Requests: `status`, `set_profile`, `set_page`, `set_brightness`, `reload`, `subscribe` (v2 für den Editor: `get_config`, `list_actions` – Format wird dann festgelegt)
 - Events: `device_connected`, `device_disconnected`, `profile_changed`, `key_state`, `config_error`
 
 
