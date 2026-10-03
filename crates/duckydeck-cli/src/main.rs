@@ -18,7 +18,8 @@ commands:
   page <n>              open page n (1-based) of the active profile
   brightness <0-100>    set the brightness (until the next config change)
   check                 validate config and profiles (no daemon needed)
-  export <profile>      print a profile as TOML (also the built-in one)
+  export <profile>      print a profile as TOML (also the built-in one); with
+                        --json: parsed, 8 keys and 4 dials per page (empty = null)
   edit <profile> set <page|folder> key|dial <n> <json>
   edit <profile> clear <page|folder> key|dial <n>
   edit <profile> swap <page|folder> key|dial <n> <page|folder> <n>
@@ -50,6 +51,7 @@ async fn main() -> Result<()> {
     }
     match args.iter().map(String::as_str).collect::<Vec<_>>()[..] {
         ["check"] => return check(),
+        ["export", id] if json => return export_json(id),
         ["export", id] => return export(id),
         ["edit", ref rest @ ..] => {
             if let Err(e) = edit(rest) {
@@ -238,6 +240,41 @@ fn edit(args: &[&str]) -> Result<()> {
         _ => return Err(usage()),
     }
     Ok(())
+}
+
+fn export_json(id: &str) -> Result<()> {
+    let dir = config::dir().context("neither XDG_CONFIG_HOME nor HOME is set")?;
+    let loaded = config::Loaded::load(&dir)?;
+    let p = loaded
+        .profiles
+        .get(id)
+        .with_context(|| format!("unknown profile {id:?}"))?;
+    println!("{}", serde_json::to_string(&profile_json(p))?);
+    Ok(())
+}
+
+fn profile_json(p: &config::Profile) -> serde_json::Value {
+    use serde_json::{Value, json};
+    let slots = |s: &[config::Slot], n: usize| -> Value {
+        (0..n)
+            .map(|i| match s.get(i).and_then(|s| s.0.as_ref()) {
+                Some(b) => json!({
+                    "action": b.action,
+                    "args": b.args,
+                    "label": b.label,
+                    "icon": b.icon,
+                }),
+                None => Value::Null,
+            })
+            .collect()
+    };
+    let page = |pg: &config::Page| json!({ "keys": slots(&pg.keys, config::KEYS), "dials": slots(&pg.dials, config::DIALS) });
+    json!({
+        "name": p.name,
+        "match": p.matcher.as_ref().map(|m| json!({ "class": m.class, "title": m.title })),
+        "pages": p.pages.iter().map(page).collect::<Vec<_>>(),
+        "folders": p.folders.iter().map(|(k, v)| (k.clone(), page(v))).collect::<serde_json::Map<_, _>>(),
+    })
 }
 
 /// The profile file as written, so comments survive; the built-in default

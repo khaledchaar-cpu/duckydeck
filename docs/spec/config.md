@@ -29,7 +29,7 @@ Profil: kommentiertes Referenzbeispiel = Default-Profil [`examples/profiles/omar
 ```
 duckydeck status | reload | check
 duckydeck profile <name> | page <n> | brightness <0-100>
-duckydeck export <profil> > profil.toml
+duckydeck export <profil> > profil.toml       # --json: geparst, je Seite 8 keys/4 dials, leer = null
 duckydeck setup [--remove]
 duckydeck actions | preview <profil> [<seite>|<ordner>]     # Editor (v2), über den Daemon
 duckydeck edit <profil> set <seite|ordner> key|dial <n> '<json>'

@@ -41,4 +41,4 @@ Noch nicht umgesetzt: `key_state`, `config_error`; erst v2 (Editor): `get_config
 
 ## CLI
 
-`duckydeck check | export <profil>` arbeiten ohne Daemon direkt auf den Dateien. `duckydeck status | actions | learn | preview <profil> [<seite>|<ordner>] | reload | profile <name> | page <n> | brightness <0-100> | subscribe | version`, jeweils mit `--json` (Antwort-Zeile unverändert). `subscribe` gibt immer JSON-Zeilen aus, die erste ist die Status-Antwort. Exit-Code 1 bei Fehlern des Daemons, 2 bei falscher Bedienung.
+`duckydeck check | export <profil> [--json] | edit …` arbeiten ohne Daemon direkt auf den Dateien. `duckydeck status | actions | learn | preview <profil> [<seite>|<ordner>] | reload | profile <name> | page <n> | brightness <0-100> | subscribe | version`, jeweils mit `--json` (Antwort-Zeile unverändert). `subscribe` gibt immer JSON-Zeilen aus, die erste ist die Status-Antwort. Exit-Code 1 bei Fehlern des Daemons, 2 bei falscher Bedienung.
