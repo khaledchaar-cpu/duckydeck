@@ -2,8 +2,9 @@
 //! Unix socket (protocol: `docs/ipc.md`).
 
 use anyhow::{Context, Result, bail};
+use duckydeck_core::catalog::Catalog;
 use duckydeck_core::ipc::{self, Command, Request, Response, Status};
-use duckydeck_core::setup;
+use duckydeck_core::{check, config, setup};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::net::UnixStream;
 use tokio::net::unix::OwnedReadHalf;
@@ -16,6 +17,8 @@ commands:
   profile <name>        switch to a profile (until the next config change)
   page <n>              open page n (1-based) of the active profile
   brightness <0-100>    set the brightness (until the next config change)
+  check                 validate config and profiles (no daemon needed)
+  export <profile>      print a profile as TOML (also the built-in one)
   reload                re-read system font, theme and config
   subscribe             print status events as JSON lines until killed
   setup [--remove]      link shell plugins, add menu entry and font hook (or undo)
@@ -34,6 +37,15 @@ async fn main() -> Result<()> {
             }
             _ => args.push(a),
         }
+    }
+    match args.iter().map(String::as_str).collect::<Vec<_>>()[..] {
+        ["check"] => return check(),
+        ["export", id] => return export(id),
+        ["check", ..] | ["export", ..] => {
+            eprintln!("duckydeck: wrong arguments for {}\n\n{USAGE}", args[0]);
+            std::process::exit(2);
+        }
+        _ => {}
     }
     if args.first().is_some_and(|a| a == "setup") {
         let remove = match &args[1..] {
@@ -101,6 +113,47 @@ fn parse(args: &[String]) -> Result<Option<Command>> {
         other => bail!("unknown command or arguments: {other}"),
     };
     Ok(Some(cmd))
+}
+
+fn check() -> Result<()> {
+    let dir = config::dir().context("neither XDG_CONFIG_HOME nor HOME is set")?;
+    let loaded = match config::Loaded::load(&dir) {
+        Ok(l) => l,
+        Err(e) => {
+            eprintln!("{e}");
+            std::process::exit(1);
+        }
+    };
+    let problems = check::problems(&loaded, &Catalog::builtin()?);
+    if problems.is_empty() {
+        println!(
+            "config OK: {} (profiles: {})",
+            dir.display(),
+            loaded.profiles.len()
+        );
+        return Ok(());
+    }
+    for p in &problems {
+        eprintln!("{p}");
+    }
+    std::process::exit(1);
+}
+
+/// The profile file as written, so comments survive; the built-in default
+/// profile comes from the binary unless a user file overrides it.
+fn export(id: &str) -> Result<()> {
+    let dir = config::dir().context("neither XDG_CONFIG_HOME nor HOME is set")?;
+    let path = dir.join("profiles").join(format!("{id}.toml"));
+    let src = match std::fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound && id == config::DEFAULT_PROFILE_ID => {
+            config::DEFAULT_PROFILE.to_owned()
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => bail!("unknown profile {id:?}"),
+        Err(e) => return Err(e).with_context(|| format!("read {}", path.display())),
+    };
+    print!("{src}");
+    Ok(())
 }
 
 async fn setup(remove: bool) -> Result<()> {
