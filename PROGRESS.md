@@ -7,13 +7,12 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- v0.1.0 als GitHub-Release (Workflow `release.yml`), Install per curl + `pacman -U` geprüft
-- Omarchy-Menü: „Stream Deck“ als Submenü mit „Panel“ und „Edit“; `duckydeck edit` ohne Argumente öffnet den Editor
-- Editor-Tastatur: Enter → Label-Feld, Umschalt+Tab rückwärts, Strg+P Slot/Profil-Inspector, Esc in allen Feldern (alles am Gerät geprüft, ebenso Strip-Tippen/-Wischen im Editor und „Never“)
-- App-Tasten zeigen den App-Namen aus dem Desktop-Eintrag statt „App“ (am Gerät geprüft)
+- Neues Standardprofil: 3 Seiten (Alltag / Medien+Capture / Fenster+Fokus), Ordner „Look“ und „Power“, rechter Regler blättert Seiten
+- Alte Nutzerprofile gelöscht (omarchy, second-profile, test); Paket lokal gebaut und installiert, Gerät zeigt 1/3
+- `*.pkg.tar.zst` in `.gitignore`
 
 ## Nächster Schritt
-- Keiner geplant; Fehler aus der Nutzung beheben
+- Standardprofil am Gerät durchklicken (v. a. Ordner, Medientasten, Aufnahme); danach Release 0.1.1 erwägen
 
 ## Offene Probleme / Notizen
 - Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)
