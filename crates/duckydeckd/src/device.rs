@@ -30,6 +30,8 @@ pub enum DeckEvent {
     /// The input thread lost the device.
     Disconnected,
     Input(Input),
+    /// Volume, mic or brightness changed.
+    Levels(duckydeck_core::dial::Levels),
 }
 
 /// Handle used for output (images, brightness). Input runs on a separate

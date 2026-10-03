@@ -4,6 +4,7 @@ mod configwatch;
 mod device;
 mod gesture;
 mod input;
+mod levels;
 mod screen;
 mod surface;
 mod themewatch;
@@ -65,7 +66,10 @@ async fn main() -> Result<()> {
     let font = duckydeck_core::font::system_font(&duckydeck_core::TokioRunner).await;
     let catalog = duckydeck_core::catalog::Catalog::builtin()?;
     let unavailable = unavailable_actions(&catalog, &runner).await;
-    let mut painter = screen::Screen::new(font, store, catalog, unavailable)?;
+    let (jobs_tx, jobs_rx) = mpsc::unbounded_channel();
+    tokio::spawn(levels::worker(runner.clone(), jobs_rx, tx.clone()));
+    tokio::spawn(levels::watch_audio(jobs_tx.clone()));
+    let mut painter = screen::Screen::new(font, store, catalog, unavailable, jobs_tx)?;
     let mut deck = try_connect(&mut painter, &tx);
     let mut gestures = Recognizer::default();
     loop {
@@ -115,6 +119,14 @@ async fn main() -> Result<()> {
                     && let Err(e) = painter.draw(d)
                 {
                     tracing::warn!(error = %e, "redraw after config change failed");
+                }
+            }
+            DeckEvent::Levels(l) => {
+                if painter.set_levels(l)
+                    && let Some(d) = &mut deck
+                    && let Err(e) = painter.draw_strip(d)
+                {
+                    tracing::warn!(error = %e, "strip redraw failed");
                 }
             }
             DeckEvent::Disconnected => {

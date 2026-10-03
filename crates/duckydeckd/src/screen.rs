@@ -1,23 +1,26 @@
 //! Draws the active profile and turns gestures into navigation.
 //!
 //! Label and icon come from the binding, else the action catalog, else the
-//! action id. Catalog actions run detached; Rust actions (M5a+) are only
-//! logged for now.
+//! action id. Catalog actions run detached; dial actions go to the
+//! [`levels`](crate::levels) worker.
 
 use std::collections::BTreeSet;
 
 use anyhow::{Context, Result};
 use duckydeck_core::catalog::{Catalog, Confirm};
 use duckydeck_core::config::{Binding, FOLDER_ACTION, Store};
+use duckydeck_core::dial::{Dial, Levels};
 use duckydeck_core::icons;
 use duckydeck_core::nav::{BACK_ACTION, Nav, PAGE_ACTION, Press};
 use duckydeck_core::render::{KeyView, Renderer, SegmentView};
 use duckydeck_core::theme::{Role, Theme};
 use duckydeck_core::{CommandRunner, TokioRunner};
 use image::RgbImage;
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::device::Deck;
 use crate::gesture::{Control, Gesture};
+use crate::levels::Job;
 use crate::surface::{KEY_SIZE, STRIP_H};
 
 const FALLBACK_THEME: &str =
@@ -33,6 +36,8 @@ pub struct Screen {
     catalog: Catalog,
     /// Catalog ids whose omarchy route is missing; shown with a warning icon.
     unavailable: BTreeSet<String>,
+    jobs: UnboundedSender<Job>,
+    levels: Levels,
 }
 
 impl Screen {
@@ -41,6 +46,7 @@ impl Screen {
         store: Store,
         catalog: Catalog,
         unavailable: BTreeSet<String>,
+        jobs: UnboundedSender<Job>,
     ) -> Result<Self> {
         let theme = match load_theme() {
             Some(t) => t,
@@ -54,6 +60,8 @@ impl Screen {
             nav,
             catalog,
             unavailable,
+            jobs,
+            levels: Levels::default(),
         })
     }
 
@@ -93,6 +101,17 @@ impl Screen {
         deck.out.flush()
     }
 
+    /// Returns whether a shown dial changed.
+    pub fn set_levels(&mut self, levels: Levels) -> bool {
+        let old = std::mem::replace(&mut self.levels, levels);
+        self.nav
+            .dials(&self.store.current)
+            .iter()
+            .flatten()
+            .filter_map(Dial::from_binding)
+            .any(|d| old.of(d) != levels.of(d))
+    }
+
     pub fn on_gesture(&mut self, deck: &mut Deck, g: Gesture) {
         let res = match g {
             Gesture::Down(Control::Key(i)) => self.key(deck, i, true),
@@ -107,6 +126,14 @@ impl Screen {
                 let press = self.nav.press_key(&self.store.current, usize::from(i));
                 self.handle(deck, press, true)
             }
+            Gesture::Tap(Control::Encoder(i)) => {
+                self.dial_job(i, Job::Press);
+                return;
+            }
+            Gesture::Twist { encoder, delta, .. } => {
+                self.dial_job(encoder, |d| Job::Twist(d, i32::from(delta)));
+                return;
+            }
             Gesture::StripSwipe((x0, _), (x1, _)) if x0.abs_diff(x1) >= SWIPE_MIN => {
                 let press = self
                     .nav
@@ -117,6 +144,21 @@ impl Screen {
         };
         if let Err(e) = res.and_then(|()| deck.out.flush()) {
             tracing::warn!(error = %e, "deck update failed");
+        }
+    }
+
+    fn dial(&self, seg: u8) -> Option<Dial> {
+        self.nav.dials(&self.store.current)[usize::from(seg % 4)]
+            .as_ref()
+            .and_then(Dial::from_binding)
+    }
+
+    fn dial_job(&self, seg: u8, job: impl FnOnce(Dial) -> Job) {
+        match self.dial(seg) {
+            Some(d) => {
+                let _ = self.jobs.send(job(d));
+            }
+            None => tracing::debug!(seg, "no dial action on this encoder"),
         }
     }
 
@@ -176,14 +218,31 @@ impl Screen {
         deck.out.set_key(i, &img)
     }
 
-    /// Strip segment above encoder `seg`: icon and label of its dial.
+    /// Strip segment above encoder `seg`: icon and label of its dial, or
+    /// its level once known.
     fn segment(&mut self, deck: &mut Deck, seg: u8, pressed: bool) -> Result<()> {
         let binding = self.nav.dials(&self.store.current)[usize::from(seg % 4)].take();
-        let label = binding.as_ref().map(|b| self.label(b));
+        let level = binding
+            .as_ref()
+            .and_then(Dial::from_binding)
+            .map(|d| (d, self.levels.of(d)));
+        let text = match level {
+            Some((_, (_, true))) => Some("Muted".to_owned()),
+            Some((_, (Some(pct), false))) => Some(format!("{pct}%")),
+            _ => binding.as_ref().map(|b| self.label(b)),
+        };
+        let icon = match (&binding, level) {
+            (Some(b), Some((d, (pct, muted)))) if b.icon.is_none() => {
+                icons::get(dial_icon(d, pct, muted))
+            }
+            (b, _) => b.as_ref().and_then(|b| self.icon(b)),
+        };
         let view = SegmentView {
-            icon: binding.as_ref().and_then(|b| self.icon(b)),
-            text: label.as_deref(),
-            level: None,
+            icon,
+            text: text.as_deref(),
+            level: level
+                .and_then(|(_, (pct, _))| pct)
+                .map(|p| f32::from(p) / 100.0),
             fg: Role::Accent,
             bg: if pressed {
                 Role::LighterBackground
@@ -246,6 +305,19 @@ impl Screen {
             a => a.rsplit('.').next().unwrap_or(a).replace('_', "-"),
         };
         icons::get(&name)
+    }
+}
+
+fn dial_icon(d: Dial, pct: Option<u8>, muted: bool) -> &'static str {
+    let low = pct.is_some_and(|p| p < 34);
+    match d {
+        Dial::Volume { .. } if muted => "volume-off",
+        Dial::Volume { .. } if low => "volume-low",
+        Dial::Volume { .. } => "volume",
+        Dial::Mic if muted => "mic-off",
+        Dial::Mic => "mic",
+        Dial::Brightness { .. } if low => "brightness-low",
+        Dial::Brightness { .. } => "brightness",
     }
 }
 

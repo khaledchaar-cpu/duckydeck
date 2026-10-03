@@ -3,6 +3,7 @@
 pub mod catalog;
 pub mod command;
 pub mod config;
+pub mod dial;
 pub mod font;
 pub mod icons;
 pub mod nav;
