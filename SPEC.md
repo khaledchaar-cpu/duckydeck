@@ -1,6 +1,6 @@
 # SPEC – DuckyDeck
 
-Version 0.3 · Stand: 2026-10-03
+Version 0.3 · Stand: 2026-10-03 · M0–M9 fertig, v0.1.0 veröffentlicht
 
 Diese Datei ist der **Einstieg**. Details stehen in Themen-Dateien – nur die lesen, die für die aktuelle Aufgabe nötig ist.
 
@@ -11,6 +11,7 @@ Diese Datei ist der **Einstieg**. Details stehen in Themen-Dateien – nur die l
 | Icons, Tastenlayout, Touchstrip, weitere Assets | [docs/spec/assets.md](docs/spec/assets.md) |
 | Shell-Plugins (Bar-Widget, Panel), Editor (v2) | [docs/spec/ui.md](docs/spec/ui.md) |
 | Config-Format, CLI | [docs/spec/config.md](docs/spec/config.md) |
+| IPC-Protokoll Daemon ↔ CLI | [docs/ipc.md](docs/ipc.md) |
 | Verwendete Omarchy-Routen und Shell-APIs (generiert) | [docs/omarchy-reference.md](docs/omarchy-reference.md) |
 
 ## Vision
@@ -24,12 +25,12 @@ DuckyDeck macht das Elgato Stream Deck + (8 LCD-Tasten, 4 Drehregler, Touchstrip
 
 ## Umfang v1 / v2
 
-| v1 | v2 (später) |
+| v1 | v2 |
 |---|---|
-| Rust-Daemon, Hotplug, Rendering, Theme-Sync | Grafischer Editor mit Drag & Drop (Shell-Overlay) |
-| Alle Action-Kategorien (System, Capture, Medien, Launcher, Window Management, Struktur) | Lautstärke pro App (PipeWire-Streams) |
-| Layouts als TOML mit Live-Reload + Beispielprofile | Zweite UI-Sprache (Deutsch) |
-| Bar-Widget + Panel (Status, Profil/Seite, Helligkeit) | Eigene Script-Actions mit JSON-Protokoll |
+| Rust-Daemon, Hotplug, Rendering, Theme-Sync | ✅ Grafischer Editor mit Drag & Drop (Shell-Overlay, M9) |
+| Alle Action-Kategorien (System, Capture, Medien, Launcher, Window Management, Struktur) | offen: Lautstärke pro App (PipeWire-Streams) |
+| Layouts als TOML mit Live-Reload + Beispielprofile | offen: Zweite UI-Sprache (Deutsch) |
+| Bar-Widget + Panel (Status, Profil/Seite, Helligkeit) | offen: Eigene Script-Actions mit JSON-Protokoll |
 | Auto-Profilwechsel, Multi-/Toggle-Actions, CLI | |
 | UI-Texte nur Englisch, aber zentral abgelegt | |
 

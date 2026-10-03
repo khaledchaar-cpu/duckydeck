@@ -42,7 +42,7 @@ omarchy restart shell                            # Plugin-Änderungen laden (Hot
 - Code, Kommentare, Commits auf Englisch.
 
 ## Token-sparend arbeiten
-- Ein Milestone-Schritt pro Sitzung, am Ende Skill **`session-wrapup`** (danach ist `/clear` sicher).
+- Ein Fix oder Feature pro Sitzung, am Ende Skill **`session-wrapup`** (danach ist `/clear` sicher).
 - Omarchy zuerst in `docs/omarchy-reference.md` nachschlagen, sonst gezielt `grep` / `omarchy <group> --help` – nie ganze Ordner oder `omarchy commands --json` komplett ausgeben.
 - Icons aus Tabler über `assets/icons.toml` + `scripts/fetch-icons.sh`, nicht von Hand zeichnen.
 - Bilder: nur das Fake-Device-Gesamtbild ansehen. Lange Ausgaben mit `tail`/`grep` filtern.
@@ -52,6 +52,6 @@ omarchy restart shell                            # Plugin-Änderungen laden (Hot
 - Vor größeren Änderungen kurz den Plan nennen; kleine Fixes direkt umsetzen.
 - Klein und oft committen (nach jedem grünen `scripts/check.sh` mit Zwischenstand). Läuft ein Ansatz fest: lieber per `git` zurückrollen und neu ansetzen als lange debuggen.
 - Ein Stream Deck + ist angeschlossen: Hardware-Verhalten am echten Gerät prüfen, der Fake ersetzt das nicht.
-- Milestones in der Reihenfolge aus SPEC.md; v2-Features nicht vorziehen.
+- Alle Milestones sind fertig; neue v2-Features (offene Punkte in SPEC.md) erst nach Absprache beginnen.
 - Shell-APIs und `omarchy`-Routen vor Nutzung verifizieren, nicht raten.
 - Widerspricht eine Entscheidung der Spezifikation: nachfragen, danach die betroffene `docs/spec/*.md` aktualisieren.

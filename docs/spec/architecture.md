@@ -58,7 +58,7 @@ Begründung: Die Shell liefert UI, Theme, OSD und Benachrichtigungen; der Daemon
 
 Daemon ↔ CLI: JSON-Lines über Unix-Socket, versioniert mit `"v": 1`, Schema in [`docs/ipc.md`](../ipc.md).
 
-Shell ↔ Daemon **über die CLI**, nicht direkt: Das QML-Plugin startet `duckydeck subscribe` als Quickshell-`Process` und liest Events als JSON-Zeilen von stdout; Befehle laufen als `duckydeck <cmd> --json`. Vorteile: kein Socket-Code in QML, die CLI wird automatisch mitgetestet, Protokolländerungen betreffen nur Rust. Spike M0.5 (2026-10-03, `shell-plugins/spike/`) hat das bestätigt:
+Shell ↔ Daemon **über die CLI**, nicht direkt: Das QML-Plugin startet `duckydeck subscribe` als Quickshell-`Process` und liest Events als JSON-Zeilen von stdout; Befehle laufen als `duckydeck <cmd> --json`. Vorteile: kein Socket-Code in QML, die CLI wird automatisch mitgetestet, Protokolländerungen betreffen nur Rust. Spike M0.5 (2026-10-03, Code inzwischen entfernt) hat das bestätigt:
 
 - Plugin vom Typ `service` mit `keepLoaded: true`, Entry `Service.qml` (Root-`Item` mit `property var shell`).
 - `Process { stdout: SplitParser { onRead: (line) => JSON.parse(line) } }` liefert jede Zeile sofort (keine Pufferung bei `printf` + Zeilenende); ungültige Zeilen per `try/catch` verwerfen.
