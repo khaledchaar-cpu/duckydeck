@@ -91,9 +91,12 @@ impl Context {
         self.manual = profile.to_owned();
     }
 
-    /// The window got focus; returns the profile it wants.
+    /// The window got focus; returns the profile it wants. No window (a
+    /// layer such as the menu, an empty workspace) keeps the last one.
     pub fn focus(&mut self, class: &str, title: &str) -> &str {
-        self.window = (class.to_owned(), title.to_owned());
+        if !class.is_empty() || !title.is_empty() {
+            self.window = (class.to_owned(), title.to_owned());
+        }
         self.wanted()
     }
 
@@ -145,6 +148,9 @@ mod tests {
         c.set_manual("video");
         assert_eq!(c.wanted(), "video");
         assert_eq!(c.focus("kitty", ""), "term");
+        assert_eq!(c.focus("code", ""), "video");
+        assert_eq!(c.focus("kitty", ""), "term");
+        assert_eq!(c.focus("", ""), "term");
         assert_eq!(c.focus("code", ""), "video");
         c.reload(&l, true);
         assert_eq!(c.wanted(), "omarchy");

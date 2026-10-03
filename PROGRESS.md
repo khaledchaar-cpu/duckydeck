@@ -21,7 +21,6 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 ## Offene Probleme / Notizen
 - Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)
 - Long-Press nie wirklich ausgelöst; Multi-Monitor-Actions nur mit DP-1 geprüft; Bar-Tooltip noch nicht angesehen
-- Leere Fenster (Menü offen, leerer Workspace) fallen aufs manuelle Profil zurück
 - Profil-Dropdown zeigte einmal alten Wert nach Laufzeit-Profilwechsel; nicht reproduzierbar
 - Menüeintrag nur bei neuer Paketversion aktualisiert
 - Nachtlicht-Status ohne Event; Hyprland-Zugriff nicht hinter Trait
