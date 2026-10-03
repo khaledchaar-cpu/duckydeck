@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "duckydeck.editor",
   "name": "DuckyDeck Editor",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "DuckyDeck",
   "license": "MIT",
   "description": "Edit Stream Deck + profiles with a live preview of the device.",
