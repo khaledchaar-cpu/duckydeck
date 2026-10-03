@@ -1,12 +1,12 @@
 //! Temporary demo screen until profiles exist (M4): keys are drawn by the
 //! real renderer with theme colors; pressed keys switch to the lighter
-//! background, long-pressed ones turn red. The strip is still a plain level
-//! bar per encoder until the strip renderer lands.
+//! background, long-pressed ones turn red. Strip segments show a fake level
+//! per encoder (twist to change it).
 
 use anyhow::{Context, Result};
-use duckydeck_core::render::{KeyView, Renderer};
+use duckydeck_core::render::{KeyView, Renderer, SegmentView};
 use duckydeck_core::theme::{Role, Theme};
-use image::{Rgb, RgbImage};
+use image::RgbImage;
 
 use crate::device::Deck;
 use crate::gesture::{Control, Gesture};
@@ -71,9 +71,28 @@ impl Painter {
         deck.out.set_key(i, &img)
     }
 
-    fn rgb(&self, role: Role) -> Rgb<u8> {
-        let c = self.theme.get(role);
-        Rgb([c.0, c.1, c.2])
+    /// Strip segment above encoder `seg`: icon, level in percent, bar.
+    fn segment(&mut self, deck: &mut Deck, seg: u8, state: KeyState) -> Result<()> {
+        let level = deck.levels.get(usize::from(seg)).copied().unwrap_or(50);
+        let text = format!("{level}%");
+        let view = SegmentView {
+            icon: Some(DEMO_ICON),
+            text: Some(&text),
+            level: Some(f32::from(level) / 100.0),
+            fg: match state {
+                KeyState::Long => Role::Red,
+                _ => Role::Accent,
+            },
+            bg: match state {
+                KeyState::Up => Role::Background,
+                _ => Role::LighterBackground,
+            },
+        };
+        let img = self.renderer.segment(&self.theme, &view)?;
+        let img = RgbImage::from_raw(img.width, img.height, img.data)
+            .context("renderer returned a malformed image")?;
+        debug_assert_eq!(img.height(), STRIP_H);
+        deck.out.set_strip(u16::from(seg) * 200, &img)
     }
 }
 
@@ -105,31 +124,16 @@ pub fn on_gesture(p: &mut Painter, deck: &mut Deck, g: Gesture) {
             *level = level
                 .saturating_add_signed(delta.saturating_mul(5))
                 .min(100);
-            let level = *level;
-            draw_segment(p, deck, encoder, level, None)
+            p.segment(deck, encoder, KeyState::Up)
         }
-        Gesture::Down(Control::Encoder(i)) => {
-            draw_segment(p, deck, i, 0, Some(p.rgb(Role::Foreground)))
-        }
-        Gesture::LongPress(Control::Encoder(i)) => {
-            draw_segment(p, deck, i, 0, Some(p.rgb(Role::Muted)))
-        }
-        Gesture::Up(Control::Encoder(i)) => {
-            let level = deck.levels.get(usize::from(i)).copied().unwrap_or(50);
-            draw_segment(p, deck, i, level, None)
-        }
-        // Strip: touched segment turns white (tap) or gray (long press);
-        // a swipe fills the whole strip, blue to the left, orange to the right.
-        Gesture::StripTap(x, _) => {
-            draw_segment(p, deck, segment(x), 0, Some(p.rgb(Role::Foreground)))
-        }
-        Gesture::StripLongPress(x, _) => {
-            draw_segment(p, deck, segment(x), 0, Some(p.rgb(Role::Muted)))
-        }
-        Gesture::StripSwipe((x0, _), (x1, _)) => {
-            let c = p.rgb(if x1 < x0 { Role::Accent } else { Role::Red });
-            (0..4).try_for_each(|seg| draw_segment(p, deck, seg, 0, Some(c)))
-        }
+        Gesture::Down(Control::Encoder(i)) => p.segment(deck, i, KeyState::Down),
+        Gesture::LongPress(Control::Encoder(i)) => p.segment(deck, i, KeyState::Long),
+        Gesture::Up(Control::Encoder(i)) => p.segment(deck, i, KeyState::Up),
+        // Strip: touched segment lights up (tap) or turns red (long press);
+        // a swipe highlights all segments.
+        Gesture::StripTap(x, _) => p.segment(deck, segment(x), KeyState::Down),
+        Gesture::StripLongPress(x, _) => p.segment(deck, segment(x), KeyState::Long),
+        Gesture::StripSwipe(..) => (0..4).try_for_each(|seg| p.segment(deck, seg, KeyState::Down)),
         _ => return,
     };
     if let Err(e) = res.and_then(|()| deck.out.flush()) {
@@ -141,28 +145,6 @@ fn segment(x: u16) -> u8 {
     u8::try_from((x / 200).min(3)).unwrap_or(3)
 }
 
-pub fn draw_strip(p: &Painter, deck: &mut Deck) -> Result<()> {
-    for seg in 0..4u8 {
-        draw_segment(p, deck, seg, 50, None)?;
-    }
-    Ok(())
-}
-
-/// One strip segment above an encoder: colored bar showing `level` (0-100),
-/// or filled with `solid` while the encoder is held.
-fn draw_segment(
-    p: &Painter,
-    deck: &mut Deck,
-    seg: u8,
-    level: u8,
-    solid: Option<Rgb<u8>>,
-) -> Result<()> {
-    let fill = u32::from(level) * 2;
-    let (bar, bg) = (p.rgb(Role::Accent), p.rgb(Role::LighterBackground));
-    let img = RgbImage::from_fn(200, STRIP_H, |x, _| match solid {
-        Some(c) => c,
-        None if x < fill => bar,
-        None => bg,
-    });
-    deck.out.set_strip(u16::from(seg) * 200, &img)
+pub fn draw_strip(p: &mut Painter, deck: &mut Deck) -> Result<()> {
+    (0..4u8).try_for_each(|seg| p.segment(deck, seg, KeyState::Up))
 }

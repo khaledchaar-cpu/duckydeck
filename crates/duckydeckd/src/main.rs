@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
             DeckEvent::Added => {}
             DeckEvent::BootDone => {
                 if let Some(d) = &mut deck
-                    && let Err(e) = testpattern::draw_strip(&painter, d)
+                    && let Err(e) = testpattern::draw_strip(&mut painter, d)
                 {
                     tracing::warn!(error = %e, "strip redraw failed");
                 }

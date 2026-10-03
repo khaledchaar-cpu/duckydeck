@@ -1,5 +1,5 @@
-//! Key renderer: monochrome SVG icon tinted with a theme token, optional
-//! one-line label below, on a theme background. Output is raw RGB888.
+//! Key and strip renderer: monochrome SVG icons tinted with a theme token,
+//! one-line text, level bars, on a theme background. Output is raw RGB888.
 
 use cosmic_text::{
     Align, Attrs, Buffer, Ellipsize, EllipsizeHeightLimit, Family, FontSystem, Metrics, Shaping,
@@ -8,7 +8,7 @@ use cosmic_text::{
 use resvg::tiny_skia::{self, Paint, Pixmap, Rect, Transform};
 use resvg::usvg;
 
-use crate::theme::{MIN_CONTRAST, Role, Theme};
+use crate::theme::{Color, MIN_CONTRAST, Role, Theme};
 
 pub const KEY_SIZE: u32 = 120;
 
@@ -18,6 +18,16 @@ const LABEL_PX: f32 = 13.0;
 const LABEL_PAD: f32 = 6.0;
 /// Icon area top edge when a label is shown; label sits below it.
 const ICON_TOP_WITH_LABEL: f32 = 18.0;
+
+/// One touchstrip segment (the strip is 800×100, one segment per encoder).
+pub const SEGMENT_W: u32 = 200;
+pub const SEGMENT_H: u32 = 100;
+const SEG_PAD: f32 = 16.0;
+const SEG_ICON: f32 = 36.0;
+const SEG_ICON_TOP: f32 = 16.0;
+const SEG_TEXT_PX: f32 = 22.0;
+const SEG_BAR_TOP: f32 = 68.0;
+const SEG_BAR_H: f32 = 10.0;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RenderError {
@@ -42,6 +52,31 @@ impl Default for KeyView<'_> {
         Self {
             icon: None,
             label: None,
+            fg: Role::Foreground,
+            bg: Role::Background,
+        }
+    }
+}
+
+/// What one strip segment shows: icon top left, text top right, level bar
+/// below (track in `muted`, fill in `fg`).
+#[derive(Debug, Clone)]
+pub struct SegmentView<'a> {
+    /// SVG using `currentColor`.
+    pub icon: Option<&'a [u8]>,
+    pub text: Option<&'a str>,
+    /// 0.0–1.0, clamped; `None` hides the bar.
+    pub level: Option<f32>,
+    pub fg: Role,
+    pub bg: Role,
+}
+
+impl Default for SegmentView<'_> {
+    fn default() -> Self {
+        Self {
+            icon: None,
+            text: None,
+            level: None,
             fg: Role::Foreground,
             bg: Role::Background,
         }
@@ -93,8 +128,7 @@ impl Renderer {
     pub fn key(&mut self, theme: &Theme, view: &KeyView) -> Result<RgbImage, RenderError> {
         let bg = theme.get(view.bg);
         let fg = theme.get(view.fg).readable_on(bg, MIN_CONTRAST);
-        let mut pm = Pixmap::new(KEY_SIZE, KEY_SIZE).ok_or(RenderError::Pixmap)?;
-        pm.fill(tiny_skia::Color::from_rgba8(bg.0, bg.1, bg.2, 255));
+        let mut pm = canvas(KEY_SIZE, KEY_SIZE, bg)?;
 
         let label = view.label.filter(|l| !l.is_empty());
         if let Some(svg) = view.icon {
@@ -102,24 +136,61 @@ impl Renderer {
                 Some(_) => (ICON_WITH_LABEL, ICON_TOP_WITH_LABEL),
                 None => (ICON_ALONE, (KEY_SIZE as f32 - ICON_ALONE) / 2.0),
             };
-            draw_svg(&mut pm, svg, &fg.hex(), size, top)?;
+            let left = (KEY_SIZE as f32 - size) / 2.0;
+            draw_svg(&mut pm, svg, &fg.hex(), size, left, top)?;
         }
         if let Some(text) = label {
-            self.draw_label(&mut pm, text, fg);
+            let top = ICON_TOP_WITH_LABEL + ICON_WITH_LABEL + 10.0;
+            let width = KEY_SIZE as f32 - 2.0 * LABEL_PAD;
+            let text_box = TextBox {
+                left: LABEL_PAD,
+                top,
+                width,
+                px: LABEL_PX,
+                align: Align::Center,
+            };
+            self.draw_text(&mut pm, text, &text_box, fg);
         }
         Ok(to_rgb(&pm))
     }
 
-    fn draw_label(&mut self, pm: &mut Pixmap, text: &str, fg: crate::theme::Color) {
-        let line_h = LABEL_PX * 1.25;
-        let width = KEY_SIZE as f32 - 2.0 * LABEL_PAD;
-        let top = ICON_TOP_WITH_LABEL + ICON_WITH_LABEL + 10.0;
-        let mut buf = Buffer::new(&mut self.fonts, Metrics::new(LABEL_PX, line_h));
+    pub fn segment(&mut self, theme: &Theme, view: &SegmentView) -> Result<RgbImage, RenderError> {
+        let bg = theme.get(view.bg);
+        let fg = theme.get(view.fg).readable_on(bg, MIN_CONTRAST);
+        let mut pm = canvas(SEGMENT_W, SEGMENT_H, bg)?;
+        let inner = SEGMENT_W as f32 - 2.0 * SEG_PAD;
+        if let Some(svg) = view.icon {
+            draw_svg(&mut pm, svg, &fg.hex(), SEG_ICON, SEG_PAD, SEG_ICON_TOP)?;
+        }
+        if let Some(text) = view.text.filter(|t| !t.is_empty()) {
+            let left = SEG_PAD + SEG_ICON + 8.0;
+            let text_box = TextBox {
+                left,
+                top: SEG_ICON_TOP + (SEG_ICON - SEG_TEXT_PX * 1.25) / 2.0,
+                width: SEG_PAD + inner - left,
+                px: SEG_TEXT_PX,
+                align: Align::Right,
+            };
+            self.draw_text(&mut pm, text, &text_box, fg);
+        }
+        if let Some(level) = view.level {
+            let track = theme.get(Role::Muted);
+            fill_rect(&mut pm, SEG_PAD, SEG_BAR_TOP, inner, SEG_BAR_H, track);
+            let fill = (inner * level.clamp(0.0, 1.0)).round();
+            fill_rect(&mut pm, SEG_PAD, SEG_BAR_TOP, fill, SEG_BAR_H, fg);
+        }
+        Ok(to_rgb(&pm))
+    }
+
+    /// One line, ellipsized to `b.width`.
+    fn draw_text(&mut self, pm: &mut Pixmap, text: &str, b: &TextBox, fg: Color) {
+        let line_h = b.px * 1.25;
+        let mut buf = Buffer::new(&mut self.fonts, Metrics::new(b.px, line_h));
         buf.set_wrap(Wrap::None);
         buf.set_ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1)));
-        buf.set_size(Some(width), Some(line_h));
+        buf.set_size(Some(b.width), Some(line_h));
         let attrs = Attrs::new().family(Family::Name(&self.family));
-        buf.set_text(text, &attrs, Shaping::Advanced, Some(Align::Center));
+        buf.set_text(text, &attrs, Shaping::Advanced, Some(b.align));
         let color = cosmic_text::Color::rgb(fg.0, fg.1, fg.2);
         let mut paint = Paint::default();
         buf.draw(&mut self.fonts, &mut self.glyphs, color, |x, y, w, h, c| {
@@ -127,7 +198,7 @@ impl Renderer {
                 return;
             }
             let Some(rect) =
-                Rect::from_xywh(LABEL_PAD + x as f32, top + y as f32, w as f32, h as f32)
+                Rect::from_xywh(b.left + x as f32, b.top + y as f32, w as f32, h as f32)
             else {
                 return;
             };
@@ -137,20 +208,43 @@ impl Renderer {
     }
 }
 
-/// Renders `svg` with `currentColor` replaced by `color`, scaled into a
-/// `size` square, horizontally centered, top edge at `top`.
+struct TextBox {
+    left: f32,
+    top: f32,
+    width: f32,
+    px: f32,
+    align: Align,
+}
+
+fn canvas(w: u32, h: u32, bg: Color) -> Result<Pixmap, RenderError> {
+    let mut pm = Pixmap::new(w, h).ok_or(RenderError::Pixmap)?;
+    pm.fill(tiny_skia::Color::from_rgba8(bg.0, bg.1, bg.2, 255));
+    Ok(pm)
+}
+
+fn fill_rect(pm: &mut Pixmap, x: f32, y: f32, w: f32, h: f32, c: Color) {
+    if let Some(rect) = Rect::from_xywh(x, y, w, h) {
+        let mut paint = Paint::default();
+        paint.set_color_rgba8(c.0, c.1, c.2, 255);
+        pm.fill_rect(rect, &paint, Transform::identity(), None);
+    }
+}
+
+/// Renders `svg` with `currentColor` replaced by `color`, centered in the
+/// `size` square at (`left`, `top`).
 fn draw_svg(
     pm: &mut Pixmap,
     svg: &[u8],
     color: &str,
     size: f32,
+    left: f32,
     top: f32,
 ) -> Result<(), RenderError> {
     let src = String::from_utf8_lossy(svg).replace("currentColor", color);
     let tree = usvg::Tree::from_str(&src, &usvg::Options::default())?;
     let s = tree.size();
     let scale = size / s.width().max(s.height());
-    let left = (KEY_SIZE as f32 - s.width() * scale) / 2.0;
+    let left = left + (size - s.width() * scale) / 2.0;
     let top = top + (size - s.height() * scale) / 2.0;
     resvg::render(
         &tree,
@@ -177,7 +271,6 @@ fn to_rgb(pm: &Pixmap) -> RgbImage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::theme::Color;
 
     const ICON: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"/><path d="M6 6a9 9 0 1 0 12 0"/></svg>"#;
 
@@ -277,6 +370,70 @@ mod tests {
         assert!(label_px > 50, "label not drawn");
         // Ellipsized: nothing touches the side edges.
         assert!((88..110).all(|y| img.pixel(2, y) == bg && img.pixel(117, y) == bg));
+    }
+
+    #[test]
+    fn segment_with_icon_and_bar() {
+        let mut r = Renderer::new(vec![]);
+        let view = SegmentView {
+            icon: Some(ICON),
+            level: Some(0.5),
+            fg: Role::Accent,
+            ..Default::default()
+        };
+        let img = r.segment(&theme(), &view).unwrap();
+        assert_eq!((img.width, img.height), (200, 100));
+        insta::assert_snapshot!(ascii(&img, [0x12, 0x12, 0x12]));
+    }
+
+    #[test]
+    fn segment_bar_fill_and_track() {
+        let mut r = Renderer::new(vec![]);
+        let view = SegmentView {
+            level: Some(0.25),
+            fg: Role::Accent,
+            ..Default::default()
+        };
+        let img = r.segment(&theme(), &view).unwrap();
+        let y = 72;
+        assert_eq!(img.pixel(16, y), [0xe6, 0x8e, 0x0d]);
+        assert_eq!(img.pixel(57, y), [0xe6, 0x8e, 0x0d]);
+        assert_eq!(img.pixel(58, y), [0x33, 0x33, 0x33]);
+        assert_eq!(img.pixel(183, y), [0x33, 0x33, 0x33]);
+        assert_eq!(img.pixel(184, y), [0x12, 0x12, 0x12]);
+        // Out-of-range levels are clamped.
+        let full = SegmentView {
+            level: Some(7.0),
+            ..view
+        };
+        let img = r.segment(&theme(), &full).unwrap();
+        assert_ne!(img.pixel(183, y), [0x33, 0x33, 0x33]);
+    }
+
+    #[test]
+    fn segment_text_is_right_aligned() {
+        let Ok(font) = std::fs::read("/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf")
+        else {
+            return;
+        };
+        let mut r = Renderer::new(vec![font]);
+        let view = SegmentView {
+            text: Some("42%"),
+            ..Default::default()
+        };
+        let img = r.segment(&theme(), &view).unwrap();
+        let bg = [0x12, 0x12, 0x12];
+        let cols: Vec<u32> = (0..200)
+            .filter(|&x| (16..52).any(|y| img.pixel(x, y) != bg))
+            .collect();
+        assert!(
+            cols.first().is_some_and(|&x| x > 100),
+            "text not right-aligned"
+        );
+        assert!(
+            cols.last().is_some_and(|&x| x < 184),
+            "text overflows padding"
+        );
     }
 
     #[test]
