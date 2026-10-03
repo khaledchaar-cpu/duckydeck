@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "duckydeck.spike",
+  "name": "DuckyDeck IPC Spike",
+  "version": "0.0.1",
+  "author": "DuckyDeck",
+  "description": "M0.5 spike: reads JSON lines from a child process and restarts it on exit",
+  "kinds": [
+    "service"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml"
+  }
+}

@@ -58,7 +58,15 @@ Begründung: Die Shell liefert UI, Theme, OSD und Benachrichtigungen; der Daemon
 
 Daemon ↔ CLI: JSON-Lines über Unix-Socket, versioniert mit `"v": 1`, Schema in `docs/ipc.md` (entsteht in M6).
 
-Shell ↔ Daemon **über die CLI**, nicht direkt: Das QML-Plugin startet `duckydeck subscribe` als Quickshell-`Process` und liest Events als JSON-Zeilen von stdout; Befehle laufen als `duckydeck <cmd> --json`. Vorteile: kein Socket-Code in QML, die CLI wird automatisch mitgetestet, Protokolländerungen betreffen nur Rust. Ein kurzer Spike direkt nach M0 bestätigt, dass `Process` + stdout-Zeilen in der Shell zuverlässig funktionieren (inkl. Neustart des Prozesses, wenn der Daemon neu startet).
+Shell ↔ Daemon **über die CLI**, nicht direkt: Das QML-Plugin startet `duckydeck subscribe` als Quickshell-`Process` und liest Events als JSON-Zeilen von stdout; Befehle laufen als `duckydeck <cmd> --json`. Vorteile: kein Socket-Code in QML, die CLI wird automatisch mitgetestet, Protokolländerungen betreffen nur Rust. Spike M0.5 (2026-10-03, `shell-plugins/spike/`) hat das bestätigt:
+
+- Plugin vom Typ `service` mit `keepLoaded: true`, Entry `Service.qml` (Root-`Item` mit `property var shell`).
+- `Process { stdout: SplitParser { onRead: (line) => JSON.parse(line) } }` liefert jede Zeile sofort (keine Pufferung bei `printf` + Zeilenende); ungültige Zeilen per `try/catch` verwerfen.
+- Neustart: in `onExited` einen einmaligen `Timer` starten, der `running = true` setzt; Backoff 0,5 s → max. 10 s, Reset nach dem ersten gültigen Event. Lief stabil über viele Zyklen.
+- Plugin deaktivieren beendet den Kindprozess, keine Waisen.
+- `console.log` landet im Journal: `journalctl --user | grep omarchy-shell` (Präfix `[duckydeck…]`).
+- Plugin-Pfad im QML: `Qt.resolvedUrl("datei")`; die echte CLI wird über `PATH` (`duckydeck`) gestartet.
+- `omarchy plugin enable` kennt ein neues Plugin erst nach `omarchy-shell shell rescanPlugins`.
 
 - Requests: `status`, `get_config`, `set_profile`, `set_page`, `set_brightness`, `list_actions`, `subscribe`
 - Events: `device_connected`, `device_disconnected`, `profile_changed`, `key_state`, `config_error`
