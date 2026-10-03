@@ -2,38 +2,30 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** M9 – Editor (v2); funktionales Design in docs/spec/ui.md abgestimmt. M8 fertig bis auf AUR (zurückgestellt)
+**Aktueller Milestone:** M9 – Editor (v2), Schritt M9a. M8 fertig bis auf AUR (zurückgestellt, Repo bleibt vorerst privat)
 
-Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
+Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
-## Erledigt
-- Repo auf GitHub (privat) (`khaledchaar-cpu/duckydeck`), History auf noreply-Adresse umgeschrieben; CI erster Lauf grün
-- `README.md` (Englisch): Installation, Bedienung, Config, Action-Tabelle, Multi/Toggle, Entfernen; Beispiele mit `duckydeck check` validiert
-- Shell-Benachrichtigung „Stream Deck + connected“ beim Einstecken (und nach Erst-Setup) – vom Nutzer am Gerät bestätigt
-- M8: `packaging/PKGBUILD`, `duckydeck.service`, udev-Regel startet den Dienst beim Einstecken, `LICENSE` (MIT); Paket installiert und am Gerät geprüft: Einstecken startet den Dienst, Setup automatisch, RSS 13,5 MB
-- M8: CI-Workflow `.github/workflows/ci.yml` (fmt/clippy/test, `--locked`); noch nie gelaufen – es gibt kein GitHub-Remote. Kontrasttest wird ohne `/usr/share/omarchy/themes` übersprungen
-- M8: `structure.profile`/`structure.multi`/`structure.toggle` (`duckydeck_core::compound`) – mit Fake-Device geprüft
-- M8: Auto-Profilwechsel (`duckydeck_core::context`, Event `activewindow` + `j/activewindow` beim Verbinden) – mit Fake-Device gegen echtes Hyprland geprüft
+## Erledigt (letzte Sitzung)
+- Daemon meldet ungültige Actions beim Laden/Reload per Shell-Benachrichtigung (`check::notify_problems`)
+- Catalog-Befehle, die innerhalb von 3 s fehlschlagen → Benachrichtigung „<Label> failed“ (`CommandRunner::spawn_watched`)
+- Swipe-Schwelle 100 → 40 px (Gerät meldet nur ~50–100 px)
+- Am Gerät bestätigt: Auto-Profil, Toggle, Long-Press-Schutz (kurzer Druck), Fehlermeldung, Swipe
+- Funktionales Design des Editors → `docs/spec/ui.md` (v2), Milestones M9a–M9e
 
 ## Nächster Schritt
-- M9a: API für den Editor (siehe docs/spec/ui.md, Milestones)
-- Später: Repo öffentlich, Tag `v0.1.0`, `sha256sums` + `.SRCINFO`, AUR (Account + SSH-Key nötig)
+- M9a: prüfen, ob es eine allgemeine `.desktop`-Launcher-Action gibt (Kategorie „Apps“); dann `duckydeck catalog --json` (Actions mit Kategorie, Slot-Typ, Parametern, Verfügbarkeit)
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
-- nach M5a: `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
+- `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
 
 ## Offene Probleme / Notizen
-- Leere Fenster (Menü/Launcher offen, leerer Workspace) fallen aufs manuelle Profil zurück
-- Tooltip-Text beim Hover noch nicht angesehen
-- Einmal zeigte das Profil-Dropdown nach Laufzeit-Profilwechsel den alten Wert (vor Shell-Neustart); nicht reproduzierbar
-- Menüeintrag wird nur bei neuer Paketversion aktualisiert (Setup-Marker)
-- `setup --remove` nimmt das Widget nicht aus dem Bar-Layout (keine Route zum Entfernen)
-- `scripts/check.sh` findet `cargo` nur mit `PATH=$HOME/.cargo/bin:$PATH`
-- Am Gerät geprüft: Auto-Profil, Long-Press-Schutz (kurz), Toggle, Fehler-Benachrichtigung, Swipe (Schwelle 40 px, Gerät meldet nur ~50–100 px). Offen: Multi-Monitor-Actions (nur DP-1)
-- Catalog-Actions: Fehler innerhalb von 3 s (`spawn_watched`) → Shell-Benachrichtigung „<Label> failed“. Nachtlicht-Status ohne Event
-- Hyprland-Zugriff noch nicht hinter Trait (I/O nicht testbar)
-- Socket-Pfad (SUN_LEN): Tests mit kurzem `XDG_RUNTIME_DIR` unter `/tmp/claude-1000`
-- Paket 0.1.0 ist installiert: Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`; `/usr/bin/duckydeck` ist das Paket-Binary
-- Dienst zeigt `is-enabled: disabled` (global über `/usr/lib/…/wants`); abschalten nur per `systemctl --user mask duckydeck` (steht in README)
-- Daemon prüft Action-Ids beim Laden/Reload (`check::notify_problems`) und meldet sie per Shell-Benachrichtigung; Config wird trotzdem verwendet
-- Rust beim Nutzer per rustup → lokal `makepkg -d`
+- Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)
+- Long-Press nie wirklich ausgelöst; Multi-Monitor-Actions nur mit DP-1 geprüft; Bar-Tooltip noch nicht angesehen
+- Leere Fenster (Menü offen, leerer Workspace) fallen aufs manuelle Profil zurück
+- Profil-Dropdown zeigte einmal alten Wert nach Laufzeit-Profilwechsel; nicht reproduzierbar
+- Menüeintrag nur bei neuer Paketversion aktualisiert; `setup --remove` nimmt das Widget nicht aus dem Bar-Layout
+- Nachtlicht-Status ohne Event; Hyprland-Zugriff nicht hinter Trait
+- `scripts/check.sh` braucht `PATH=$HOME/.cargo/bin:$PATH`; Socket-Tests brauchen kurzes `XDG_RUNTIME_DIR` (z. B. `/tmp/claude-1000/dd`)
+- Daemon beenden mit `kill $(pgrep -x duckydeckd)` – `pkill -f` trifft auch die eigene Shell
+- Später: Repo öffentlich, Tag `v0.1.0`, `sha256sums` + `.SRCINFO`, AUR (Account + SSH-Key)
