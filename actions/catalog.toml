@@ -120,8 +120,9 @@ label    = "Reminder"
 icon     = "reminder"
 run      = ["omarchy", "reminder", "{minutes}"]
 defaults = { minutes = "10" }
-# Due time of the next reminder; read again when it is due.
-text     = { builtin = "reminder" }
+# Due time of the next reminder; read again when it is due and whenever a
+# reminder timer is created or removed (also outside DuckyDeck).
+text     = { builtin = "reminder", refresh = ["reminder"] }
 
 [system.agent]
 label = "Agent"

@@ -16,7 +16,7 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 - Offen: nächstes Thema mit Nutzer abstimmen (Idee 4 „weitere Modelle“ auf späteres Release zurückgestellt, Entscheidung 2026-10-03)
 
 ## Offene Probleme / Notizen
-- Erinnerung/Tastaturlicht-Text nur nach Druck, Start und (Erinnerung) Fälligkeit aktuell – außerhalb gesetzte Erinnerungen erst danach sichtbar
+- Tastaturlicht-Text nur nach Druck und Start aktuell (kein Event); Erinnerung live über systemd-Signale
 - Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)
 - Multi-Monitor-Actions nur mit DP-1 geprüft; Bar-Tooltip noch nicht angesehen
 - Profil-Dropdown zeigte einmal alten Wert nach Laufzeit-Profilwechsel; nicht reproduzierbar

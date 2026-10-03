@@ -71,6 +71,9 @@ pub enum Trigger {
     Bluetooth,
     /// power-profiles-daemon changed a property (active profile).
     PowerProfile,
+    /// An Omarchy reminder timer was created or removed (systemd user
+    /// manager `UnitNew`/`UnitRemoved` on the session bus).
+    Reminder,
 }
 
 impl Trigger {
@@ -79,7 +82,7 @@ impl Trigger {
         match self {
             Self::Bluetooth => Some("org.bluez"),
             Self::PowerProfile => Some("net.hadess.PowerProfiles"),
-            Self::Audio | Self::Media => None,
+            Self::Audio | Self::Media | Self::Reminder => None,
         }
     }
 }
