@@ -47,6 +47,10 @@ Item {
   property bool busyNew: false
   // Slot marked with Ctrl+X: {at, kind, index} (index 0-based).
   property var cutSlot: null
+  // Copied binding (Ctrl+C), pasted onto the selected slot with Ctrl+V.
+  property var clipboard: null
+  // Expanded step/state of a multi or toggle in the inspector, -1 = none.
+  property int openEntry: -1
   // Payload of a running drag: {action} from the library or {at, kind, index}.
   property var dragPayload: null
 
@@ -205,6 +209,7 @@ Item {
   // --- selection ---
 
   function select(kind, index) {
+    root.openEntry = -1
     root.selKind = kind
     root.selIndex = Math.max(0, Math.min(kind === "dial" ? 3 : 7, index))
   }
@@ -286,8 +291,137 @@ Item {
     var before = root.slotAt(root.selKind, root.selIndex)
     root.edit({
       undo: root.slotArgs(root.location, root.selKind, root.selIndex, before),
-      redo: root.slotArgs(root.location, root.selKind, root.selIndex, { action: item.id })
+      redo: root.slotArgs(root.location, root.selKind, root.selIndex,
+        Object.keys(root.seedArgs(item.id)).length > 0 ? { action: item.id, args: root.seedArgs(item.id) } : { action: item.id })
     })
+  }
+
+  // Arguments a newly assigned action needs to pass `check`: required
+  // parameters without default get a first value, lists a seed.
+  function seedArgs(id) {
+    var a = root.actionsById[id]
+    var args = {}
+    if (!a) return args
+    for (var i = 0; i < a.params.length; i++) {
+      var p = a.params[i]
+      if (p.optional || p.default !== undefined) continue
+      if (p.kind === "choice") args[p.name] = p.choices[0]
+      else if (p.kind === "profile") args[p.name] = root.profile
+      else if (p.kind === "folder") args[p.name] = Object.keys(root.profileData ? root.profileData.folders : {})[0] || ""
+      else if (p.kind === "integer") args[p.name] = 1
+      else if (p.name === "steps") args[p.name] = [{ delay_ms: 0 }]
+      else if (p.name === "states") args[p.name] = [{ action: "media.play_pause" }, { action: "media.play_pause" }]
+      else args[p.name] = ""
+    }
+    return args
+  }
+
+  function copySelected() {
+    if (root.selected) root.clipboard = root.binding(root.selected)
+  }
+
+  function paste() {
+    var c = root.clipboard
+    var a = c ? root.actionsById[c.action] : null
+    if (!c || root.busy || (a && a.slot !== root.selKind)) return
+    var before = root.slotAt(root.selKind, root.selIndex)
+    root.edit({
+      undo: root.slotArgs(root.location, root.selKind, root.selIndex, before),
+      redo: root.slotArgs(root.location, root.selKind, root.selIndex, c)
+    })
+  }
+
+  // --- multi / toggle entries ---
+
+  // Actions allowed inside a multi or toggle: key actions, no structure
+  // except structure.profile. Shown as "Label · id".
+  readonly property var nestedActions: root.actions.filter(function(a) {
+    return a.slot === "key" && (a.group !== "structure" || a.id === "structure.profile")
+  })
+  function nestedName(id) {
+    var a = root.actionsById[id]
+    return a ? a.label + " · " + id : id
+  }
+  function nestedId(name) {
+    var i = name.lastIndexOf(" · ")
+    return i >= 0 ? name.slice(i + 3) : name
+  }
+
+  // Applies `fn` to a copy of list argument `name` and saves the result.
+  function editList(name, fn) {
+    var args = root.selected && root.selected.args
+    var list = JSON.parse(JSON.stringify(args && args[name] ? args[name] : []))
+    fn(list)
+    var change = {}
+    change[name] = list
+    root.updateSelected({ args: change })
+  }
+
+  function entryText(entry, p) {
+    var v = entry.args ? entry.args[p.name] : undefined
+    if (v === undefined || v === null) return ""
+    return typeof v === "string" ? v : JSON.stringify(v)
+  }
+
+  function setEntryParam(name, i, p, text) {
+    if (p.kind === "integer" && text !== "" && !/^-?[0-9]+$/.test(text)) return
+    root.editList(name, function(list) {
+      var args = list[i].args || {}
+      if (text === "" && (p.optional || p.default !== undefined)) delete args[p.name]
+      else args[p.name] = p.kind === "integer" && text !== "" ? parseInt(text) : text
+      if (Object.keys(args).length > 0) list[i].args = args
+      else delete list[i].args
+    })
+  }
+
+  function setEntryField(name, i, field, value) {
+    root.editList(name, function(list) {
+      if (value === "" || value === null) delete list[i][field]
+      else list[i][field] = value
+    })
+  }
+
+  function setEntryAction(name, i, id) {
+    root.editList(name, function(list) {
+      var e = { action: id }
+      var args = root.seedArgs(id)
+      if (Object.keys(args).length > 0) e.args = args
+      if (list[i].label) e.label = list[i].label
+      if (list[i].icon) e.icon = list[i].icon
+      list[i] = e
+    })
+  }
+
+  function moveEntry(name, i, delta) {
+    root.editList(name, function(list) {
+      var j = i + delta
+      if (j < 0 || j >= list.length) return
+      var t = list[i]; list[i] = list[j]; list[j] = t
+    })
+    root.openEntry = -1
+  }
+
+  function removeEntry(name, i) {
+    root.editList(name, function(list) { list.splice(i, 1) })
+    root.openEntry = -1
+  }
+
+  function addEntry(name, choice) {
+    root.editList(name, function(list) {
+      if (choice === strings.delay) { list.push({ delay_ms: 300 }); return }
+      var id = root.nestedId(choice)
+      var e = { action: id }
+      var args = root.seedArgs(id)
+      if (Object.keys(args).length > 0) e.args = args
+      list.push(e)
+      root.openEntry = list.length - 1
+    })
+  }
+
+  function entryTitle(entry) {
+    if (entry.delay_ms !== undefined) return strings.waitMs(entry.delay_ms)
+    var a = root.actionsById[entry.action]
+    return entry.label ? entry.label : a ? a.label : entry.action
   }
 
   function clearSelected() {
@@ -569,7 +703,9 @@ Item {
           if (ctrl && k === Qt.Key_Z && (event.modifiers & Qt.ShiftModifier)) root.redo()
           else if (ctrl && k === Qt.Key_Z) root.undo()
           else if (ctrl && k === Qt.Key_X) root.cutSlot = { at: root.location, kind: root.selKind, index: root.selIndex }
-          else if (ctrl && k === Qt.Key_V) { root.swapWith(root.cutSlot); root.cutSlot = null }
+          else if (ctrl && k === Qt.Key_C) { root.copySelected(); root.cutSlot = null }
+          else if (ctrl && k === Qt.Key_V && root.cutSlot) { root.swapWith(root.cutSlot); root.cutSlot = null }
+          else if (ctrl && k === Qt.Key_V) root.paste()
           else if (ctrl) return
           else if (k === Qt.Key_Tab || k === Qt.Key_Slash) root.focusLibrary()
           else if (k === Qt.Key_Delete) root.clearSelected()
@@ -955,10 +1091,16 @@ Item {
         }
 
         // Inspector: action, label, icon and parameters of the selected slot.
+        Flickable {
+          width: columns.sideWidth
+          height: parent.height
+          clip: true
+          contentHeight: inspector.implicitHeight
+          boundsBehavior: Flickable.StopAtBounds
+
         Column {
           id: inspector
           width: columns.sideWidth
-          height: parent.height
           spacing: Style.space(8)
 
           PanelSectionHeader {
@@ -1089,15 +1231,209 @@ Item {
                   }
                 }
                 Text {
-                  visible: param.error !== "" || param.modelData.kind === "list"
+                  visible: param.error !== ""
                   width: parent.width
                   wrapMode: Text.WordWrap
                   textFormat: Text.PlainText
-                  text: param.modelData.kind === "list" ? strings.listInToml : param.error
-                  color: param.modelData.kind === "list" ? root.foreground : Color.urgent
-                  opacity: param.modelData.kind === "list" ? 0.6 : 1.0
+                  text: param.error
+                  color: Color.urgent
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.bodySmall
+                }
+
+                // Steps of a multi or the two states of a toggle.
+                Column {
+                  id: entries
+                  readonly property string listName: param.modelData.name
+                  readonly property bool isMulti: listName === "steps"
+                  visible: param.modelData.kind === "list"
+                  width: parent.width
+                  spacing: Style.space(4)
+
+                  Repeater {
+                    model: param.modelData.kind === "list" && root.selected && root.selected.args
+                      ? root.selected.args[entries.listName] || [] : []
+                    Column {
+                      id: entry
+                      required property var modelData
+                      required property int index
+                      readonly property bool expanded: root.openEntry === index
+                      readonly property bool isDelay: modelData.delay_ms !== undefined
+                      readonly property var action: isDelay ? null : root.actionsById[modelData.action] || null
+                      width: entries.width
+                      spacing: Style.space(4)
+
+                      Rectangle {
+                        width: parent.width
+                        height: entryRow.implicitHeight + Style.space(8)
+                        radius: Style.space(4)
+                        color: entry.expanded ? Qt.alpha(root.accent, 0.18) : Qt.alpha(root.foreground, 0.06)
+
+                        Row {
+                          id: entryRow
+                          anchors.verticalCenter: parent.verticalCenter
+                          x: Style.space(6)
+                          width: parent.width - Style.space(12)
+                          spacing: Style.space(4)
+
+                          Text {
+                            width: parent.width - (entries.isMulti ? 3 * (Style.space(18) + parent.spacing) : 0)
+                            anchors.verticalCenter: parent.verticalCenter
+                            elide: Text.ElideRight
+                            textFormat: Text.PlainText
+                            text: (entries.isMulti ? (entry.index + 1) + ". " : strings.stateName(entry.index) + " · ")
+                              + root.entryTitle(entry.modelData)
+                            color: root.foreground
+                            font.family: root.fontFamily
+                            font.pixelSize: Style.font.body
+                            MouseArea {
+                              anchors.fill: parent
+                              onClicked: root.openEntry = entry.expanded ? -1 : entry.index
+                            }
+                          }
+                          Repeater {
+                            model: entries.isMulti ? [["↑", -1], ["↓", 1], ["✕", 0]] : []
+                            Text {
+                              required property var modelData
+                              width: Style.space(18)
+                              horizontalAlignment: Text.AlignHCenter
+                              anchors.verticalCenter: parent.verticalCenter
+                              text: modelData[0]
+                              color: root.foreground
+                              opacity: entryButton.containsMouse ? 1.0 : 0.5
+                              font.family: root.fontFamily
+                              font.pixelSize: Style.font.body
+                              MouseArea {
+                                id: entryButton
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: parent.modelData[1] === 0 ? root.removeEntry(entries.listName, entry.index)
+                                  : root.moveEntry(entries.listName, entry.index, parent.modelData[1])
+                              }
+                            }
+                          }
+                        }
+                      }
+
+                      // Expanded: edited like a slot.
+                      Column {
+                        visible: entry.expanded
+                        x: Style.space(8)
+                        width: parent.width - Style.space(8)
+                        spacing: Style.space(4)
+
+                        TextField {
+                          visible: entry.isDelay
+                          width: parent.width
+                          text: entry.isDelay ? String(entry.modelData.delay_ms) : ""
+                          placeholderText: strings.delayMs
+                          foreground: root.foreground
+                          accent: root.accent
+                          font.family: root.fontFamily
+                          font.pixelSize: Style.font.body
+                          onEditingFinished: {
+                            var n = parseInt(text)
+                            if (/^[0-9]+$/.test(text) && n <= 10000 && n !== entry.modelData.delay_ms)
+                              root.setEntryField(entries.listName, entry.index, "delay_ms", n)
+                          }
+                        }
+                        SearchableDropdown {
+                          visible: !entry.isDelay
+                          width: parent.width
+                          showLabel: false
+                          options: root.nestedActions.map(function(a) { return root.nestedName(a.id) })
+                          value: entry.isDelay ? "" : root.nestedName(entry.modelData.action)
+                          placeholderText: strings.search
+                          foreground: root.foreground
+                          fontFamily: root.fontFamily
+                          onChanged: function(v) {
+                            var id = root.nestedId(v)
+                            if (id !== entry.modelData.action) root.setEntryAction(entries.listName, entry.index, id)
+                          }
+                        }
+                        TextField {
+                          visible: !entries.isMulti
+                          width: parent.width
+                          text: entry.modelData.label || ""
+                          placeholderText: strings.label + " · " + (entry.action ? entry.action.label : strings.defaultLabel)
+                          foreground: root.foreground
+                          accent: root.accent
+                          font.family: root.fontFamily
+                          font.pixelSize: Style.font.body
+                          onEditingFinished: if (text !== (entry.modelData.label || ""))
+                            root.setEntryField(entries.listName, entry.index, "label", text)
+                        }
+                        SearchableDropdown {
+                          visible: !entries.isMulti
+                          width: parent.width
+                          showLabel: false
+                          options: [strings.defaultIcon].concat(root.icons)
+                          value: entry.modelData.icon || strings.defaultIcon
+                          placeholderText: strings.searchIcons
+                          foreground: root.foreground
+                          fontFamily: root.fontFamily
+                          onChanged: function(v) {
+                            root.setEntryField(entries.listName, entry.index, "icon", v === strings.defaultIcon ? "" : v)
+                          }
+                        }
+                        Repeater {
+                          model: entry.action ? entry.action.params : []
+                          Column {
+                            id: sub
+                            required property var modelData
+                            readonly property bool isSelect: ["choice", "folder", "profile"].indexOf(modelData.kind) >= 0
+                            readonly property string current: root.entryText(entry.modelData, modelData)
+                            width: parent.width
+                            spacing: Style.space(2)
+
+                            Text {
+                              text: sub.modelData.name + (sub.modelData.optional ? " · " + strings.optional : "")
+                              color: root.foreground
+                              opacity: 0.6
+                              font.family: root.fontFamily
+                              font.pixelSize: Style.font.bodySmall
+                            }
+                            Dropdown {
+                              visible: sub.isSelect
+                              width: parent.width
+                              showLabel: false
+                              options: root.paramOptions(sub.modelData)
+                              value: sub.current !== "" ? sub.current
+                                : sub.modelData.default !== undefined ? String(sub.modelData.default) : ""
+                              foreground: root.foreground
+                              fontFamily: root.fontFamily
+                              onChanged: function(v) { if (v !== sub.current) root.setEntryParam(entries.listName, entry.index, sub.modelData, v) }
+                            }
+                            TextField {
+                              visible: !sub.isSelect
+                              width: parent.width
+                              text: sub.current
+                              placeholderText: sub.modelData.default !== undefined ? String(sub.modelData.default) : ""
+                              foreground: root.foreground
+                              accent: root.accent
+                              font.family: root.fontFamily
+                              font.pixelSize: Style.font.body
+                              onEditingFinished: if (text !== sub.current)
+                                root.setEntryParam(entries.listName, entry.index, sub.modelData, text)
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+
+                  SearchableDropdown {
+                    visible: entries.isMulti
+                    width: parent.width
+                    showLabel: false
+                    options: [strings.delay].concat(root.nestedActions.map(function(a) { return root.nestedName(a.id) }))
+                    value: ""
+                    triggerLabel: strings.addStep
+                    placeholderText: strings.search
+                    foreground: root.foreground
+                    fontFamily: root.fontFamily
+                    onChanged: function(v) { root.addEntry(entries.listName, v) }
+                  }
                 }
               }
             }
@@ -1120,6 +1456,7 @@ Item {
               onClicked: { root.clearSelected(); root.focusDeck() }
             }
           }
+        }
         }
       }
     }

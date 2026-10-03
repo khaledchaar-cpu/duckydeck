@@ -26,11 +26,21 @@ QtObject {
   readonly property string optional: "optional"
   readonly property string required: "Required"
   readonly property string notANumber: "Must be a whole number"
-  readonly property string listInToml: "Steps and states are edited in the profile file for now."
+  readonly property string addStep: "+ Add step or delay"
+  readonly property string delay: "Delay"
+  readonly property string delayMs: "Delay in ms (0–10000)"
   readonly property string clear: "Clear slot"
   readonly property string openFolder: "Enter opens the folder"
   readonly property string pages: "Page"
-  readonly property string hints: "Arrows select · type or / searches · Tab switches · Enter assigns or opens a folder · Del clears · Ctrl+X/V moves · Ctrl+Z undo · Esc closes"
+  readonly property string hints: "Arrows select · type or / searches · Tab switches · Enter assigns or opens a folder · Del clears · Ctrl+C/V copies · Ctrl+X/V moves · Ctrl+Z undo · Esc closes"
+
+  function waitMs(ms) {
+    return "Wait " + ms + " ms"
+  }
+
+  function stateName(index) {
+    return index === 0 ? "First" : "Second"
+  }
 
   function slotName(kind, index) {
     return (kind === "dial" ? "Dial " : "Key ") + (index + 1)
