@@ -287,6 +287,12 @@ Item {
     keyCatcher.forceActiveFocus()
   }
 
+  // Enter on a slot and Shift+Tab from the deck: edit the label or the profile name.
+  function focusInspector() {
+    if (root.profileMode) profileNameField.forceActiveFocus()
+    else if (root.selected) labelField.forceActiveFocus()
+  }
+
   function focusLibrary(text) {
     root.focusArea = "library"
     if (text !== undefined) root.query += text
@@ -935,8 +941,10 @@ Item {
           else if (ctrl && k === Qt.Key_C) { root.copySelected(); root.cutSlot = null }
           else if (ctrl && k === Qt.Key_V && root.cutSlot) { root.swapWith(root.cutSlot); root.cutSlot = null }
           else if (ctrl && k === Qt.Key_V) root.paste()
+          else if (ctrl && k === Qt.Key_P) { root.profileMode = !root.profileMode; root.confirming = "" }
           else if (ctrl) return
           else if (k === Qt.Key_Tab || k === Qt.Key_Slash) root.focusLibrary()
+          else if (k === Qt.Key_Backtab) root.focusInspector()
           else if (k === Qt.Key_Delete) root.clearSelected()
           else if (k === Qt.Key_Escape && root.cutSlot) root.cutSlot = null
           else if (k === Qt.Key_Escape) {
@@ -946,7 +954,8 @@ Item {
           else if (k === Qt.Key_Right) root.move(1, 0)
           else if (k === Qt.Key_Up) root.move(0, -1)
           else if (k === Qt.Key_Down) root.move(0, 1)
-          else if (k === Qt.Key_Return || k === Qt.Key_Enter) root.openFolder(root.selected)
+          else if ((k === Qt.Key_Return || k === Qt.Key_Enter) && root.folderOf(root.selected) !== "") root.openFolder(root.selected)
+          else if (k === Qt.Key_Return || k === Qt.Key_Enter) root.focusInspector()
           else if (k === Qt.Key_Backspace) root.goUp(root.folders.length - 1)
           else if (k === Qt.Key_BracketLeft || k === Qt.Key_PageUp) root.setPage(root.page - 1)
           else if (k === Qt.Key_BracketRight || k === Qt.Key_PageDown) root.setPage(root.page + 1)
@@ -1023,7 +1032,7 @@ Item {
               else if (k === Qt.Key_PageUp) root.moveLib(-8)
               else if (k === Qt.Key_Return || k === Qt.Key_Enter) root.assign(root.library[root.libIndex])
               else if (k === Qt.Key_Tab && root.selected) labelField.forceActiveFocus()
-              else if (k === Qt.Key_Tab) root.focusDeck()
+              else if (k === Qt.Key_Tab || k === Qt.Key_Backtab) root.focusDeck()
               else if (k === Qt.Key_Escape && root.query !== "") root.query = ""
               else if (k === Qt.Key_Escape) root.focusDeck()
               else return
@@ -1424,6 +1433,7 @@ Item {
               font.pixelSize: Style.font.bodySmall
             }
             TextField {
+              id: profileNameField
               width: parent.width
               text: root.profileData ? root.profileData.name : ""
               foreground: root.foreground
@@ -1432,7 +1442,7 @@ Item {
               font.pixelSize: Style.font.body
               onEditingFinished: if (root.profileData && text.trim() !== "") root.setProfileField("name", text.trim(), root.profileData.name)
               Keys.onPressed: function(event) {
-                if (event.key === Qt.Key_Escape || event.key === Qt.Key_Tab) { root.focusDeck(); event.accepted = true }
+                if (event.key === Qt.Key_Escape || event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { root.focusDeck(); event.accepted = true }
               }
             }
 
@@ -1490,6 +1500,7 @@ Item {
                 accent: root.accent
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.body
+                Keys.onEscapePressed: root.focusDeck()
                 onEditingFinished: if (root.profileData) root.setProfileField("match", text.trim(), root.matchClass())
               }
               Text {
@@ -1507,6 +1518,7 @@ Item {
                 accent: root.accent
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.body
+                Keys.onEscapePressed: root.focusDeck()
                 onEditingFinished: if (root.profileData) root.setProfileField("title", text.trim(), root.matchTitle())
               }
               Text {
@@ -1643,7 +1655,11 @@ Item {
               font.pixelSize: Style.font.body
               onEditingFinished: root.updateSelected({ label: text })
               Keys.onPressed: function(event) {
-                if (event.key === Qt.Key_Escape || event.key === Qt.Key_Tab) {
+                if (event.key === Qt.Key_Backtab) {
+                  root.updateSelected({ label: text })
+                  root.focusLibrary()
+                  event.accepted = true
+                } else if (event.key === Qt.Key_Escape || event.key === Qt.Key_Tab) {
                   root.updateSelected({ label: text })
                   root.focusDeck()
                   event.accepted = true
@@ -1724,7 +1740,7 @@ Item {
                   onTextChanged: param.error = root.paramError(param.modelData, text)
                   onEditingFinished: root.setParam(param.modelData, text)
                   Keys.onPressed: function(event) {
-                    if (event.key === Qt.Key_Escape || event.key === Qt.Key_Tab) {
+                    if (event.key === Qt.Key_Escape || event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
                       root.setParam(param.modelData, text)
                       root.focusDeck()
                       event.accepted = true
@@ -1834,6 +1850,7 @@ Item {
                           accent: root.accent
                           font.family: root.fontFamily
                           font.pixelSize: Style.font.body
+                          Keys.onEscapePressed: root.focusDeck()
                           onEditingFinished: {
                             var n = parseInt(text)
                             if (/^[0-9]+$/.test(text) && n <= 10000 && n !== entry.modelData.delay_ms)
@@ -1878,6 +1895,7 @@ Item {
                           accent: root.accent
                           font.family: root.fontFamily
                           font.pixelSize: Style.font.body
+                          Keys.onEscapePressed: root.focusDeck()
                           onEditingFinished: if (text !== (entry.modelData.label || ""))
                             root.setEntryField(entries.listName, entry.index, "label", text)
                         }
@@ -1952,6 +1970,7 @@ Item {
                               accent: root.accent
                               font.family: root.fontFamily
                               font.pixelSize: Style.font.body
+                              Keys.onEscapePressed: root.focusDeck()
                               onEditingFinished: if (text !== sub.current)
                                 root.setEntryParam(entries.listName, entry.index, sub.modelData, text)
                             }
