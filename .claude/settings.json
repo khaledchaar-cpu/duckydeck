@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(scripts/check.sh:*)",
+      "Bash(scripts/gen-omarchy-reference.sh:*)",
+      "Bash(scripts/fetch-icons.sh:*)",
+      "Bash(cargo build:*)",
+      "Bash(cargo check:*)",
+      "Bash(cargo test:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(cargo run:*)",
+      "Bash(cargo add:*)",
+      "Bash(cargo tree:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git restore:*)",
+      "Bash(lsusb:*)",
+      "Bash(omarchy commands:*)",
+      "Bash(omarchy-shell shell rescanPlugins)",
+      "Bash(journalctl --user -u duckydeck:*)",
+      "Bash(systemctl --user status duckydeck:*)",
+      "Bash(systemctl --user stop duckydeck)",
+      "Bash(systemctl --user start duckydeck)",
+      "Bash(systemctl --user restart duckydeck)"
+    ],
+    "deny": [
+      "Edit(/usr/share/omarchy/**)",
+      "Write(/usr/share/omarchy/**)"
+    ]
+  }
+}

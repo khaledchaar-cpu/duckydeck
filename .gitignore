@@ -1,0 +1,4 @@
+/target
+*.png.new
+*.snap.new
+.claude/settings.local.json

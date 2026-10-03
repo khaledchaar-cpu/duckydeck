@@ -1,0 +1,100 @@
+# Architektur
+
+## Omarchy-Plattform
+
+DuckyDeck richtet sich nach den Standards, die Omarchy selbst verwendet:
+
+| Baustein | Technik | Bedeutung für DuckyDeck |
+|---|---|---|
+| **Omarchy-Shell** (`omarchy-shell`) | Quickshell/QML, ein Prozess für Bar, Menü, OSD, Benachrichtigungen, Panels | UI ist ein **Shell-Plugin**, keine eigene App |
+| **Plugin-System** | `~/.config/omarchy/plugins/<id>/manifest.json`, Typen `bar-widget`, `panel`, `overlay`, `service`, Hot-Reload | Bar-Widget + Panel (v2: Editor-Overlay) |
+| **Omarchy-Menü** | `~/.config/omarchy/extensions/omarchy-menu.jsonc` | Menüeintrag „Stream Deck“ |
+| **`omarchy`-CLI** | `omarchy <group> <action>`, `omarchy commands --json` | Fast alle Actions rufen diese Routen auf |
+| **OSD** | Plugin `omarchy.osd`, ausgelöst z. B. von `omarchy audio output volume` | Kein eigenes OSD |
+| **Benachrichtigungen** | `omarchy.notifications` (freedesktop) | Meldungen via `notify-send` |
+| **Themes** | `~/.local/state/omarchy/current/theme/colors.toml` (`accent`, `background`, `foreground`, `red` …, `mode`) | Einzige Farbquelle |
+| **Hooks** | `~/.config/omarchy/hooks/<event>.d/` (`theme-set`, `font-set`, `post-boot`) | Neu-Rendern bei Theme-/Font-Wechsel |
+| **Fonts** | `omarchy font set`, Standard JetBrainsMono Nerd Font | Label-Schrift folgt der Systemschrift |
+| **Hyprland** | Lua-Config, IPC-Sockets (`.socket.sock` für Befehle, `.socket2.sock` für Events) | Window Management, Kontext-Erkennung – direkt angesprochen, ohne `hyprland`-Crate |
+
+Konkrete Routen und Shell-Komponenten stehen in `docs/omarchy-reference.md` (generiert, nicht von Hand pflegen).
+
+## Hardware: Stream Deck +
+
+| Element | Details | Nutzung |
+|---|---|---|
+| 8 LCD-Tasten | 120×120 px, 2 × 4 | Actions mit Icon, Label, Live-Status |
+| 4 Drehregler | endlos, drückbar | Lautstärke, Mikrofon, Helligkeit, Workspace-Scroll |
+| Touchstrip | 800×100 px, Tap/Long-Press/Swipe | 4 Segmente à 200 px; Swipe = Seite wechseln |
+
+USB: VID `0x0fd9`, PID `0x0084`.
+
+## Komponenten
+
+```
+                    ┌──────── omarchy-shell (Quickshell) ────────┐
+                    │  duckydeck.widget        duckydeck.panel   │
+                    └─────────────────────┬──────────────────────┘
+                                          │ Process: `duckydeck subscribe` (stdout)
+                                          │          `duckydeck <cmd>` (Befehle)
+                                   duckydeck (CLI)
+                                          │ JSON-Lines, Unix-Socket
+Stream Deck + ◄─ HID ─► duckydeckd (Rust) ◄┘ $XDG_RUNTIME_DIR/duckydeck.sock
+                         │
+                         ├─ omarchy-CLI (Actions, OSD-Feedback)
+                         ├─ Hyprland-Sockets direkt (Events + Dispatch, eigenes Modul ~100 Zeilen)
+                         ├─ `pactl subscribe` (Audio-Status als Event-Stream)
+                         ├─ MPRIS über D-Bus
+                         └─ inotify: Config, colors.toml
+```
+
+1. **`duckydeckd`** – Rust-Daemon ohne GUI, systemd-User-Service. Besitzt das Gerät, rendert Tasten/Strip, führt Actions aus, liefert Live-Status.
+2. **Shell-Plugins (QML)** – Oberfläche, gerendert von der Omarchy-Shell mit deren Komponenten und Tokens. Kein eigener GUI-Prozess.
+3. **`duckydeck`** – CLI für Scripts, Keybindings, Menüeinträge.
+
+Begründung: Die Shell liefert UI, Theme, OSD und Benachrichtigungen; der Daemon macht nur, was QML schlecht kann (HID, Bildrendering, sparsame Eventverarbeitung). Das Gerät läuft weiter, wenn die Shell neu startet.
+
+## IPC
+
+Daemon ↔ CLI: JSON-Lines über Unix-Socket, versioniert mit `"v": 1`, Schema in `docs/ipc.md` (entsteht in M6).
+
+Shell ↔ Daemon **über die CLI**, nicht direkt: Das QML-Plugin startet `duckydeck subscribe` als Quickshell-`Process` und liest Events als JSON-Zeilen von stdout; Befehle laufen als `duckydeck <cmd> --json`. Vorteile: kein Socket-Code in QML, die CLI wird automatisch mitgetestet, Protokolländerungen betreffen nur Rust. Ein kurzer Spike direkt nach M0 bestätigt, dass `Process` + stdout-Zeilen in der Shell zuverlässig funktionieren (inkl. Neustart des Prozesses, wenn der Daemon neu startet).
+
+- Requests: `status`, `get_config`, `set_profile`, `set_page`, `set_brightness`, `list_actions`, `subscribe`
+- Events: `device_connected`, `device_disconnected`, `profile_changed`, `key_state`, `config_error`
+
+
+## Prozessaufrufe & Tests
+
+Alle externen Prozesse (omarchy, pactl, notify-send, Apps) laufen über einen `CommandRunner`-Trait in `duckydeck-core`:
+- Produktion: `TokioRunner` (`tokio::process::Command`, Argumentliste, Timeout, kein Shell-String).
+- Tests: `RecordingRunner` zeichnet nur auf, was aufgerufen worden wäre. Kein Test führt echte `omarchy`-Befehle aus.
+
+Genauso wird der Hyprland-Zugriff hinter einem Trait gekapselt (Fake mit vorgegebenen Events für Tests).
+
+## Plug & Play
+
+1. Das AUR-Paket (`omarchy pkg aur add duckydeck`) liefert:
+   - `/usr/lib/udev/rules.d/70-duckydeck.rules` (`uaccess`, kein root)
+   - `/usr/lib/systemd/user/duckydeck.service` (`WantedBy=graphical-session.target`, Preset aktiviert)
+   - Shell-Plugins, Menüerweiterung und Hook-Scripts unter `/usr/share/duckydeck/`
+2. `duckydeck setup` (beim ersten Daemon-Start automatisch, idempotent):
+   - Plugins nach `~/.config/omarchy/plugins/duckydeck.*` verlinken, Widget per `omarchy bar put duckydeck.widget` einhängen
+   - Menüeintrag in `omarchy-menu.jsonc` (eigener, markierter Block)
+   - Hooks `theme-set.d/duckydeck`, `font-set.d/duckydeck` per `omarchy hook install`
+   - `duckydeck setup --remove` macht alles rückgängig
+3. Einstecken → Hotplug (auch nach Suspend/Resume) → Default-Profil, Shell-Benachrichtigung „Stream Deck + connected“. Ziel: < 1 s.
+
+## Nicht-funktionale Anforderungen
+
+- Daemon: < 15 MB RSS, ~0 % CPU im Leerlauf, Taste → Aktion < 50 ms.
+- Shell-Plugins blockieren nie die Shell (asynchron, Timeouts); Panel öffnet < 100 ms.
+- `Restart=on-failure`; Shell-Neustarts und Omarchy-Updates brechen das Gerät nicht.
+- Kein root, keine Telemetrie, kein Netzwerk ohne explizite Nutzer-Action.
+- Nie `/usr/share/omarchy/` verändern; Nutzerdateien nur über `duckydeck setup`.
+- Lizenz MIT (Icons: Tabler Icons, MIT).
+
+## Offene Fragen
+
+- Plugin-API der Shell ist jung: Kompatibilität über `schemaVersion` der Manifeste prüfen?
+- Upstream-Beitrag als offizielles Omarchy-Plugin?
