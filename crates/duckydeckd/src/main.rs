@@ -32,7 +32,9 @@ async fn main() -> Result<()> {
         spawn_hotplug(tx.clone())?;
     }
 
-    let mut deck = try_connect(&tx);
+    let font = duckydeck_core::font::system_font(&duckydeck_core::TokioRunner).await;
+    let mut painter = testpattern::Painter::new(font)?;
+    let mut deck = try_connect(&mut painter, &tx);
     let mut gestures = Recognizer::default();
     loop {
         let deadline = gestures.deadline();
@@ -43,14 +45,14 @@ async fn main() -> Result<()> {
             },
             () = sleep_until(deadline) => {
                 for g in gestures.tick(Instant::now()) {
-                    on_gesture(&mut deck, g);
+                    on_gesture(&mut painter, &mut deck, g);
                 }
                 continue;
             }
         };
         match ev {
             DeckEvent::Added if deck.is_none() => {
-                deck = try_connect(&tx);
+                deck = try_connect(&mut painter, &tx);
                 // The booting firmware clears the strip once, 1.0–1.5 s after
                 // plug-in (measured on fw 2.0.3.7); keys are not affected.
                 let tx = tx.clone();
@@ -62,7 +64,7 @@ async fn main() -> Result<()> {
             DeckEvent::Added => {}
             DeckEvent::BootDone => {
                 if let Some(d) = &mut deck
-                    && let Err(e) = testpattern::draw_strip(d)
+                    && let Err(e) = testpattern::draw_strip(&painter, d)
                 {
                     tracing::warn!(error = %e, "strip redraw failed");
                 }
@@ -75,7 +77,7 @@ async fn main() -> Result<()> {
             DeckEvent::Input(i) => {
                 tracing::debug!(input = ?i, "input");
                 for g in gestures.input(i, Instant::now()) {
-                    on_gesture(&mut deck, g);
+                    on_gesture(&mut painter, &mut deck, g);
                 }
             }
         }
@@ -83,10 +85,10 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn on_gesture(deck: &mut Option<Deck>, g: gesture::Gesture) {
+fn on_gesture(p: &mut testpattern::Painter, deck: &mut Option<Deck>, g: gesture::Gesture) {
     tracing::info!(gesture = ?g, "gesture");
     if let Some(d) = deck {
-        testpattern::on_gesture(d, g);
+        testpattern::on_gesture(p, d, g);
     }
 }
 
@@ -115,11 +117,14 @@ fn spawn_hotplug(hotplug_tx: mpsc::UnboundedSender<DeckEvent>) -> Result<()> {
     Ok(())
 }
 
-fn try_connect(tx: &mpsc::UnboundedSender<DeckEvent>) -> Option<Deck> {
+fn try_connect(
+    p: &mut testpattern::Painter,
+    tx: &mpsc::UnboundedSender<DeckEvent>,
+) -> Option<Deck> {
     match device::connect() {
         Ok(mut d) => {
             tracing::info!(serial = %d.serial, "Stream Deck + connected");
-            if let Err(e) = testpattern::draw(&mut d) {
+            if let Err(e) = testpattern::draw(p, &mut d) {
                 tracing::warn!(error = %e, "drawing test pattern failed");
             }
             if let Err(e) = d.start_input(tx.clone()) {
