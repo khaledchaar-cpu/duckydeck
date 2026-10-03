@@ -12,16 +12,18 @@ QtObject {
   readonly property string unavailable: "missing in Omarchy"
   readonly property var groups: ({
     system: "System", capture: "Capture", media: "Media", launcher: "Launcher",
-    window: "Window", display: "Display", structure: "Structure"
+    window: "Window", display: "Display", structure: "Structure", apps: "Apps"
   })
   readonly property string inspector: "SLOT"
   readonly property string empty: "Empty"
   readonly property string noSelection: "Select a key or dial"
   readonly property string defaultLabel: "default label"
   readonly property string emptyHint: "Empty · drag an action here or pick one and press Enter"
+  readonly property string action: "Action"
   readonly property string label: "Label"
   readonly property string icon: "Icon"
   readonly property string defaultIcon: "(default)"
+  readonly property string searchApps: "Search apps"
   readonly property string searchIcons: "Search icons"
   readonly property string optional: "optional"
   readonly property string required: "Required"

@@ -75,7 +75,7 @@ Unten steht bei jeder Kategorie, was Katalog (K) und was Rust (R) ist.
 - Beliebiger Dispatch (`window.dispatch`, `expr = 'hl.dsp.…'`)
 
 ## Launcher (M5d) – `omarchy launch …` K, Fokussieren-oder-Starten und Badge R
-- App über `.desktop` bzw. `omarchy launch …` (Browser, Terminal, Editor, Webapps, TUIs). `launcher.app` (`app = "<desktop-id>"`) startet wie der Omarchy-App-Launcher per `uwsm-app -- gtk-launch <id>.desktop`; Icon auf dem Gerät vorerst `generic-app`, App-Icons und Label setzt der Editor (App-Liste aus der Shell-`AppLibrary`)
+- App über `.desktop` bzw. `omarchy launch …` (Browser, Terminal, Editor, Webapps, TUIs). `launcher.app` (`app = "<desktop-id>"`) startet wie der Omarchy-App-Launcher per `uwsm-app -- gtk-launch <id>.desktop`; Icon auf dem Gerät vorerst `generic-app`, Label setzt der Editor. App-Liste über `duckydeck apps [--json]` (XDG-`.desktop`-Einträge, sichtbare Apps; die Shell-`AppLibrary` bekommen nur Plugins vom Typ `menu`), Parameter-Typ `app` → Suchfeld
 - Noch offen aus M5d: Fokussieren-oder-Starten, Badge bei laufender App, App-Icon aus dem Icon-Theme auf dem Gerät
 - Fokussieren-oder-Starten
 - Omarchy-Launcher öffnen, URL öffnen

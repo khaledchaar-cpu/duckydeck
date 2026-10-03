@@ -30,7 +30,7 @@ Eigenes Plugin vom Typ `overlay`, zusätzlich zum Panel aus v1 (das Panel bleibt
 - Profil-Einstellungen: Name und Auto-Wechsel (`match`). „Aktuelles Fenster übernehmen“ setzt die Klasse des zuletzt aktiven Fensters vor dem Editor.
 
 ### Action-Bibliothek
-- Gruppiert nach Kategorie (System, Capture, Medien, Launcher, Fenster, Struktur) plus **Apps** (installierte `.desktop`-Einträge mit App-Icon).
+- Gruppiert nach Kategorie (System, Capture, Medien, Launcher, Fenster, Struktur) plus **Apps** (installierte `.desktop`-Einträge, belegen `launcher.app`; App-Icons später).
 - Suche über Label, Id und Kategorie; Tippen startet die Suche sofort.
 - Nur zum gewählten Slot passende Actions sind aktiv (Regler-Actions nur für Regler); fehlende Omarchy-Routen ausgegraut mit Hinweis.
 

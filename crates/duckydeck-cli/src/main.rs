@@ -28,6 +28,7 @@ commands:
   reload                re-read system font, theme and config
   actions               list every action (id, slot, label) for the editor
   icons                 list the built-in icon names (no daemon needed)
+  apps                  list installed apps: desktop-entry id and name (no daemon needed)
   preview <profile> [<page>|<folder>]
                         render a page or folder to PNG files (paths printed)
   subscribe             print status events as JSON lines until killed
@@ -64,6 +65,20 @@ async fn main() -> Result<()> {
             }
             return Ok(());
         }
+        ["apps"] => {
+            let apps = duckydeck_core::apps::scan(&duckydeck_core::apps::dirs());
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({ "v": 1, "ok": true, "apps": apps })
+                );
+            } else {
+                for a in apps {
+                    println!("{}\t{}", a.id, a.name);
+                }
+            }
+            return Ok(());
+        }
         ["export", id] if json => return export_json(id),
         ["export", id] => return export(id),
         ["edit", ref rest @ ..] => {
@@ -73,7 +88,7 @@ async fn main() -> Result<()> {
             }
             return Ok(());
         }
-        ["check", ..] | ["export", ..] | ["icons", ..] => {
+        ["check", ..] | ["export", ..] | ["icons", ..] | ["apps", ..] => {
             eprintln!("duckydeck: wrong arguments for {}\n\n{USAGE}", args[0]);
             std::process::exit(2);
         }

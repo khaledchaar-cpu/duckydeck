@@ -27,6 +27,8 @@ pub enum ParamKind {
     Folder,
     /// Another profile.
     Profile,
+    /// Desktop-entry id of an installed app (`duckydeck apps`).
+    App,
     /// Nested bindings (`structure.multi` steps, `structure.toggle` states).
     List,
 }
@@ -167,7 +169,9 @@ pub fn items(catalog: &Catalog, unavailable: &BTreeSet<String>) -> Vec<Item> {
             .map(|name| {
                 let default = e.defaults.get(&name).cloned();
                 let choices = e.choices.get(&name).cloned().unwrap_or_default();
-                let kind = if !choices.is_empty() {
+                let kind = if name == "app" {
+                    ParamKind::App
+                } else if !choices.is_empty() {
                     ParamKind::Choice
                 } else if matches!(default, Some(toml::Value::Integer(_))) {
                     ParamKind::Integer

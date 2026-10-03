@@ -36,6 +36,8 @@ Item {
   property var actions: []
   // Built-in icon names from `duckydeck icons --json`.
   property var icons: []
+  // Installed apps ({id, name}) from `duckydeck apps --json`.
+  property var apps: []
   property string query: ""
   property int libIndex: 0
   // "deck" or "library": where the keyboard goes.
@@ -54,7 +56,7 @@ Item {
   // Payload of a running drag: {action} from the library or {at, kind, index}.
   property var dragPayload: null
 
-  readonly property var groupOrder: ["system", "capture", "media", "launcher", "window", "display", "structure"]
+  readonly property var groupOrder: ["system", "capture", "media", "launcher", "window", "display", "structure", "apps"]
   // Library rows matching the query, grouped; `ok` = fits the selected slot.
   readonly property var library: {
     var q = root.query.trim().toLowerCase()
@@ -64,6 +66,13 @@ Item {
       if (q !== "" && (a.label + " " + a.id + " " + a.group).toLowerCase().indexOf(q) < 0) continue
       list.push(a)
     }
+    var app = root.actionsById["launcher.app"]
+    for (var j = 0; app && j < root.apps.length; j++) {
+      var p = root.apps[j]
+      if (q !== "" && (p.name + " " + p.id + " app").toLowerCase().indexOf(q) < 0) continue
+      list.push({ id: app.id, group: "apps", label: p.name, available: app.available,
+                  slot: "key", args: { app: p.id } })
+    }
     list.sort(function(x, y) {
       var gx = root.groupOrder.indexOf(x.group), gy = root.groupOrder.indexOf(y.group)
       if (gx !== gy) return (gx < 0 ? 99 : gx) - (gy < 0 ? 99 : gy)
@@ -71,7 +80,7 @@ Item {
     })
     return list.map(function(a) {
       return { id: a.id, group: a.group, label: a.label, available: a.available,
-               slot: a.slot, ok: a.available && a.slot === root.selKind }
+               slot: a.slot, args: a.args || null, ok: a.available && a.slot === root.selKind }
     })
   }
   readonly property var actionsById: {
@@ -120,6 +129,8 @@ Item {
     actionsProc.running = true
     iconsProc.running = false
     iconsProc.running = true
+    appsProc.running = false
+    appsProc.running = true
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
@@ -291,8 +302,7 @@ Item {
     var before = root.slotAt(root.selKind, root.selIndex)
     root.edit({
       undo: root.slotArgs(root.location, root.selKind, root.selIndex, before),
-      redo: root.slotArgs(root.location, root.selKind, root.selIndex,
-        Object.keys(root.seedArgs(item.id)).length > 0 ? { action: item.id, args: root.seedArgs(item.id) } : { action: item.id })
+      redo: root.slotArgs(root.location, root.selKind, root.selIndex, root.newBinding(item))
     })
   }
 
@@ -316,6 +326,17 @@ Item {
     return args
   }
 
+  // Binding for a library row: its own args (apps) or the seed.
+  function newBinding(item) {
+    var args = item.args || root.seedArgs(item.id)
+    return Object.keys(args).length > 0 ? { action: item.id, args: args } : { action: item.id }
+  }
+
+  // App picker entries: name shown, id as searchable description.
+  readonly property var appOptions: root.apps.map(function(a) {
+    return { value: a.id, label: a.name, description: a.id }
+  })
+
   function copySelected() {
     if (root.selected) root.clipboard = root.binding(root.selected)
   }
@@ -334,18 +355,10 @@ Item {
   // --- multi / toggle entries ---
 
   // Actions allowed inside a multi or toggle: key actions, no structure
-  // except structure.profile. Shown as "Label · id".
-  readonly property var nestedActions: root.actions.filter(function(a) {
+  // except structure.profile. Label shown, id as searchable description.
+  readonly property var nestedOptions: root.actions.filter(function(a) {
     return a.slot === "key" && (a.group !== "structure" || a.id === "structure.profile")
-  })
-  function nestedName(id) {
-    var a = root.actionsById[id]
-    return a ? a.label + " · " + id : id
-  }
-  function nestedId(name) {
-    var i = name.lastIndexOf(" · ")
-    return i >= 0 ? name.slice(i + 3) : name
-  }
+  }).map(function(a) { return { value: a.id, label: a.label, description: a.id } })
 
   // Applies `fn` to a copy of list argument `name` and saves the result.
   function editList(name, fn) {
@@ -409,11 +422,8 @@ Item {
   function addEntry(name, choice) {
     root.editList(name, function(list) {
       if (choice === strings.delay) { list.push({ delay_ms: 300 }); return }
-      var id = root.nestedId(choice)
-      var e = { action: id }
-      var args = root.seedArgs(id)
-      if (Object.keys(args).length > 0) e.args = args
-      list.push(e)
+      var id = choice
+      list.push(root.newBinding({ id: id }))
       root.openEntry = list.length - 1
     })
   }
@@ -605,6 +615,17 @@ Item {
       waitForEnd: true
       onStreamFinished: {
         try { root.icons = JSON.parse(text).icons || [] } catch (e) {}
+      }
+    }
+  }
+
+  Process {
+    id: appsProc
+    command: ["duckydeck", "apps", "--json"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try { root.apps = JSON.parse(text).apps || [] } catch (e) {}
       }
     }
   }
@@ -1200,6 +1221,17 @@ Item {
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.bodySmall
                 }
+                SearchableDropdown {
+                  visible: param.modelData.kind === "app"
+                  width: parent.width
+                  showLabel: false
+                  options: root.appOptions
+                  value: param.current
+                  placeholderText: strings.searchApps
+                  foreground: root.foreground
+                  fontFamily: root.fontFamily
+                  onChanged: function(v) { root.setParam(param.modelData, v); root.focusDeck() }
+                }
                 Dropdown {
                   visible: param.isSelect
                   width: parent.width
@@ -1212,7 +1244,7 @@ Item {
                   onChanged: function(v) { root.setParam(param.modelData, v); root.focusDeck() }
                 }
                 TextField {
-                  visible: !param.isSelect && param.modelData.kind !== "list"
+                  visible: !param.isSelect && param.modelData.kind !== "list" && param.modelData.kind !== "app"
                   width: parent.width
                   text: param.current
                   placeholderText: param.modelData.default !== undefined ? String(param.modelData.default) : ""
@@ -1337,31 +1369,54 @@ Item {
                               root.setEntryField(entries.listName, entry.index, "delay_ms", n)
                           }
                         }
+                        Text {
+                          visible: !entry.isDelay
+                          text: strings.action
+                          color: root.foreground
+                          opacity: 0.6
+                          font.family: root.fontFamily
+                          font.pixelSize: Style.font.bodySmall
+                        }
                         SearchableDropdown {
                           visible: !entry.isDelay
                           width: parent.width
                           showLabel: false
-                          options: root.nestedActions.map(function(a) { return root.nestedName(a.id) })
-                          value: entry.isDelay ? "" : root.nestedName(entry.modelData.action)
+                          options: root.nestedOptions
+                          value: entry.isDelay ? "" : entry.modelData.action
                           placeholderText: strings.search
                           foreground: root.foreground
                           fontFamily: root.fontFamily
                           onChanged: function(v) {
-                            var id = root.nestedId(v)
-                            if (id !== entry.modelData.action) root.setEntryAction(entries.listName, entry.index, id)
+                            if (v !== entry.modelData.action) root.setEntryAction(entries.listName, entry.index, v)
                           }
+                        }
+                        Text {
+                          visible: !entries.isMulti
+                          text: strings.label
+                          color: root.foreground
+                          opacity: 0.6
+                          font.family: root.fontFamily
+                          font.pixelSize: Style.font.bodySmall
                         }
                         TextField {
                           visible: !entries.isMulti
                           width: parent.width
                           text: entry.modelData.label || ""
-                          placeholderText: strings.label + " · " + (entry.action ? entry.action.label : strings.defaultLabel)
+                          placeholderText: entry.action ? entry.action.label : strings.defaultLabel
                           foreground: root.foreground
                           accent: root.accent
                           font.family: root.fontFamily
                           font.pixelSize: Style.font.body
                           onEditingFinished: if (text !== (entry.modelData.label || ""))
                             root.setEntryField(entries.listName, entry.index, "label", text)
+                        }
+                        Text {
+                          visible: !entries.isMulti
+                          text: strings.icon
+                          color: root.foreground
+                          opacity: 0.6
+                          font.family: root.fontFamily
+                          font.pixelSize: Style.font.bodySmall
                         }
                         SearchableDropdown {
                           visible: !entries.isMulti
@@ -1393,6 +1448,19 @@ Item {
                               font.family: root.fontFamily
                               font.pixelSize: Style.font.bodySmall
                             }
+                            SearchableDropdown {
+                              visible: sub.modelData.kind === "app"
+                              width: parent.width
+                              showLabel: false
+                              options: root.appOptions
+                              value: sub.current
+                              placeholderText: strings.searchApps
+                              foreground: root.foreground
+                              fontFamily: root.fontFamily
+                              onChanged: function(v) {
+                                if (v !== sub.current) root.setEntryParam(entries.listName, entry.index, sub.modelData, v)
+                              }
+                            }
                             Dropdown {
                               visible: sub.isSelect
                               width: parent.width
@@ -1405,7 +1473,7 @@ Item {
                               onChanged: function(v) { if (v !== sub.current) root.setEntryParam(entries.listName, entry.index, sub.modelData, v) }
                             }
                             TextField {
-                              visible: !sub.isSelect
+                              visible: !sub.isSelect && sub.modelData.kind !== "app"
                               width: parent.width
                               text: sub.current
                               placeholderText: sub.modelData.default !== undefined ? String(sub.modelData.default) : ""
@@ -1426,7 +1494,7 @@ Item {
                     visible: entries.isMulti
                     width: parent.width
                     showLabel: false
-                    options: [strings.delay].concat(root.nestedActions.map(function(a) { return root.nestedName(a.id) }))
+                    options: [{ value: strings.delay, label: strings.delay, description: "delay_ms" }].concat(root.nestedOptions)
                     value: ""
                     triggerLabel: strings.addStep
                     placeholderText: strings.search
