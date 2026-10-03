@@ -7,7 +7,7 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + ist angeschlossen (`0fd9:0084`, Bus 008).
 
 ## Erledigt
-- Repo öffentlich auf GitHub (`khaledchaar-cpu/duckydeck`), History auf noreply-Adresse umgeschrieben; CI erster Lauf grün
+- Repo auf GitHub (privat; fürs AUR öffentlich machen) (`khaledchaar-cpu/duckydeck`), History auf noreply-Adresse umgeschrieben; CI erster Lauf grün
 - `README.md` (Englisch): Installation, Bedienung, Config, Action-Tabelle, Multi/Toggle, Entfernen; Beispiele mit `duckydeck check` validiert
 - Shell-Benachrichtigung „Stream Deck + connected“ beim Einstecken (und nach Erst-Setup) – vom Nutzer am Gerät bestätigt
 - M8: `packaging/PKGBUILD`, `duckydeck.service`, udev-Regel startet den Dienst beim Einstecken, `LICENSE` (MIT); Paket installiert und am Gerät geprüft: Einstecken startet den Dienst, Setup automatisch, RSS 13,5 MB
