@@ -10,6 +10,7 @@ mod levels;
 mod mpris;
 mod screen;
 mod surface;
+mod texts;
 mod themewatch;
 mod toggles;
 
@@ -74,7 +75,9 @@ async fn main() -> Result<()> {
     let unavailable = unavailable_actions(&catalog, &runner).await;
     let (jobs_tx, jobs_rx) = mpsc::unbounded_channel();
     tokio::spawn(levels::worker(runner.clone(), jobs_rx, tx.clone()));
-    tokio::spawn(levels::watch_audio(jobs_tx.clone()));
+    let (text_tx, text_rx) = mpsc::unbounded_channel();
+    tokio::spawn(texts::run(catalog.clone(), text_rx, tx.clone()));
+    tokio::spawn(levels::watch_audio(jobs_tx.clone(), text_tx.clone()));
     let (media_tx, media_rx) = mpsc::unbounded_channel();
     tokio::spawn(mpris::run(media_rx, tx.clone()));
     let (hypr_tx, hypr_rx) = mpsc::unbounded_channel();
@@ -99,6 +102,7 @@ async fn main() -> Result<()> {
             media: media_tx,
             hypr: hypr_tx,
             toggles: toggle_tx,
+            texts: text_tx,
             events: tx.clone(),
         },
     )?;
@@ -240,6 +244,14 @@ async fn main() -> Result<()> {
                     && let Err(e) = painter.draw_keys(d)
                 {
                     tracing::warn!(error = %e, "redraw after toggle change failed");
+                }
+            }
+            DeckEvent::Texts(t) => {
+                if painter.set_texts(t)
+                    && let Some(d) = &mut deck
+                    && let Err(e) = painter.draw_keys(d)
+                {
+                    tracing::warn!(error = %e, "redraw after status text change failed");
                 }
             }
             DeckEvent::Disconnected => {

@@ -123,6 +123,7 @@ run   = ["omarchy", "agent"]
 label = "Output"
 icon  = "audio-output-switch"
 run   = ["omarchy", "audio", "output", "switch"]
+text  = { builtin = "audio-output", refresh = ["audio"] }
 
 [media.source_switch]
 label    = "Source"
@@ -130,6 +131,8 @@ icon     = "media-source-switch"
 run      = ["omarchy", "audio", "source", "switch", "{dir}"]
 defaults = { dir = "next" }
 choices  = { dir = ["next", "previous"] }
+# The shell picks the active player; its IPC reports which one.
+text     = { command = ["omarchy-shell", "media", "status"], json = "identity", refresh = ["media"] }
 
 # ── Capture ───────────────────────────────────────────────────────────
 [capture.screenshot]

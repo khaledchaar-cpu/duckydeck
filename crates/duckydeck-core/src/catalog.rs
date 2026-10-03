@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use serde::Deserialize;
 
 use crate::command::CommandSpec;
+use crate::status::TextSource;
 use crate::toggle::StateSource;
 
 /// The built-in catalog, embedded at build time.
@@ -36,6 +37,10 @@ pub enum CatalogError {
         "action `{0}`: `state` needs exactly one of `file` and `command`; `elapsed` needs `file`"
     )]
     BadState(String),
+    #[error(
+        "action `{0}`: `text` needs exactly one of `command` and `builtin`; `json` needs `command`"
+    )]
+    BadText(String),
     #[error("action `{0}`: `state` needs an `{{ on, off }}` icon")]
     StateIcon(String),
     #[error("invalid output of `omarchy commands --json`: {0}")]
@@ -99,6 +104,8 @@ pub struct Entry {
     pub choices: BTreeMap<String, Vec<String>>,
     /// Where the toggle state comes from; needs an `{ on, off }` icon.
     pub state: Option<StateSource>,
+    /// Status text shown instead of the label.
+    pub text: Option<TextSource>,
 }
 
 impl Entry {
@@ -247,6 +254,12 @@ impl Catalog {
             .find(|(_, e)| e.run.is_empty() == e.dispatch.is_none())
         {
             return Err(CatalogError::EmptyRun(id.clone()));
+        }
+        if let Some((id, _)) = entries
+            .iter()
+            .find(|(_, e)| e.text.as_ref().is_some_and(|t| !t.is_valid()))
+        {
+            return Err(CatalogError::BadText(id.clone()));
         }
         for (id, e) in &entries {
             let Some(st) = &e.state else { continue };

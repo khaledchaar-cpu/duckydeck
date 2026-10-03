@@ -23,5 +23,6 @@ pub use command::{
 };
 pub mod render;
 pub mod setup;
+pub mod status;
 pub mod theme;
 pub mod toggle;

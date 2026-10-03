@@ -14,6 +14,8 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::device::DeckEvent;
+use crate::texts;
+use duckydeck_core::status::Trigger;
 
 /// Pause before restarting a `pactl subscribe` that ended.
 const RESTART_DELAY: Duration = Duration::from_secs(5);
@@ -90,9 +92,10 @@ fn coalesce(batch: Vec<Job>) -> Vec<Job> {
 }
 
 /// Feeds `pactl subscribe` events as refresh jobs; restarts it when it ends.
-pub async fn watch_audio(jobs: UnboundedSender<Job>) {
+/// Also tells the status texts about each event.
+pub async fn watch_audio(jobs: UnboundedSender<Job>, texts: UnboundedSender<texts::Msg>) {
     loop {
-        if let Err(e) = subscribe(&jobs).await {
+        if let Err(e) = subscribe(&jobs, &texts).await {
             tracing::warn!(error = %e, "pactl subscribe failed");
         }
         if jobs.is_closed() {
@@ -102,7 +105,10 @@ pub async fn watch_audio(jobs: UnboundedSender<Job>) {
     }
 }
 
-async fn subscribe(jobs: &UnboundedSender<Job>) -> std::io::Result<()> {
+async fn subscribe(
+    jobs: &UnboundedSender<Job>,
+    texts: &UnboundedSender<texts::Msg>,
+) -> std::io::Result<()> {
     // A stream, not a finished command, so not via `CommandRunner`.
     let mut child = tokio::process::Command::new("pactl")
         .arg("subscribe")
@@ -116,10 +122,14 @@ async fn subscribe(jobs: &UnboundedSender<Job>) -> std::io::Result<()> {
     };
     // The server may have changed while no subscription was running.
     let _ = jobs.send(Job::RefreshAudio);
+    let _ = texts.send(texts::Msg::Event(Trigger::Audio));
     let mut lines = BufReader::new(stdout).lines();
     while let Some(line) = lines.next_line().await? {
-        if dial::is_audio_event(&line) && jobs.send(Job::RefreshAudio).is_err() {
-            return Ok(());
+        if dial::is_audio_event(&line) {
+            if jobs.send(Job::RefreshAudio).is_err() {
+                return Ok(());
+            }
+            let _ = texts.send(texts::Msg::Event(Trigger::Audio));
         }
     }
     let status = child.wait().await;

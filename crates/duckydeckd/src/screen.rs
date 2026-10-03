@@ -21,6 +21,7 @@ use duckydeck_core::ipc;
 use duckydeck_core::media::{self, MediaKey, Players, Status};
 use duckydeck_core::nav::{BACK_ACTION, Nav, PAGE_ACTION, PAGE_SCROLL_ACTION, Press};
 use duckydeck_core::render::{GlyphView, KeyView, MediaView, Renderer, SegmentView};
+use duckydeck_core::status::Trigger;
 use duckydeck_core::theme::{Role, Theme};
 use duckydeck_core::toggle;
 use duckydeck_core::{CommandRunner, TokioRunner};
@@ -32,6 +33,7 @@ use crate::gesture::{Control, Gesture};
 use crate::levels::Job;
 use crate::mpris;
 use crate::surface::{KEY_SIZE, STRIP_H};
+use crate::texts::{self, Texts};
 use crate::toggles::Toggles;
 
 const FALLBACK_THEME: &str =
@@ -56,6 +58,7 @@ pub struct Tasks {
     pub media: UnboundedSender<mpris::Press>,
     pub hypr: UnboundedSender<String>,
     pub toggles: UnboundedSender<String>,
+    pub texts: UnboundedSender<texts::Msg>,
     /// Delayed multi-action steps back into the main loop.
     pub events: UnboundedSender<DeckEvent>,
 }
@@ -106,6 +109,8 @@ pub struct Screen {
     toggles: Toggles,
     /// Pressed toggle actions for the [`toggles`](crate::toggles) task.
     toggle_tx: UnboundedSender<String>,
+    texts: Texts,
+    text_tx: UnboundedSender<texts::Msg>,
     /// Automatic profile switching by active window.
     context: WindowContext,
     /// Next state index of toggle keys, until the config reloads.
@@ -154,6 +159,8 @@ impl Screen {
             workspaces: Workspaces::default(),
             toggles: Toggles::new(),
             toggle_tx: tasks.toggles,
+            texts: Texts::new(),
+            text_tx: tasks.texts,
             context,
             toggled: HashMap::new(),
             events_tx: tasks.events,
@@ -381,6 +388,15 @@ impl Screen {
         };
         let before = icons(&self.players);
         let after = icons(&players);
+        let states = |ps: &Players| {
+            ps.list
+                .iter()
+                .map(|p| (p.name.clone(), p.status))
+                .collect::<Vec<_>>()
+        };
+        if states(&self.players) != states(&players) {
+            let _ = self.text_tx.send(texts::Msg::Event(Trigger::Media));
+        }
         let strip_before = self.playing_now().cloned();
         self.players = players;
         let strip_after = self.playing_now().cloned();
@@ -488,6 +504,17 @@ impl Screen {
             .flatten()
             .any(|b| self.toggles.get(&b.action) != t.get(&b.action));
         self.toggles = t;
+        changed
+    }
+
+    /// Returns whether a shown key changed.
+    pub fn set_texts(&mut self, t: Texts) -> bool {
+        let keys = self.nav.keys(&self.store.current);
+        let changed = keys
+            .iter()
+            .flatten()
+            .any(|b| self.texts.get(&b.action) != t.get(&b.action));
+        self.texts = t;
         changed
     }
 
@@ -760,6 +787,9 @@ impl Screen {
         if entry.state.as_ref().is_some_and(|s| !s.command.is_empty()) {
             let _ = self.toggle_tx.send(b.action.clone());
         }
+        if entry.text.is_some() {
+            let _ = self.text_tx.send(texts::Msg::Press(b.action.clone()));
+        }
         match res {
             Ok(()) => tracing::info!(action = %b.action, "action started"),
             Err(e) => tracing::warn!(action = %b.action, error = %e, "action failed"),
@@ -882,6 +912,9 @@ impl Screen {
         if let Some(since) = self.toggles.get(&b.action).and_then(|t| t.since) {
             let d = SystemTime::now().duration_since(since).unwrap_or_default();
             return toggle::elapsed_text(d);
+        }
+        if let Some(t) = self.texts.get(&b.action) {
+            return t.clone();
         }
         if let Some(l) = &b.label {
             return l.clone();
