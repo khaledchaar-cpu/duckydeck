@@ -64,12 +64,21 @@ pub fn scan(dirs: &[PathBuf]) -> Vec<App> {
 /// `Icon=` of the desktop entry `id` (first match in `dirs`): a theme icon
 /// name or an absolute path.
 pub fn icon_name(dirs: &[PathBuf], id: &str) -> Option<String> {
+    lookup(dirs, id, "Icon")
+}
+
+/// `Name=` of the desktop entry `id` (first match in `dirs`).
+pub fn name(dirs: &[PathBuf], id: &str) -> Option<String> {
+    lookup(dirs, id, "Name")
+}
+
+fn lookup(dirs: &[PathBuf], id: &str, key: &str) -> Option<String> {
     dirs.iter().find_map(|dir| {
         let mut files = Vec::new();
         collect(dir, dir, &mut files);
         let (_, path) = files.into_iter().find(|(i, _)| i == id)?;
         let text = std::fs::read_to_string(path).ok()?;
-        entry_value(&text, "Icon")
+        entry_value(&text, key)
     })
 }
 
@@ -172,6 +181,11 @@ mod tests {
         let text = "[Desktop Entry]\nName=X\nIcon=x-app\n[Desktop Action a]\nIcon=other\n";
         assert_eq!(entry_value(text, "Icon"), Some("x-app".into()));
         assert_eq!(entry_value(GHOSTTY, "Icon"), None);
+    }
+
+    #[test]
+    fn reads_the_unlocalized_name() {
+        assert_eq!(entry_value(GHOSTTY, "Name"), Some("Ghostty".into()));
     }
 
     #[test]

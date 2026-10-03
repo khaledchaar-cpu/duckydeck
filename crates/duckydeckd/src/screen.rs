@@ -88,6 +88,8 @@ pub struct Screen {
     unavailable: BTreeSet<String>,
     /// Icons of `launcher.app` apps by desktop-entry id, `None` if not found.
     app_icons: RefCell<HashMap<String, Option<Rc<[u8]>>>>,
+    /// Names of `launcher.app` apps by desktop-entry id, `None` if not found.
+    app_names: RefCell<HashMap<String, Option<String>>>,
     jobs: UnboundedSender<Job>,
     levels: Levels,
     media_tx: UnboundedSender<mpris::Press>,
@@ -139,6 +141,7 @@ impl Screen {
             nav,
             catalog,
             app_icons: RefCell::default(),
+            app_names: RefCell::default(),
             unavailable,
             jobs: tasks.jobs,
             levels: Levels::default(),
@@ -185,6 +188,7 @@ impl Screen {
         }
         duckydeck_core::check::notify_problems(&self.store.current, &self.catalog, runner);
         self.app_icons.borrow_mut().clear();
+        self.app_names.borrow_mut().clear();
         self.brightness = None;
         self.toggled.clear();
         let reset = self.store.current.config.profile != configured;
@@ -870,7 +874,8 @@ impl Screen {
         Ok(img)
     }
 
-    /// Explicit label, else the catalog label, else the folder name, else
+    /// Explicit label, else the app name for `launcher.app`, else the
+    /// catalog label, else the folder name, else
     /// empty for other structure actions (the icon says it all), else the
     /// action name without its group.
     fn label(&self, b: &Binding) -> String {
@@ -880,6 +885,17 @@ impl Screen {
         }
         if let Some(l) = &b.label {
             return l.clone();
+        }
+        if b.action == APP_ACTION
+            && let Some(app) = b.args.get("app").and_then(|v| v.as_str())
+            && let Some(name) = self
+                .app_names
+                .borrow_mut()
+                .entry(app.to_owned())
+                .or_insert_with(|| duckydeck_core::apps::name(&duckydeck_core::apps::dirs(), app))
+                .clone()
+        {
+            return name;
         }
         if let Some(e) = self.catalog.get(&b.action) {
             return e.label.clone();

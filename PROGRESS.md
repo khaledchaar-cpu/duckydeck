@@ -9,9 +9,10 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 ## Erledigt (letzte Sitzung)
 - Omarchy-Menü: „Stream Deck“ als Submenü mit „Panel“ und „Edit“; `duckydeck edit` ohne Argumente öffnet den Editor
 - Editor-Tastatur: Enter → Label-Feld, Umschalt+Tab rückwärts, Strg+P Slot/Profil-Inspector, Esc in allen Feldern (am Gerät geprüft: Menü, Strg+P, Umschalt+Tab)
+- App-Tasten zeigen den App-Namen aus dem Desktop-Eintrag statt „App“ (am Gerät geprüft)
 
 ## Nächster Schritt
-- Ungeprüfte Punkte am Gerät abarbeiten (siehe unten), dann Label-Fix „App“ → App-Name auf `launcher.app`-Tasten
+- Ungeprüfte Punkte am Gerät abarbeiten (siehe unten)
 
 ## Geplante Skills (in .claude/skills/ anlegen, wenn der Milestone fertig ist)
 - `add-action` nur für Rust-Actions mit Logik – Entscheidung offen (ggf. weglassen)
@@ -19,7 +20,7 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Paket 0.1.0 installiert (`/
 ## Offene Probleme / Notizen
 - Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)
 - Multi-Monitor-Actions nur mit DP-1 geprüft; Bar-Tooltip noch nicht angesehen
-- Noch ungeprüft: Enter → Label-Feld, Esc in Match-/Titel-/Multi-Feldern; Strip-Tippen im Editor, Strip-Wischen mit mehrseitigem Profil; Label unter App-Tasten zeigt „App“ statt App-Name
+- Noch ungeprüft: Enter → Label-Feld, Esc in Match-/Titel-/Multi-Feldern; Strip-Tippen im Editor, Strip-Wischen mit mehrseitigem Profil
 - Profil-Dropdown zeigte einmal alten Wert nach Laufzeit-Profilwechsel; nicht reproduzierbar
 - Menüeintrag nur bei neuer Paketversion aktualisiert
 - Hyprland-Zugriff nicht hinter Trait (bewusst offen, geringer Nutzen). Nachtlicht ohne Event ist bewusst so: weder hyprsunset noch Shell melden Änderungen, Polling verboten – steht in actions.md)
