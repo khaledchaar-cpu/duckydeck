@@ -16,7 +16,6 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Lokales Paket 0.1.3-1 mit H
 - Mit dem Nutzer klären: Editor/Panel im HUD-Stil nur mit Shell-Tokens (Akzent) nachziehen oder Look so lassen
 
 ## Offene Probleme / Notizen
-- Look-Änderungen noch nicht gepusht (6 Commits vor `origin/main`)
 - Tastaturlicht-Text nur nach Druck und Start aktuell (kein Event)
 - App-Lautstärke: gewählte App gilt nur bis Daemon-Neustart (bewusst, kein Zustand gespeichert)
 - Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)
