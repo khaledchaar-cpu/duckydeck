@@ -2,20 +2,21 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** alle Milestones (M1–M9) fertig, v0.1.3 auf GitHub (inkl. Lautstärke pro App)
+**Aktueller Milestone:** alle Milestones (M1–M9) fertig, v0.1.3 auf GitHub, v0.1.4 in Vorbereitung; v2 vollständig
 
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`), zweiter Monitor (DP-1, DP-2). Lokales Paket 0.1.3-1 mit Dropdown-Fix installiert (Stand `3e52129`) (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- Entscheidung: Editor/Panel bleiben im bisherigen Look (kein HUD-Stil)
-- `window.to_monitor` mit zwei Monitoren am Gerät geprüft (hin und zurück)
-- Bar-Tooltip geprüft („Stream Deck · omarchy (page 1/4)“, einzeilig)
-- Profil-Dropdown-Bug reproduziert und behoben: Omarchy-`Dropdown` überschreibt `value` bei Auswahl → Bindung in `onChanged` wiederhergestellt, am Gerät geprüft
+- v2-Punkt „Zweite UI-Sprache“ ersatzlos gestrichen (Spec aktualisiert)
+- Script-Actions (`script.<name>` aus `~/.config/duckydeck/scripts/`, JSON-Lines stdin/stdout, pro Event oder `persistent`, Tasten + Regler), `check`, Editor-Gruppe „Scripts“, am Gerät geprüft
+- Beispiel-Scripts `hello`/`counter`/`knob`; `setup` legt `hello` einmalig an, Paket installiert alle nach `/usr/share/doc/duckydeck/examples/scripts/`
 
 ## Nächster Schritt
-- Mit dem Nutzer klären: Release v0.1.4 mit Dropdown-Fix (GitHub-Release mit fertigem Paket) oder erst weitere offene Punkte
+- Release v0.1.4 (Dropdown-Fix, Script-Actions, Beispiel-Script): Version anheben, Paket bauen, GitHub-Release
 
 ## Offene Probleme / Notizen
+- Daemon-RSS ~15,1–15,6 MB (Release), knapp über dem 15-MB-Ziel – unabhängig von Script-Actions
+- Script-Zustand gilt pro Action, nicht pro Slot (bewusst, in actions.md)
 - Passwortloses `sudo` (`/etc/sudoers.d/90-kc-nopasswd`) + `Bash(sudo *)` in `.claude/settings.local.json` → Claude installiert Pakete selbst (`sudo pacman -U --noconfirm …`)
 - Tastaturlicht-Text nur nach Druck und Start aktuell (kein Event)
 - App-Lautstärke: gewählte App gilt nur bis Daemon-Neustart (bewusst, kein Zustand gespeichert)
