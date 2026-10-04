@@ -19,7 +19,7 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Lokales Paket 0.1.3-1 ohne 
 - Tastaturlicht-Text nur nach Druck und Start aktuell (kein Event)
 - App-Lautstärke: gewählte App gilt nur bis Daemon-Neustart (bewusst, kein Zustand gespeichert)
 - Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)
-- Multi-Monitor: `window.to_monitor` mit DP-1/DP-2 am Gerät geprüft (hin und zurück, 2026-10-04); Laptop-Actions (internal/mirror) ohne internes Display nicht testbar; Bar-Tooltip noch nicht angesehen
+- Multi-Monitor: `window.to_monitor` mit DP-1/DP-2 am Gerät geprüft (hin und zurück, 2026-10-04); Laptop-Actions (internal/mirror) ohne internes Display nicht testbar; Bar-Tooltip geprüft („Stream Deck · omarchy (page 1/4)“, einzeilig, passt)
 - Profil-Dropdown zeigte einmal alten Wert nach Laufzeit-Profilwechsel; nicht reproduzierbar
 - Menüeintrag nur bei neuer Paketversion aktualisiert
 - Hyprland-Zugriff nicht hinter Trait (bewusst offen, geringer Nutzen). Nachtlicht ohne Event ist bewusst so: weder hyprsunset noch Shell melden Änderungen, Polling verboten – steht in actions.md)
