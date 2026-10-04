@@ -98,7 +98,7 @@ Eigene Actions ohne Rust-Code (Entscheidung Nutzer 2026-10-04): jede ausführbar
 Optionaler Header in den ersten 20 Zeilen, je Zeile `# duckydeck-<feld>: <wert>`:
 - `label` (Default: Stamm), `icon` (eingebautes oder eigenes Icon, Default `script`), `slot = key|dial` (Default `key`), `persistent = true|false` (Default `false`).
 
-Beispiele: [`examples/scripts/`](../../examples/scripts/) (Taste pro Event, dauerhafter Regler).
+Beispiele: [`examples/scripts/`](../../examples/scripts/) (`hello` als Einstieg, Zähler-Taste, dauerhafter Regler), installiert nach `/usr/share/doc/duckydeck/examples/scripts/`. `duckydeck setup` legt `hello` einmalig an, wenn der Script-Ordner noch fehlt (Plug & Play: sofort im Editor sichtbar). Ein gelöschtes Beispiel bleibt weg, `setup --remove` lässt Nutzer-Scripts stehen.
 
 Protokoll: JSON-Lines, je Richtung ein Objekt pro Zeile.
 - **Daemon → Script (stdin):** `{"event":"init"}` (Start/Reload), `{"event":"press"}`, `{"event":"long_press"}`, bei Reglern zusätzlich `{"event":"twist","delta":-1}`. Jedes Event trägt `"args"` mit den `args` des Slots (Objekt, ggf. leer).

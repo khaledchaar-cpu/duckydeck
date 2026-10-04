@@ -42,5 +42,6 @@ package() {
   install -d "$pkgdir/usr/share/duckydeck/shell-plugins"
   cp -r --no-preserve=ownership shell-plugins/duckydeck.widget shell-plugins/duckydeck.editor "$pkgdir/usr/share/duckydeck/shell-plugins/"
   install -Dm644 examples/profiles/*.toml -t "$pkgdir/usr/share/doc/$pkgname/examples/"
+  install -Dm755 examples/scripts/* -t "$pkgdir/usr/share/doc/$pkgname/examples/scripts/"
   install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
 }

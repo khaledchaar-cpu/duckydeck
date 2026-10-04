@@ -1,0 +1,25 @@
+#!/bin/sh
+# Your first DuckyDeck script action. Put it on a key in the editor
+# (library group "Scripts") or in a profile as { action = "script.hello" }.
+#
+# Every executable file in ~/.config/duckydeck/scripts/ becomes an action
+# script.<file name>. Optional header lines (first 20 lines):
+# duckydeck-label: Hello
+# duckydeck-icon: script
+#
+# The deck sends one JSON line per event on stdin, e.g.
+#   {"event":"press","args":{}}   (also: init, long_press, twist on dials)
+# Every JSON line you print on stdout updates the key:
+#   {"label":"…","icon":"…","state":true}   (state = highlighted)
+# More examples: /usr/share/doc/duckydeck/examples/scripts/
+
+read -r event
+case "$event" in
+  *'"event":"press"'*)
+    omarchy notification send --app-name DuckyDeck "Hello from your script"
+    echo "{\"label\":\"$(date +%H:%M)\"}"
+    ;;
+  *'"event":"long_press"'*)
+    echo '{"label":null}'
+    ;;
+esac

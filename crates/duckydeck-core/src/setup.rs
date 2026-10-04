@@ -44,6 +44,8 @@ pub struct Paths {
     pub scratch: PathBuf,
     /// Marker file recording which version was set up.
     pub marker: PathBuf,
+    /// `~/.config/duckydeck/scripts`; seeded with an example once.
+    pub scripts: PathBuf,
 }
 
 impl Paths {
@@ -76,6 +78,7 @@ impl Paths {
             omarchy: env_dir("XDG_CONFIG_HOME", ".config").join("omarchy"),
             scratch,
             marker: env_dir("XDG_STATE_HOME", ".local/state").join("duckydeck/setup"),
+            scripts: env_dir("XDG_CONFIG_HOME", ".config").join("duckydeck/scripts"),
         })
     }
 
@@ -140,6 +143,13 @@ pub async fn install(paths: &Paths, runner: &dyn CommandRunner) -> Result<Vec<St
         let _ = std::fs::remove_file(&file);
         done.push("installed the font-set hook".into());
     }
+    if !paths.scripts.exists() {
+        seed_scripts(&paths.scripts)?;
+        done.push(format!(
+            "added an example script to {}",
+            paths.scripts.display()
+        ));
+    }
     write(&paths.marker, env!("CARGO_PKG_VERSION"))?;
     Ok(done)
 }
@@ -193,6 +203,18 @@ pub async fn remove(paths: &Paths, runner: &dyn CommandRunner) -> Result<Vec<Str
 
 /// Links every shipped `duckydeck.*` plugin; returns the newly linked ids.
 /// A real folder of the same name (user copy) is left alone.
+/// The example script for a fresh script directory. Only when the directory
+/// is missing, so a deleted example stays deleted. `--remove` keeps it: it
+/// is the user's file now.
+fn seed_scripts(dir: &Path) -> Result<(), SetupError> {
+    use std::os::unix::fs::PermissionsExt;
+    let file = dir.join("hello");
+    write(&file, EXAMPLE_SCRIPT)?;
+    std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o755)).map_err(io_err(&file))
+}
+
+const EXAMPLE_SCRIPT: &str = include_str!("../../../examples/scripts/hello");
+
 fn link_plugins(paths: &Paths) -> Result<Vec<String>, SetupError> {
     let Ok(entries) = std::fs::read_dir(&paths.plugins_src) else {
         return Ok(Vec::new());
@@ -320,6 +342,7 @@ mod tests {
             omarchy: root.join("omarchy"),
             scratch: root.join("scratch"),
             marker: root.join("state/setup"),
+            scripts: root.join("config/duckydeck/scripts"),
         }
     }
 
@@ -350,7 +373,8 @@ mod tests {
         assert!(needed(&p));
         let runner = RecordingRunner::new();
         let done = install(&p, &runner).await?;
-        assert_eq!(done.len(), 5, "{done:?}");
+        assert_eq!(done.len(), 6, "{done:?}");
+        assert!(crate::script::discover(&p.scripts).contains_key("script.hello"));
         let lines = runner.command_lines();
         assert_eq!(lines[0], "omarchy-shell shell rescanPlugins");
         assert_eq!(lines[1], "omarchy bar put duckydeck.widget");
@@ -360,7 +384,9 @@ mod tests {
         assert!(!p.plugins().join("spike").exists());
         assert!(!needed(&p));
 
-        // Second run: only the hook (the recording runner never copies it).
+        // Second run: only the hook (the recording runner never copies it);
+        // a deleted example stays deleted.
+        std::fs::remove_file(p.scripts.join("hello"))?;
         let runner = RecordingRunner::new();
         let again = install(&p, &runner).await?;
         assert_eq!(again, ["installed the font-set hook"]);
