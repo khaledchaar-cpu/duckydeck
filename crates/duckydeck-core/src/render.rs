@@ -14,14 +14,21 @@ pub const KEY_SIZE: u32 = 120;
 
 const ICON_WITH_LABEL: f32 = 54.0;
 const ICON_ALONE: f32 = 64.0;
-const LABEL_PX: f32 = 16.0;
+const LABEL_PX: f32 = 14.0;
 const LABEL_PAD: f32 = 4.0;
 /// Icon area top edge when a label is shown; label sits below it.
 const ICON_TOP_WITH_LABEL: f32 = 14.0;
 const GLYPH_PX: f32 = 56.0;
-const MARK_W: f32 = 40.0;
-const MARK_H: f32 = 6.0;
-const MARK_TOP: f32 = 98.0;
+
+/// HUD frame: corner brackets inset from the key edge.
+const BRACKET_INSET: f32 = 6.0;
+const BRACKET_LEN: f32 = 18.0;
+const BRACKET_W: f32 = 3.0;
+/// Segmented level bars: block width and gap.
+const BLOCK_W: f32 = 8.0;
+const BLOCK_GAP: f32 = 3.0;
+/// Every n-th row of the strip is a darker scanline.
+const SCANLINE_EVERY: u32 = 3;
 
 /// One touchstrip segment (the strip is 800×100, one segment per encoder).
 pub const SEGMENT_W: u32 = 200;
@@ -73,8 +80,8 @@ impl Default for KeyView<'_> {
     }
 }
 
-/// A key showing one large glyph (workspace number), optionally marked
-/// with a bar below it in the same color.
+/// A key showing one large glyph (workspace number); marked keys become a
+/// solid plate in the fg color with the glyph cut out.
 #[derive(Debug, Clone)]
 pub struct GlyphView<'a> {
     pub text: &'a str,
@@ -165,7 +172,13 @@ impl Renderer {
     pub fn key(&mut self, theme: &Theme, view: &KeyView) -> Result<RgbImage, RenderError> {
         let bg = theme.get(view.bg);
         let fg = theme.get(view.fg).readable_on(bg, MIN_CONTRAST);
-        let mut pm = canvas(KEY_SIZE, KEY_SIZE, bg)?;
+        let mut pm = key_canvas(theme, bg)?;
+        brackets(
+            &mut pm,
+            KEY_SIZE as f32,
+            KEY_SIZE as f32,
+            frame(theme, view.fg, bg),
+        );
 
         let label = view.label.filter(|l| !l.is_empty());
         if let Some(svg) = view.icon {
@@ -186,15 +199,30 @@ impl Renderer {
                 px: LABEL_PX,
                 align: Align::Center,
             };
-            self.draw_text(&mut pm, text, &text_box, fg);
+            self.draw_text(&mut pm, &text.to_uppercase(), &text_box, fg);
         }
         Ok(to_rgb(&pm))
     }
 
     pub fn glyph_key(&mut self, theme: &Theme, view: &GlyphView) -> Result<RgbImage, RenderError> {
-        let bg = theme.get(view.bg);
-        let fg = theme.get(view.fg).readable_on(bg, MIN_CONTRAST);
-        let mut pm = canvas(KEY_SIZE, KEY_SIZE, bg)?;
+        let base = theme.get(view.bg);
+        let mut pm = key_canvas(theme, base)?;
+        // Marked: the key becomes a solid plate in the fg color, text cut out.
+        let fg = if view.marked {
+            let plate = theme.get(view.fg).readable_on(base, MIN_CONTRAST);
+            let inset = BRACKET_INSET;
+            let side = KEY_SIZE as f32 - 2.0 * inset;
+            fill_rect(&mut pm, inset, inset, side, side, plate);
+            base.readable_on(plate, MIN_CONTRAST)
+        } else {
+            brackets(
+                &mut pm,
+                KEY_SIZE as f32,
+                KEY_SIZE as f32,
+                frame(theme, view.fg, base),
+            );
+            theme.get(view.fg).readable_on(base, MIN_CONTRAST)
+        };
         let text_box = TextBox {
             left: LABEL_PAD,
             top: (KEY_SIZE as f32 - GLYPH_PX * 1.25) / 2.0,
@@ -205,10 +233,6 @@ impl Renderer {
         if !view.text.is_empty() {
             self.draw_text(&mut pm, view.text, &text_box, fg);
         }
-        if view.marked {
-            let left = (KEY_SIZE as f32 - MARK_W) / 2.0;
-            fill_rect(&mut pm, left, MARK_TOP, MARK_W, MARK_H, fg);
-        }
         Ok(to_rgb(&pm))
     }
 
@@ -216,6 +240,13 @@ impl Renderer {
         let bg = theme.get(view.bg);
         let fg = theme.get(view.fg).readable_on(bg, MIN_CONTRAST);
         let mut pm = canvas(SEGMENT_W, SEGMENT_H, bg)?;
+        scanlines(&mut pm, bg);
+        brackets(
+            &mut pm,
+            SEGMENT_W as f32,
+            SEGMENT_H as f32,
+            frame(theme, view.fg, bg),
+        );
         let inner = SEGMENT_W as f32 - 2.0 * SEG_PAD;
         if let Some(svg) = view.icon {
             draw_svg(&mut pm, svg, &fg.hex(), SEG_ICON, SEG_PAD, SEG_ICON_TOP)?;
@@ -233,9 +264,16 @@ impl Renderer {
         }
         if let Some(level) = view.level {
             let track = theme.get(Role::Muted);
-            fill_rect(&mut pm, SEG_PAD, SEG_BAR_TOP, inner, SEG_BAR_H, track);
-            let fill = (inner * level.clamp(0.0, 1.0)).round();
-            fill_rect(&mut pm, SEG_PAD, SEG_BAR_TOP, fill, SEG_BAR_H, fg);
+            blocks(
+                &mut pm,
+                SEG_PAD,
+                SEG_BAR_TOP,
+                inner,
+                SEG_BAR_H,
+                level,
+                fg,
+                track,
+            );
         }
         Ok(to_rgb(&pm))
     }
@@ -245,6 +283,7 @@ impl Renderer {
         let fg = theme.get(Role::Foreground).readable_on(bg, MIN_CONTRAST);
         let accent = theme.get(Role::Accent).readable_on(bg, MIN_CONTRAST);
         let mut pm = canvas(STRIP_W, SEGMENT_H, bg)?;
+        scanlines(&mut pm, bg);
         let right = STRIP_W as f32 - SEG_PAD;
         if let Some(svg) = view.icon {
             draw_svg(&mut pm, svg, &accent.hex(), MEDIA_ICON, SEG_PAD, 16.0)?;
@@ -288,16 +327,17 @@ impl Renderer {
         }
         if let Some(p) = view.progress {
             let w = right - SEG_PAD;
-            fill_rect(
+            let track = theme.get(Role::Muted);
+            blocks(
                 &mut pm,
                 SEG_PAD,
                 MEDIA_BAR_TOP,
                 w,
                 MEDIA_BAR_H,
-                theme.get(Role::Muted),
+                p,
+                accent,
+                track,
             );
-            let fill = (w * p.clamp(0.0, 1.0)).round();
-            fill_rect(&mut pm, SEG_PAD, MEDIA_BAR_TOP, fill, MEDIA_BAR_H, accent);
         }
         Ok(to_rgb(&pm))
     }
@@ -340,6 +380,57 @@ fn canvas(w: u32, h: u32, bg: Color) -> Result<Pixmap, RenderError> {
     let mut pm = Pixmap::new(w, h).ok_or(RenderError::Pixmap)?;
     pm.fill(tiny_skia::Color::from_rgba8(bg.0, bg.1, bg.2, 255));
     Ok(pm)
+}
+
+/// Key background: a soft vertical gradient from a lifted top edge to `bg`.
+fn key_canvas(theme: &Theme, bg: Color) -> Result<Pixmap, RenderError> {
+    let mut pm = canvas(KEY_SIZE, KEY_SIZE, bg)?;
+    let top = bg.mix(theme.lighter_background, 0.8);
+    for y in 0..KEY_SIZE / 2 {
+        let t = y as f32 / (KEY_SIZE / 2) as f32;
+        fill_rect(&mut pm, 0.0, y as f32, KEY_SIZE as f32, 1.0, top.mix(bg, t));
+    }
+    Ok(pm)
+}
+
+/// Bracket color: the accent stays bright (active state glows), everything
+/// else gets a dim frame that never competes with the content.
+fn frame(theme: &Theme, fg: Role, bg: Color) -> Color {
+    match fg {
+        Role::Accent | Role::Red => theme.get(fg),
+        _ => theme.muted.mix(bg, 0.2),
+    }
+}
+
+/// HUD corner brackets: top-left and bottom-right corners only.
+fn brackets(pm: &mut Pixmap, w: f32, h: f32, c: Color) {
+    let (i, l, t) = (BRACKET_INSET, BRACKET_LEN, BRACKET_W);
+    fill_rect(pm, i, i, l, t, c);
+    fill_rect(pm, i, i, t, l, c);
+    fill_rect(pm, w - i - l, h - i - t, l, t, c);
+    fill_rect(pm, w - i - t, h - i - l, t, l, c);
+}
+
+/// Darkens every n-th row slightly, like an old CRT.
+fn scanlines(pm: &mut Pixmap, bg: Color) {
+    let line = bg.mix(Color(0, 0, 0), 0.35);
+    let w = pm.width() as f32;
+    for y in (0..pm.height()).step_by(SCANLINE_EVERY as usize) {
+        fill_rect(pm, 0.0, y as f32, w, 1.0, line);
+    }
+}
+
+/// Level bar as discrete blocks; a block is lit when its start is below
+/// the level. Unlit blocks show the track color.
+#[allow(clippy::too_many_arguments)]
+fn blocks(pm: &mut Pixmap, x: f32, y: f32, w: f32, h: f32, level: f32, on: Color, off: Color) {
+    let fill = w * level.clamp(0.0, 1.0);
+    let mut bx = x;
+    while bx + BLOCK_W <= x + w + 0.5 {
+        let lit = bx - x < fill && fill > 0.0;
+        fill_rect(pm, bx, y, BLOCK_W, h, if lit { on } else { off });
+        bx += BLOCK_W + BLOCK_GAP;
+    }
 }
 
 fn fill_rect(pm: &mut Pixmap, x: f32, y: f32, w: f32, h: f32, c: Color) {
@@ -474,7 +565,7 @@ mod tests {
     #[test]
     fn marked_glyph_key() {
         let mut r = Renderer::new(vec![]);
-        // No font in tests: only the mark is checked.
+        // No font in tests: only the plate is checked.
         let view = GlyphView {
             text: "",
             marked: true,
@@ -483,7 +574,8 @@ mod tests {
         };
         let img = r.glyph_key(&theme(), &view).unwrap();
         assert_eq!(img.pixel(60, 100), [0xe6, 0x8e, 0x0d]);
-        assert_eq!(img.pixel(10, 100), [0x12, 0x12, 0x12]);
+        assert_eq!(img.pixel(10, 10), [0xe6, 0x8e, 0x0d]);
+        assert_eq!(img.pixel(2, 117), [0x12, 0x12, 0x12]);
     }
 
     #[test]
@@ -497,7 +589,7 @@ mod tests {
         };
         let img = Renderer::new(vec![]).key(&theme(), &view).unwrap();
         assert_eq!(img.pixel(60, 60), [255, 0, 0]);
-        assert_eq!(img.pixel(0, 0), [0x12, 0x12, 0x12]);
+        assert_eq!(img.pixel(0, 119), [0x12, 0x12, 0x12]);
     }
 
     #[test]
@@ -511,7 +603,12 @@ mod tests {
         };
         let img = r.key(&t, &view).unwrap();
         assert_eq!(img.data.len(), 120 * 120 * 3);
-        assert_eq!(img.pixel(0, 0), [0x12, 0x12, 0x12]);
+        assert_eq!(img.pixel(0, 119), [0x12, 0x12, 0x12]);
+        // Gradient: the top edge is lifted towards `lighter_background`.
+        assert_ne!(img.pixel(0, 0), [0x12, 0x12, 0x12]);
+        // Active (accent) keys get accent corner brackets.
+        assert_eq!(img.pixel(8, 8), [0xe6, 0x8e, 0x0d]);
+        assert_eq!(img.pixel(111, 111), [0xe6, 0x8e, 0x0d]);
         insta::assert_snapshot!(ascii(&img, [0x12, 0x12, 0x12]));
     }
 
@@ -590,19 +687,21 @@ mod tests {
             ..Default::default()
         };
         let img = r.segment(&theme(), &view).unwrap();
-        let y = 72;
+        // Blocks of 8 px with 3 px gaps from x = 16; 25 % of 168 px lights
+        // the blocks starting at 16, 27, 38 and 49.
+        let y = 70;
         assert_eq!(img.pixel(16, y), [0xe6, 0x8e, 0x0d]);
-        assert_eq!(img.pixel(57, y), [0xe6, 0x8e, 0x0d]);
-        assert_eq!(img.pixel(58, y), [0x33, 0x33, 0x33]);
-        assert_eq!(img.pixel(183, y), [0x33, 0x33, 0x33]);
-        assert_eq!(img.pixel(184, y), [0x12, 0x12, 0x12]);
+        assert_eq!(img.pixel(56, y), [0xe6, 0x8e, 0x0d]);
+        assert_eq!(img.pixel(58, y), [0x12, 0x12, 0x12], "gap");
+        assert_eq!(img.pixel(60, y), [0x33, 0x33, 0x33]);
+        assert_eq!(img.pixel(177, y), [0x33, 0x33, 0x33]);
         // Out-of-range levels are clamped.
         let full = SegmentView {
             level: Some(7.0),
             ..view
         };
         let img = r.segment(&theme(), &full).unwrap();
-        assert_ne!(img.pixel(183, y), [0x33, 0x33, 0x33]);
+        assert_eq!(img.pixel(177, y), [0xe6, 0x8e, 0x0d]);
     }
 
     #[test]
@@ -617,9 +716,9 @@ mod tests {
             ..Default::default()
         };
         let img = r.segment(&theme(), &view).unwrap();
-        let bg = [0x12, 0x12, 0x12];
+        // Text is foreground (0xbe); frame and scanlines stay far darker.
         let cols: Vec<u32> = (0..200)
-            .filter(|&x| (16..52).any(|y| img.pixel(x, y) != bg))
+            .filter(|&x| (16..52).any(|y| img.pixel(x, y)[0] > 0x60))
             .collect();
         assert!(
             cols.first().is_some_and(|&x| x > 100),

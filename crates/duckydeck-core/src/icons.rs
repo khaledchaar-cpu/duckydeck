@@ -164,7 +164,7 @@ mod contrast_tests {
                         ..KeyView::default()
                     };
                     let img = renderer.key(theme, &view).unwrap();
-                    let [r, g, b] = img.pixel(0, 0);
+                    let [r, g, b] = img.pixel(0, KEY_SIZE - 1);
                     let back = Color(r, g, b);
                     let best = (0..KEY_SIZE)
                         .flat_map(|y| (0..KEY_SIZE).map(move |x| (x, y)))

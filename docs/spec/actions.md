@@ -74,7 +74,7 @@ Unten steht bei jeder Kategorie, was Katalog (K) und was Rust (R) ist.
 - v2: Lautstärke pro App
 
 ## Window Management (M5b) – Dispatches/Omarchy-Routen K, Workspace-Status und Regler R
-- Workspace 1–10 wechseln / Fenster verschieben (`window.workspace`, `window.move_to_workspace`, `args = { n }`); Taste zeigt die Ziffer: aktiv = Akzent + Balken, belegt = Vordergrund, leer = gedimmt. Status aus Events `workspacev2`/`focusedmonv2`, Belegung per `j/workspaces` nur nach Fenster-/Workspace-Events
+- Workspace 1–10 wechseln / Fenster verschieben (`window.workspace`, `window.move_to_workspace`, `args = { n }`); Taste zeigt die Ziffer: aktiv = gefüllte Akzentfläche, belegt = Vordergrund, leer = gedimmt. Status aus Events `workspacev2`/`focusedmonv2`, Belegung per `j/workspaces` nur nach Fenster-/Workspace-Events
 - **Regler** `window.workspace_scroll`: Workspaces durchblättern (`e±N`), Druck = Scratchpad; Strip zeigt die aktive Nummer
 - Fenster schließen, Floating, Vollbild, Pseudo, Split
 - Omarchy-Routen: Tiled-Fullscreen, Pop-out, Transparenz, Gaps, Layout dwindle ↔ scrolling (`omarchy hyprland …`)

@@ -32,6 +32,12 @@ Jede eingebaute Action sieht ohne Zutun gut aus und passt zu jedem Omarchy-Theme
 | Launcher | launcher, browser, terminal, files, editor, agent, webapp, url, generic-app |
 | Struktur | folder, back, page-next, page-prev, profile, multi-action, toggle, warning |
 
+## Look (HUD, einziger Stil – entschieden 2026-10-04)
+Cyberpunk/HUD-Optik, Farben weiterhin nur aus `colors.toml`:
+- Tasten: Hintergrund mit sanftem Verlauf (oben Richtung `lighter_background`), Eck-Klammern oben links/unten rechts – gedimmt (`muted`), bei aktivem Zustand in `accent`/`red`.
+- Labels in Großbuchstaben (14 px). Aktiver Workspace: gefüllte Akzentfläche, Ziffer ausgespart.
+- Touchstrip: dunkle Scanlines (jede 3. Zeile), Eck-Klammern pro Segment, Pegel und Medienfortschritt als Blockbalken (8 px Block, 3 px Lücke).
+
 ## Weitere Assets
 - **Touchstrip-Layouts** (800×100): Reglerwerte (Balken + Prozent + Icon), Medien, Workspace-Leiste.
 - **Splash** beim Verbinden (Logo in `accent`, 600 ms) und **Screensaver** (gedimmt, Uhrzeit), gekoppelt an Idle/Lock der Shell.
