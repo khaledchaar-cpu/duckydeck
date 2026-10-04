@@ -7,15 +7,13 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`), zweiter Monitor (DP-1, DP-2). Paket 0.1.4-1 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- v2-Punkt „Zweite UI-Sprache“ ersatzlos gestrichen (Spec aktualisiert)
-- Script-Actions (`script.<name>` aus `~/.config/duckydeck/scripts/`, JSON-Lines stdin/stdout, pro Event oder `persistent`, Tasten + Regler), `check`, Editor-Gruppe „Scripts“, am Gerät geprüft
-- Beispiel-Scripts `hello`/`counter`/`knob`; `setup` legt `hello` einmalig an, Paket installiert alle nach `/usr/share/doc/duckydeck/examples/scripts/`
+- Daemon-RSS 17,1 → 14,3 MB: Tokio-Runtime auf `current_thread` (vorher 16 Worker), am Gerät geprüft
 
 ## Nächster Schritt
-- Mit dem Nutzer klären, was als Nächstes kommt (alle v1/v2-Punkte erledigt); Kandidat: Daemon-RSS unter 15 MB drücken
+- Mit dem Nutzer klären, was als Nächstes kommt; optional mehr RSS-Puffer (Binary ~7 MB resident, vermutlich eingebettete Icons)
 
 ## Offene Probleme / Notizen
-- Daemon-RSS ~15,1–15,6 MB (Release), knapp über dem 15-MB-Ziel – unabhängig von Script-Actions
+- RSS-Puffer nur ~0,7 MB; HID-Flushes blockieren jetzt kurz auch IPC/MPRIS/pactl (unkritisch)
 - Script-Zustand gilt pro Action, nicht pro Slot (bewusst, in actions.md)
 - Passwortloses `sudo` (`/etc/sudoers.d/90-kc-nopasswd`) + `Bash(sudo *)` in `.claude/settings.local.json` → Claude installiert Pakete selbst (`sudo pacman -U --noconfirm …`)
 - Tastaturlicht-Text nur nach Druck und Start aktuell (kein Event)

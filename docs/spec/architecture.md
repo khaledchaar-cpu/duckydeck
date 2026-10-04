@@ -117,5 +117,5 @@ Genauso wird der Hyprland-Zugriff hinter einem Trait gekapselt (Fake mit vorgege
 - Nach dem Einstecken löscht die bootende Firmware den Strip einmal (1,0–1,5 s nach dem udev-`add`); Tasten sind nicht betroffen → Strip 2 s nach Hotplug neu zeichnen. Kein `reset()` vor dem Zeichnen.
 - Gesten (Tap, Long-Press, Swipe auf dem Strip) liefert die Firmware selbst; Encoder-Twist mit Schrittweite (±1, ±2). Long-Press für Tasten/Regler misst der Daemon selbst (`gesture.rs`, 500 ms, feuert noch während des Haltens).
 - Hotplug über udev-Monitor (`udev`-Crate, Subsystem `hidraw`) in einem eigenen Thread (Monitor ist nicht `Sync`).
-- Leerlauf gemessen: 0 CPU-Ticks/10 s, ~7,6 MB RSS.
+- Leerlauf gemessen: 0 CPU-Ticks/10 s, ~14,3 MB RSS (Release, Stream Deck +; Tokio `current_thread` – ein Worker pro Kern kostete ~3 MB).
 - Zugriffsrechte: ohne eigene Regel nur dank fremder Regel (`/etc/udev/rules.d/50-companion-desktop.rules`) → `packaging/70-duckydeck.rules` (uaccess) ist Pflicht.
