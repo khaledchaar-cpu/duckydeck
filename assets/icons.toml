@@ -131,6 +131,7 @@ page-scroll = "arrows-left-right"
 profile = "user-circle"
 multi-action = "stack-2"
 toggle = "toggle-right"
+script = "script"
 warning = "alert-triangle"
 
 

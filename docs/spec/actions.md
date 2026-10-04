@@ -92,6 +92,19 @@ Unten steht bei jeder Kategorie, was Katalog (K) und was Rust (R) ist.
 Seite / Ordner / Zurück, Profil wechseln, Multi-Action (Sequenz mit Delays), Toggle-Action.
 - **Regler** `structure.page_scroll` (Entscheidung Nutzer 2026-10-03): Drehen blättert die Seiten des Profils (zyklisch wie der Swipe, aus einem Ordner heraus), Druck = Seite 1; Strip zeigt „Seite/Anzahl“.
 
+## Script-Actions (v2) – R
+Eigene Actions ohne Rust-Code (Entscheidung Nutzer 2026-10-04): jede ausführbare Datei in `~/.config/duckydeck/scripts/` wird zur Action `script.<stamm>` (Stamm = Dateiname ohne Endung, nur `a-z0-9_-`; versteckte und nicht ausführbare Dateien zählen nicht). Neu eingelesen bei Config-Reload, `duckydeck reload` und jeder Action-Liste für den Editor. Aufruf direkt (Pfad + Argumentliste, keine Shell), Arbeitsverzeichnis = Script-Ordner.
+
+Optionaler Header in den ersten 20 Zeilen, je Zeile `# duckydeck-<feld>: <wert>`:
+- `label` (Default: Stamm), `icon` (eingebautes oder eigenes Icon, Default `script`), `slot = key|dial` (Default `key`), `persistent = true|false` (Default `false`).
+
+Protokoll: JSON-Lines, je Richtung ein Objekt pro Zeile.
+- **Daemon → Script (stdin):** `{"event":"init"}` (Start/Reload), `{"event":"press"}`, `{"event":"long_press"}`, bei Reglern zusätzlich `{"event":"twist","delta":-1}`. Jedes Event trägt `"args"` mit den `args` des Slots (Objekt, ggf. leer).
+- **Script → Daemon (stdout):** `{"label":"3 Mails","icon":"mail","state":true,"value":40}`. Alle Felder optional, ein Update ersetzt nur die genannten Felder, `null` setzt auf den Header-Wert zurück. `state = true` hebt die Taste hervor (Akzent), `value` (0–100) ist der Pegel eines Reglers. Ungültige Zeilen werden geloggt und ignoriert. stderr landet im Log.
+- **Pro Event (Default):** je Event ein eigener Prozess mit dem Event als einziger stdin-Zeile; seine Ausgabe (bis 10 s Laufzeit, danach wird er beendet) aktualisiert die Taste. `init` läuft für jedes benutzte Script beim Start und bei Reload. Exit-Code ≠ 0 innerhalb von 3 s → Shell-Benachrichtigung wie bei Katalog-Actions.
+- **Dauerhaft (`persistent: true`):** ein Prozess pro Script, solange es in einem Profil benutzt wird; bekommt `init` und danach alle Events über stdin, schickt Updates, wann es will (eigene Events statt Polling). Endet er, startet der Daemon ihn nach 5 s neu; nach 3 Abbrüchen in 60 s bleibt er aus (Shell-Benachrichtigung, Neustart erst bei Reload).
+- Zustand gilt pro Script (alle Slots derselben Action zeigen ihn), nur im Speicher. `duckydeck check` meldet unbekannte `script.*`-Ids und falsche Slot-Arten.
+
 ## Profile & Kontext
 - Profile mit beliebig vielen Seiten (8 Tasten + 4 Regler + Strip).
 - Auto-Profilwechsel über Hyprland-Event `activewindow` (Match `class`/`title`, Regex via `regex-lite`; angegebene Felder müssen alle passen). Erstes passendes Profil in Id-Reihenfolge gewinnt; ohne Match gilt das manuell gewählte Profil (`config.profile` bzw. letzte Wahl über CLI/Panel). Eine manuelle Wahl bleibt bis zum nächsten Fensterwechsel. Fokus ohne Fenster (Menü, leerer Workspace) behält das Profil des letzten Fensters. Ungültige Regex = Config-Fehler.

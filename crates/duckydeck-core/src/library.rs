@@ -1,11 +1,12 @@
 //! Every action the editor offers: catalog entries plus the built-in Rust
 //! actions, with label, icon, slot kind and parameters.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
 use crate::catalog::{Catalog, Confirm};
+use crate::script::Script;
 
 /// Where an action can be placed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -174,8 +175,13 @@ const BUILTINS: &[Builtin] = &[
     ),
 ];
 
-/// All actions, sorted by id. `unavailable` comes from the daemon's route check.
-pub fn items(catalog: &Catalog, unavailable: &BTreeSet<String>) -> Vec<Item> {
+/// All actions including user scripts, sorted by id. `unavailable` comes
+/// from the daemon's route check.
+pub fn items(
+    catalog: &Catalog,
+    unavailable: &BTreeSet<String>,
+    scripts: &BTreeMap<String, Script>,
+) -> Vec<Item> {
     let catalog_items = catalog.iter().map(|(id, e)| Item {
         id: id.clone(),
         group: group(id),
@@ -230,7 +236,17 @@ pub fn items(catalog: &Catalog, unavailable: &BTreeSet<String>) -> Vec<Item> {
             long_press: false,
             available: true,
         });
-    let mut all: Vec<Item> = catalog_items.chain(builtins).collect();
+    let scripts = scripts.values().map(|s| Item {
+        id: s.id.clone(),
+        group: group(&s.id),
+        label: s.label.clone(),
+        icon: s.icon.clone(),
+        slot: s.slot,
+        params: Vec::new(),
+        long_press: false,
+        available: true,
+    });
+    let mut all: Vec<Item> = catalog_items.chain(builtins).chain(scripts).collect();
     all.sort_by(|a, b| a.id.cmp(&b.id));
     all
 }
@@ -252,7 +268,7 @@ mod tests {
     #[test]
     fn items_pass_the_check() {
         let catalog = Catalog::builtin().unwrap();
-        let items = items(&catalog, &BTreeSet::new());
+        let items = items(&catalog, &BTreeSet::new(), &BTreeMap::new());
         let mut keys = Vec::new();
         let mut dials = Vec::new();
         for it in &items {
@@ -324,7 +340,7 @@ mod tests {
     fn unavailable_is_marked() {
         let catalog = Catalog::builtin().unwrap();
         let off = BTreeSet::from(["system.lock".to_owned()]);
-        let items = items(&catalog, &off);
+        let items = items(&catalog, &off, &BTreeMap::new());
         let lock = items.iter().find(|i| i.id == "system.lock").unwrap();
         assert!(!lock.available);
         assert_eq!(lock.group, "system");

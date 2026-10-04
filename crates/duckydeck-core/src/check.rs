@@ -8,11 +8,24 @@ use crate::compound::{self, MULTI_ACTION, PROFILE_ACTION, Step, TOGGLE_ACTION};
 use crate::config::{Binding, FOLDER_ACTION, Loaded, Page};
 use crate::dial::Dial;
 use crate::hypr::SCROLL_ACTION;
+use crate::library::Slot;
 use crate::media::MediaKey;
 use crate::nav::{BACK_ACTION, PAGE_ACTION, PAGE_SCROLL_ACTION};
+use crate::script::{self, Script};
+
+/// Script actions by id.
+type Scripts = std::collections::BTreeMap<String, Script>;
 
 /// One problem per line, e.g. `profile "dev", page 2, key 3: unknown action "x"`.
+/// Script actions come from the user's script directory.
 pub fn problems(loaded: &Loaded, catalog: &Catalog) -> Vec<String> {
+    let scripts = script::dir()
+        .map(|d| script::discover(&d))
+        .unwrap_or_default();
+    problems_with(loaded, catalog, &scripts)
+}
+
+pub fn problems_with(loaded: &Loaded, catalog: &Catalog, scripts: &Scripts) -> Vec<String> {
     let mut out = Vec::new();
     for (id, profile) in &loaded.profiles {
         let pages = profile
@@ -25,7 +38,7 @@ pub fn problems(loaded: &Loaded, catalog: &Catalog) -> Vec<String> {
             .iter()
             .map(|(n, p)| (format!("folder {n:?}"), p));
         for (what, page) in pages.chain(folders) {
-            check_page(loaded, catalog, page, &mut |slot, msg| {
+            check_page(loaded, catalog, scripts, page, &mut |slot, msg| {
                 out.push(format!("profile {id:?}, {what}, {slot}: {msg}"));
             });
         }
@@ -60,16 +73,21 @@ pub fn notify_problems(loaded: &Loaded, catalog: &Catalog, runner: &dyn CommandR
 fn check_page(
     loaded: &Loaded,
     catalog: &Catalog,
+    scripts: &Scripts,
     page: &Page,
     report: &mut impl FnMut(String, String),
 ) {
     for (i, b) in bindings(&page.keys) {
-        if let Err(msg) = check_key(loaded, catalog, b) {
+        if let Err(msg) = check_key(loaded, catalog, scripts, b) {
             report(format!("key {i}"), msg);
         }
     }
     for (i, b) in bindings(&page.dials) {
-        if Dial::from_binding(b).is_none()
+        if b.action.starts_with(script::PREFIX) {
+            if let Err(msg) = check_script(scripts, b, Slot::Dial) {
+                report(format!("dial {i}"), msg);
+            }
+        } else if Dial::from_binding(b).is_none()
             && b.action != SCROLL_ACTION
             && b.action != PAGE_SCROLL_ACTION
         {
@@ -86,8 +104,16 @@ fn bindings(slots: &[crate::config::Slot]) -> impl Iterator<Item = (usize, &Bind
         .filter_map(|(i, s)| s.0.as_ref().map(|b| (i + 1, b)))
 }
 
-fn check_key(loaded: &Loaded, catalog: &Catalog, b: &Binding) -> Result<(), String> {
+fn check_key(
+    loaded: &Loaded,
+    catalog: &Catalog,
+    scripts: &Scripts,
+    b: &Binding,
+) -> Result<(), String> {
     let a = b.action.as_str();
+    if a.starts_with(script::PREFIX) {
+        return check_script(scripts, b, Slot::Key);
+    }
     // Structure is validated by the parser.
     match a {
         PROFILE_ACTION => {
@@ -100,14 +126,14 @@ fn check_key(loaded: &Loaded, catalog: &Catalog, b: &Binding) -> Result<(), Stri
         MULTI_ACTION => {
             for s in compound::steps(b)? {
                 if let Step::Run(n) = s {
-                    check_key(loaded, catalog, &n)?;
+                    check_key(loaded, catalog, scripts, &n)?;
                 }
             }
             return Ok(());
         }
         TOGGLE_ACTION => {
             for n in compound::states(b)? {
-                check_key(loaded, catalog, &n)?;
+                check_key(loaded, catalog, scripts, &n)?;
             }
             return Ok(());
         }
@@ -123,6 +149,17 @@ fn check_key(loaded: &Loaded, catalog: &Catalog, b: &Binding) -> Result<(), Stri
             .map(|_| ())
             .map_err(|e| e.to_string()),
         None => Err(not_a(b, "key", catalog)),
+    }
+}
+
+fn check_script(scripts: &Scripts, b: &Binding, slot: Slot) -> Result<(), String> {
+    match scripts.get(&b.action) {
+        None => Err(format!("unknown action {:?}", b.action)),
+        Some(s) if s.slot != slot => {
+            let kind = if slot == Slot::Key { "key" } else { "dial" };
+            Err(format!("{:?} cannot be used on a {kind}", b.action))
+        }
+        Some(_) => Ok(()),
     }
 }
 
@@ -186,6 +223,39 @@ mod tests {
                 r#"profile "t", page 1, key 5: unknown profile "gone""#,
                 r#"profile "t", page 1, key 6: unknown action "nope2""#,
                 r#"profile "t", page 1, dial 2: "system.lock" cannot be used on a dial"#,
+            ]
+        );
+    }
+
+    #[test]
+    fn checks_scripts_and_their_slot() {
+        let catalog = Catalog::builtin().unwrap();
+        let script = |id: &str, slot| Script {
+            id: id.into(),
+            path: "/x".into(),
+            label: "x".into(),
+            icon: "script".into(),
+            slot,
+            persistent: false,
+        };
+        let scripts = Scripts::from([
+            ("script.mail".into(), script("script.mail", Slot::Key)),
+            ("script.knob".into(), script("script.knob", Slot::Dial)),
+        ]);
+        let l = loaded(
+            r#"
+            name = "T"
+            [[pages]]
+            keys = [{ action = "script.mail" }, { action = "script.gone" }, { action = "script.knob" }]
+            dials = [{ action = "script.knob" }, { action = "script.mail" }]
+            "#,
+        );
+        assert_eq!(
+            problems_with(&l, &catalog, &scripts),
+            [
+                r#"profile "t", page 1, key 2: unknown action "script.gone""#,
+                r#"profile "t", page 1, key 3: "script.knob" cannot be used on a key"#,
+                r#"profile "t", page 1, dial 2: "script.mail" cannot be used on a dial"#,
             ]
         );
     }
