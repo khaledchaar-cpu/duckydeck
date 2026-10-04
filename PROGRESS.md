@@ -8,10 +8,9 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Lokales Paket 0.1.2 mit App
 
 ## Erledigt (letzte Sitzung)
 - Release v0.1.3 (Erinnerung live, App-Lautstärke) auf GitHub, Paket per CI gebaut
-- README aufgefrischt: Highlights, Badges, Deck-Screenshots (`docs/screenshots/`, Fake-Device-Renders)
+- README aufgefrischt: Highlights, Badges, Screenshots von Deck (Fake-Render), Editor und Panel (grim, Seriennummer verwischt) in `docs/screenshots/`
 
 ## Nächster Schritt
-- Screenshots von Panel und Editor fürs README (vom Nutzer, echte Shell)
 - Danach nächstes v2-Feature nach Absprache (SPEC.md)
 
 ## Offene Probleme / Notizen

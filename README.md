@@ -31,6 +31,18 @@ the Omarchy shell, every action running through the `omarchy` CLI.
 - 🧱 **Multi actions and toggles.** Sequences with delays, keys that alternate between two actions.
 - 🪶 **Small and quiet.** One Rust daemon, ~14 MB RAM, events instead of polling, no network, no telemetry, no root.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/editor.png" width="860" alt="Graphical editor: action list, live deck preview, slot settings"><br>
+  <em>The editor – drag actions onto keys and dials, the deck updates as you go.</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/panel.png" width="360" alt="Shell panel: profile, page and brightness"><br>
+  <em>The panel behind the bar icon – profile, page, brightness.</em>
+</p>
+
 Made for current Omarchy. Reference device is the Stream Deck + (USB `0fd9:0084`).
 
 ## Install
