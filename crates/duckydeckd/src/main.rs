@@ -26,7 +26,7 @@ use tracing_subscriber::EnvFilter;
 
 const BOOT_TIME: Duration = Duration::from_secs(2);
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     let debug = std::env::args().any(|a| a == "--debug");
     // cosmic-text logs every missing fallback family per text layout.
