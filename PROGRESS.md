@@ -4,16 +4,19 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 
 **Aktueller Milestone:** alle Milestones (M1–M9) fertig, v0.1.3 auf GitHub (inkl. Lautstärke pro App)
 
-Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Lokales Paket 0.1.2 mit App-Lautstärke installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
+Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Lokales Paket 0.1.3-1 mit HUD-Look installiert (Stand `bcf1d31`) (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- Release v0.1.3 (Erinnerung live, App-Lautstärke) auf GitHub, Paket per CI gebaut
-- README aufgefrischt: Highlights, Badges, Screenshots von Deck (Fake-Render), Editor und Panel (grim, Seriennummer verwischt) in `docs/screenshots/`
+- Deck-Look „HUD“ (einziger Stil, `docs/spec/assets.md`): Eck-Klammern in gedämpftem Akzent, Verlauf, Labels in Großbuchstaben, Akzent-Underglow
+- Aktiver Workspace als gefüllte Akzentfläche; Neon-Glow (Box-Blur) für aktive Tasten und leuchtende Pegelblöcke; Blockbalken auf dem Strip
+- Scanlines verworfen (am Gerät nicht sichtbar)
+- Versuch „Console“-Look (bunte Kategoriefarben + `status.palette` für QML) auf Wunsch des Nutzers komplett zurückgerollt
 
 ## Nächster Schritt
-- Danach nächstes v2-Feature nach Absprache (SPEC.md)
+- Mit dem Nutzer klären: Editor/Panel im HUD-Stil nur mit Shell-Tokens (Akzent) nachziehen oder Look so lassen
 
 ## Offene Probleme / Notizen
+- Look-Änderungen noch nicht gepusht (6 Commits vor `origin/main`)
 - Tastaturlicht-Text nur nach Druck und Start aktuell (kein Event)
 - App-Lautstärke: gewählte App gilt nur bis Daemon-Neustart (bewusst, kein Zustand gespeichert)
 - Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)
