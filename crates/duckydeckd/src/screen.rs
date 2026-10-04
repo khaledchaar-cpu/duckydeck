@@ -5,7 +5,7 @@
 //! [`levels`](crate::levels) worker.
 
 use std::cell::RefCell;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::rc::Rc;
 use std::time::{Duration, Instant, SystemTime};
 
@@ -22,6 +22,7 @@ use duckydeck_core::ipc;
 use duckydeck_core::media::{self, MediaKey, Players, Status};
 use duckydeck_core::nav::{BACK_ACTION, Nav, PAGE_ACTION, PAGE_SCROLL_ACTION, Press};
 use duckydeck_core::render::{GlyphView, KeyView, MediaView, Renderer, SegmentView};
+use duckydeck_core::script::{self, Script};
 use duckydeck_core::status::Trigger;
 use duckydeck_core::theme::{Role, Theme};
 use duckydeck_core::toggle;
@@ -33,6 +34,7 @@ use crate::device::{Deck, DeckEvent};
 use crate::gesture::{Control, Gesture};
 use crate::levels::Job;
 use crate::mpris;
+use crate::scripts;
 use crate::surface::{KEY_SIZE, STRIP_H};
 use crate::texts::{self, Texts};
 use crate::toggles::Toggles;
@@ -60,6 +62,7 @@ pub struct Tasks {
     pub hypr: UnboundedSender<String>,
     pub toggles: UnboundedSender<String>,
     pub texts: UnboundedSender<texts::Msg>,
+    pub scripts: UnboundedSender<scripts::Msg>,
     /// Delayed multi-action steps back into the main loop.
     pub events: UnboundedSender<DeckEvent>,
 }
@@ -117,6 +120,11 @@ pub struct Screen {
     toggle_tx: UnboundedSender<String>,
     texts: Texts,
     text_tx: UnboundedSender<texts::Msg>,
+    /// Scripts found in the script directory, by action id.
+    scripts: BTreeMap<String, Script>,
+    /// What scripts want their keys to show.
+    script_states: scripts::States,
+    script_tx: UnboundedSender<scripts::Msg>,
     /// Automatic profile switching by active window.
     context: WindowContext,
     /// Next state index of toggle keys, until the config reloads.
@@ -145,7 +153,7 @@ impl Screen {
         };
         let nav = Nav::new(&store.current);
         let context = WindowContext::new(&store.current);
-        Ok(Self {
+        let mut screen = Self {
             renderer: Renderer::new(font.into_iter().collect()),
             theme,
             store,
@@ -169,6 +177,9 @@ impl Screen {
             toggle_tx: tasks.toggles,
             texts: Texts::new(),
             text_tx: tasks.texts,
+            scripts: BTreeMap::new(),
+            script_states: scripts::States::new(),
+            script_tx: tasks.scripts,
             context,
             toggled: HashMap::new(),
             events_tx: tasks.events,
@@ -176,7 +187,28 @@ impl Screen {
             preview_rev: 0,
             learners: 0,
             learned: None,
-        })
+        };
+        screen.sync_scripts(true);
+        Ok(screen)
+    }
+
+    /// Re-reads the script directory and tells the script task which
+    /// scripts the profiles use; only on changes unless `force`d.
+    fn sync_scripts(&mut self, force: bool) {
+        let found = script::dir()
+            .map(|d| script::discover(&d))
+            .unwrap_or_default();
+        if !force && found == self.scripts {
+            return;
+        }
+        self.scripts = found;
+        let used = script::used(&self.store.current)
+            .into_iter()
+            .filter_map(|(id, args)| {
+                Some((self.scripts.get(&id)?.clone(), script::args_json(&args)))
+            })
+            .collect();
+        let _ = self.script_tx.send(scripts::Msg::Sync(used));
     }
 
     /// Swaps the label font; `None` keeps the current one.
@@ -199,8 +231,10 @@ impl Screen {
     pub fn reload_config(&mut self, runner: &dyn CommandRunner) -> bool {
         let configured = self.store.current.config.profile.clone();
         if !self.store.reload(runner) {
+            self.sync_scripts(false);
             return false;
         }
+        self.sync_scripts(true);
         duckydeck_core::check::notify_problems(&self.store.current, &self.catalog, runner);
         self.app_icons.borrow_mut().clear();
         self.app_names.borrow_mut().clear();
@@ -256,7 +290,10 @@ impl Screen {
 
     /// Every action the editor offers, with availability on this system.
     pub fn actions(&self) -> Vec<duckydeck_core::library::Item> {
-        duckydeck_core::library::items(&self.catalog, &self.unavailable)
+        let scripts = script::dir()
+            .map(|d| script::discover(&d))
+            .unwrap_or_default();
+        duckydeck_core::library::items(&self.catalog, &self.unavailable, &scripts)
     }
 
     /// Renders a page or folder of any profile into `dir`, replacing the
@@ -526,6 +563,52 @@ impl Screen {
         changed
     }
 
+    /// Returns whether a shown key or dial changed.
+    pub fn set_scripts(&mut self, s: scripts::States) -> bool {
+        let c = &self.store.current;
+        let changed = self
+            .nav
+            .keys(c)
+            .iter()
+            .chain(self.nav.dials(c).iter())
+            .flatten()
+            .any(|b| self.script_states.get(&b.action) != s.get(&b.action));
+        self.script_states = s;
+        changed
+    }
+
+    /// A script action shows its live label and icon, else the profile's,
+    /// else its header's.
+    fn scripted(&self, mut b: Binding) -> Binding {
+        let Some(s) = self.scripts.get(&b.action) else {
+            return b;
+        };
+        let state = self.script_states.get(&b.action);
+        b.label = state
+            .and_then(|st| st.label.clone())
+            .or(b.label)
+            .or_else(|| Some(s.label.clone()));
+        b.icon = state
+            .and_then(|st| st.icon.clone())
+            .or(b.icon)
+            .or_else(|| Some(s.icon.clone()));
+        b
+    }
+
+    fn script_event(&self, b: &Binding, ev: impl FnOnce(serde_json::Value) -> script::Event) {
+        let ev = ev(script::args_json(&b.args));
+        let _ = self
+            .script_tx
+            .send(scripts::Msg::Event(b.action.clone(), ev));
+    }
+
+    /// The script binding on encoder `seg`, if it has one.
+    fn dial_script(&self, seg: u8) -> Option<Binding> {
+        self.nav.dials(&self.store.current)[usize::from(seg % 4)]
+            .take()
+            .filter(|b| b.action.starts_with(script::PREFIX))
+    }
+
     /// Next full second of a shown recording time, if any.
     pub fn key_deadline(&self) -> Option<Instant> {
         let now = SystemTime::now();
@@ -604,6 +687,23 @@ impl Screen {
                 self.picking = None;
                 self.touch_dials(deck)
                     .and_then(|()| self.segment(deck, i, false))
+            }
+            Gesture::Tap(Control::Encoder(i)) | Gesture::LongPress(Control::Encoder(i))
+                if let Some(b) = self.dial_script(i) =>
+            {
+                let long = matches!(g, Gesture::LongPress(_));
+                self.script_event(&b, |args| match long {
+                    true => script::Event::LongPress { args },
+                    false => script::Event::Press { args },
+                });
+                return;
+            }
+            Gesture::Twist { encoder, delta, .. } if let Some(b) = self.dial_script(encoder) => {
+                self.script_event(&b, |args| script::Event::Twist {
+                    delta: i32::from(delta),
+                    args,
+                });
+                self.touch_dials(deck)
             }
             Gesture::Tap(Control::Key(i)) => self.press(deck, i, false),
             Gesture::LongPress(Control::Key(i)) => self.press(deck, i, true),
@@ -803,6 +903,14 @@ impl Screen {
 
     /// Runs a catalog action detached. Failures are logged, never fatal.
     fn run(&self, b: &Binding, long: bool) {
+        if b.action.starts_with(script::PREFIX) {
+            self.script_event(b, |args| match long {
+                true => script::Event::LongPress { args },
+                false => script::Event::Press { args },
+            });
+            tracing::info!(action = %b.action, "script event sent");
+            return;
+        }
         if let Some(key) = MediaKey::from_binding(b) {
             let wanted = media::wanted_player(b).map(str::to_owned);
             let _ = self.media_tx.send(mpris::Press { key, wanted });
@@ -858,7 +966,8 @@ impl Screen {
     fn key_image(&mut self, nav: &Nav, i: u8, pressed: bool) -> Result<RgbImage> {
         let binding = nav.keys(&self.store.current)[usize::from(i % 8)]
             .take()
-            .map(|b| self.shown_in(nav, i, b));
+            .map(|b| self.shown_in(nav, i, b))
+            .map(|b| self.scripted(b));
         let bg = if pressed {
             Role::LighterBackground
         } else {
@@ -913,7 +1022,9 @@ impl Screen {
     }
 
     fn segment_image(&mut self, nav: &Nav, seg: u8, pressed: bool) -> Result<RgbImage> {
-        let binding = nav.dials(&self.store.current)[usize::from(seg % 4)].take();
+        let binding = nav.dials(&self.store.current)[usize::from(seg % 4)]
+            .take()
+            .map(|b| self.scripted(b));
         let level = binding.as_ref().and_then(Dial::from_binding).map(|d| {
             let d = self.with_pick(seg, d);
             let l = self.levels.of(&d);
@@ -965,6 +1076,7 @@ impl Screen {
             level: level
                 .as_ref()
                 .and_then(|(_, (pct, _))| *pct)
+                .or_else(|| self.script_states.get(&binding.as_ref()?.action)?.value)
                 .map(|p| f32::from(p) / 100.0),
             fg: if app.as_ref().is_some_and(|(_, playing)| !playing) {
                 Role::Muted
@@ -1039,6 +1151,9 @@ impl Screen {
     /// Whether the status text equals the binding's value of the entry's
     /// `active` placeholder (e.g. the active power profile).
     fn is_active(&self, b: &Binding) -> bool {
+        if let Some(st) = self.script_states.get(&b.action) {
+            return st.state;
+        }
         let Some(e) = self.catalog.get(&b.action) else {
             return false;
         };

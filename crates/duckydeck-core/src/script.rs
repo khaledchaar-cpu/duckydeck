@@ -113,6 +113,41 @@ fn parse_header(src: &str, s: &mut Script) {
     }
 }
 
+/// Script actions bound anywhere in the profiles (pages, folders, multi
+/// steps, toggle states) with the args of their first binding.
+pub fn used(loaded: &crate::config::Loaded) -> BTreeMap<String, toml::Table> {
+    use crate::compound::{self, MULTI_ACTION, Step, TOGGLE_ACTION};
+    fn visit(b: &crate::config::Binding, out: &mut BTreeMap<String, toml::Table>) {
+        if b.action.starts_with(PREFIX) {
+            out.entry(b.action.clone())
+                .or_insert_with(|| b.args.clone());
+        } else if b.action == MULTI_ACTION {
+            for s in compound::steps(b).unwrap_or_default() {
+                if let Step::Run(n) = s {
+                    visit(&n, out);
+                }
+            }
+        } else if b.action == TOGGLE_ACTION
+            && let Ok(states) = compound::states(b)
+        {
+            for n in &states {
+                visit(n, out);
+            }
+        }
+    }
+    let mut out = BTreeMap::new();
+    for p in loaded.profiles.values() {
+        for page in p.pages.iter().chain(p.folders.values()) {
+            for slot in page.keys.iter().chain(&page.dials) {
+                if let Some(b) = &slot.0 {
+                    visit(b, &mut out);
+                }
+            }
+        }
+    }
+    out
+}
+
 /// What happened, sent to the script as one JSON line.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "event", rename_all = "snake_case")]
@@ -252,6 +287,34 @@ mod tests {
             ("knob", DEFAULT_ICON, Slot::Dial, false)
         );
         std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn finds_used_scripts_in_nested_bindings() {
+        let p = crate::config::Profile::parse(
+            r#"
+            name = "T"
+            [[pages]]
+            keys = [{ action = "script.a", args = { x = 1 } }, { action = "script.a", args = { x = 2 } },
+              { action = "structure.multi", args = { steps = [{ action = "script.b" }] } }]
+            dials = [{ action = "script.c" }]
+            [folders.f]
+            keys = [{ action = "structure.toggle", args = { states = [{ action = "script.d" }, { action = "system.lock" }] } }]
+            "#,
+            Path::new("t.toml"),
+        )
+        .unwrap();
+        let mut l = crate::config::Loaded {
+            config: Default::default(),
+            profiles: Default::default(),
+        };
+        l.profiles.insert("t".into(), p);
+        let u = used(&l);
+        assert_eq!(
+            u.keys().collect::<Vec<_>>(),
+            ["script.a", "script.b", "script.c", "script.d"]
+        );
+        assert_eq!(u["script.a"]["x"].as_integer(), Some(1));
     }
 
     #[test]

@@ -74,7 +74,7 @@ Item {
   // Payload of a running drag: {action} from the library or {at, kind, index}.
   property var dragPayload: null
 
-  readonly property var groupOrder: ["system", "capture", "media", "launcher", "window", "display", "structure", "apps"]
+  readonly property var groupOrder: ["system", "capture", "media", "launcher", "window", "display", "structure", "script", "apps"]
   // Library rows matching the query, grouped; `ok` = fits the selected slot.
   readonly property var library: {
     var q = root.query.trim().toLowerCase()

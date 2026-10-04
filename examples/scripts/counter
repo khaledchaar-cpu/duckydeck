@@ -1,0 +1,16 @@
+#!/bin/sh
+# Example DuckyDeck script action: copy to ~/.config/duckydeck/scripts/,
+# make it executable and bind `script.counter` to a key.
+# Each event arrives as one JSON line on stdin; each JSON line printed on
+# stdout updates the key (label, icon, state = highlight, value = dial level).
+# duckydeck-label: Counter
+# duckydeck-icon: script
+read -r event
+file="${XDG_RUNTIME_DIR:-/tmp}/duckydeck-counter"
+n=$(cat "$file" 2>/dev/null || echo 0)
+case "$event" in
+  *'"event":"press"'*) n=$((n + 1)) ;;
+  *'"event":"long_press"'*) n=0 ;;
+esac
+echo "$n" > "$file"
+echo "{\"label\":\"Count $n\",\"state\":$([ "$n" -ge 10 ] && echo true || echo false)}"

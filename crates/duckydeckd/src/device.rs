@@ -44,6 +44,8 @@ pub enum DeckEvent {
     Toggles(crate::toggles::Toggles),
     /// Status texts of catalog actions changed.
     Texts(crate::texts::Texts),
+    /// What script actions want their keys to show.
+    Scripts(crate::scripts::States),
     /// A `learn` connection closed.
     LearnEnded,
     /// A CLI request; answered on the channel.

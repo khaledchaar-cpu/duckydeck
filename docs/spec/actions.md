@@ -98,6 +98,8 @@ Eigene Actions ohne Rust-Code (Entscheidung Nutzer 2026-10-04): jede ausführbar
 Optionaler Header in den ersten 20 Zeilen, je Zeile `# duckydeck-<feld>: <wert>`:
 - `label` (Default: Stamm), `icon` (eingebautes oder eigenes Icon, Default `script`), `slot = key|dial` (Default `key`), `persistent = true|false` (Default `false`).
 
+Beispiele: [`examples/scripts/`](../../examples/scripts/) (Taste pro Event, dauerhafter Regler).
+
 Protokoll: JSON-Lines, je Richtung ein Objekt pro Zeile.
 - **Daemon → Script (stdin):** `{"event":"init"}` (Start/Reload), `{"event":"press"}`, `{"event":"long_press"}`, bei Reglern zusätzlich `{"event":"twist","delta":-1}`. Jedes Event trägt `"args"` mit den `args` des Slots (Objekt, ggf. leer).
 - **Script → Daemon (stdout):** `{"label":"3 Mails","icon":"mail","state":true,"value":40}`. Alle Felder optional, ein Update ersetzt nur die genannten Felder, `null` setzt auf den Header-Wert zurück. `state = true` hebt die Taste hervor (Akzent), `value` (0–100) ist der Pegel eines Reglers. Ungültige Zeilen werden geloggt und ignoriert. stderr landet im Log.

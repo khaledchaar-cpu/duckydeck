@@ -10,6 +10,7 @@ mod ipc;
 mod levels;
 mod mpris;
 mod screen;
+mod scripts;
 mod surface;
 mod texts;
 mod themewatch;
@@ -98,6 +99,8 @@ async fn main() -> Result<()> {
         toggle_tx.clone(),
     ));
     duckydeck_core::check::notify_problems(&store.current, &catalog, &runner);
+    let (script_tx, script_rx) = mpsc::unbounded_channel();
+    tokio::spawn(scripts::run(script_rx, tx.clone()));
     let mut painter = screen::Screen::new(
         font,
         store,
@@ -109,6 +112,7 @@ async fn main() -> Result<()> {
             hypr: hypr_tx,
             toggles: toggle_tx,
             texts: text_tx,
+            scripts: script_tx,
             events: tx.clone(),
         },
     )?;
@@ -258,6 +262,14 @@ async fn main() -> Result<()> {
                     && let Err(e) = painter.draw_keys(d)
                 {
                     tracing::warn!(error = %e, "redraw after status text change failed");
+                }
+            }
+            DeckEvent::Scripts(s) => {
+                if painter.set_scripts(s)
+                    && let Some(d) = &mut deck
+                    && let Err(e) = painter.draw_keys(d).and_then(|()| painter.draw_strip(d))
+                {
+                    tracing::warn!(error = %e, "redraw after script update failed");
                 }
             }
             DeckEvent::Disconnected => {
