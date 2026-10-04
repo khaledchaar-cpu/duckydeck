@@ -27,8 +27,7 @@
       "Bash(systemctl --user restart duckydeck)"
     ],
     "deny": [
-      "Edit(/usr/share/omarchy/**)",
-      "Write(/usr/share/omarchy/**)"
+      "Edit(/usr/share/omarchy/**)"
     ]
   }
 }
