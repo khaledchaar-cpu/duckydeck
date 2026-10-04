@@ -12,7 +12,8 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Lokales Paket 0.1.3-1 ohne 
 - Nutzer hat passwortloses `sudo` eingerichtet (`/etc/sudoers.d/90-kc-nopasswd`) + `Bash(sudo *)` in `.claude/settings.local.json` → Claude installiert Pakete selbst (`sudo pacman -U --noconfirm …`)
 
 ## Nächster Schritt
-- Mit dem Nutzer klären: Editor/Panel im HUD-Stil nur mit Shell-Tokens (Akzent) nachziehen oder Look so lassen
+- Offen; Kandidaten: Punkte unter „Offene Probleme“ oder v2-Features aus SPEC.md (nach Absprache)
+- Entscheidung 2026-10-04: Editor/Panel bleiben im bisherigen Look (kein HUD-Stil)
 
 ## Offene Probleme / Notizen
 - Tastaturlicht-Text nur nach Druck und Start aktuell (kein Event)
