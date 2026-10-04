@@ -177,7 +177,7 @@ impl Renderer {
             &mut pm,
             KEY_SIZE as f32,
             KEY_SIZE as f32,
-            frame(theme, view.fg, bg),
+            frame(theme, view.fg),
         );
 
         let label = view.label.filter(|l| !l.is_empty());
@@ -219,7 +219,7 @@ impl Renderer {
                 &mut pm,
                 KEY_SIZE as f32,
                 KEY_SIZE as f32,
-                frame(theme, view.fg, base),
+                frame(theme, view.fg),
             );
             theme.get(view.fg).readable_on(base, MIN_CONTRAST)
         };
@@ -245,7 +245,7 @@ impl Renderer {
             &mut pm,
             SEGMENT_W as f32,
             SEGMENT_H as f32,
-            frame(theme, view.fg, bg),
+            frame(theme, view.fg),
         );
         let inner = SEGMENT_W as f32 - 2.0 * SEG_PAD;
         if let Some(svg) = view.icon {
@@ -395,10 +395,10 @@ fn key_canvas(theme: &Theme, bg: Color) -> Result<Pixmap, RenderError> {
 
 /// Bracket color: the accent stays bright (active state glows), everything
 /// else gets a dim frame that never competes with the content.
-fn frame(theme: &Theme, fg: Role, bg: Color) -> Color {
+fn frame(theme: &Theme, fg: Role) -> Color {
     match fg {
         Role::Accent | Role::Red => theme.get(fg),
-        _ => theme.muted.mix(bg, 0.2),
+        _ => theme.muted.mix(theme.foreground, 0.4),
     }
 }
 
@@ -413,7 +413,7 @@ fn brackets(pm: &mut Pixmap, w: f32, h: f32, c: Color) {
 
 /// Darkens every n-th row slightly, like an old CRT.
 fn scanlines(pm: &mut Pixmap, bg: Color) {
-    let line = bg.mix(Color(0, 0, 0), 0.35);
+    let line = bg.mix(Color(0, 0, 0), 0.7);
     let w = pm.width() as f32;
     for y in (0..pm.height()).step_by(SCANLINE_EVERY as usize) {
         fill_rect(pm, 0.0, y as f32, w, 1.0, line);
@@ -718,7 +718,7 @@ mod tests {
         let img = r.segment(&theme(), &view).unwrap();
         // Text is foreground (0xbe); frame and scanlines stay far darker.
         let cols: Vec<u32> = (0..200)
-            .filter(|&x| (16..52).any(|y| img.pixel(x, y)[0] > 0x60))
+            .filter(|&x| (16..52).any(|y| x >= 30 && img.pixel(x, y)[0] > 0x80))
             .collect();
         assert!(
             cols.first().is_some_and(|&x| x > 100),
