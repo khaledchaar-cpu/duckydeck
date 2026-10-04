@@ -4,13 +4,12 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 
 **Aktueller Milestone:** alle Milestones (M1–M9) fertig, v0.1.3 auf GitHub (inkl. Lautstärke pro App)
 
-Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Lokales Paket 0.1.3-1 mit HUD-Look installiert (Stand `bcf1d31`) (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
+Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Lokales Paket 0.1.3-1 ohne Glow installiert (Stand `b84bab1`) (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- Deck-Look „HUD“ (einziger Stil, `docs/spec/assets.md`): Eck-Klammern in gedämpftem Akzent, Verlauf, Labels in Großbuchstaben, Akzent-Underglow
-- Aktiver Workspace als gefüllte Akzentfläche; Neon-Glow (Box-Blur) für aktive Tasten und leuchtende Pegelblöcke; Blockbalken auf dem Strip
-- Scanlines verworfen (am Gerät nicht sichtbar)
-- Versuch „Console“-Look (bunte Kategoriefarben + `status.palette` für QML) auf Wunsch des Nutzers komplett zurückgerollt
+- Alle Glow-Effekte entfernt (Neon-Lichthof, Underglow, Blur-Code); HUD-Look sonst unverändert, am Gerät abgenommen
+- Lokales Paket gebaut und installiert
+- Nutzer hat passwortloses `sudo` eingerichtet (`/etc/sudoers.d/90-kc-nopasswd`) + `Bash(sudo *)` in `.claude/settings.local.json` → Claude installiert Pakete selbst (`sudo pacman -U --noconfirm …`)
 
 ## Nächster Schritt
 - Mit dem Nutzer klären: Editor/Panel im HUD-Stil nur mit Shell-Tokens (Akzent) nachziehen oder Look so lassen
@@ -25,7 +24,7 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Lokales Paket 0.1.3-1 mit H
 - Hyprland-Zugriff nicht hinter Trait (bewusst offen, geringer Nutzen). Nachtlicht ohne Event ist bewusst so: weder hyprsunset noch Shell melden Änderungen, Polling verboten – steht in actions.md)
 - `scripts/check.sh` braucht `PATH=$HOME/.cargo/bin:$PATH`; Socket-Tests brauchen kurzes `XDG_RUNTIME_DIR` (z. B. `/tmp/claude-1000/dd`)
 - Lernmodus: jede Regler-Rastung erzeugt ein `slot_pressed` (Editor entprellt)
-- Dev-Test der Shell mit neuer CLI: Shell nutzt `/usr/bin/duckydeck` → lokales Paket bauen (Working Tree als `duckydeck-0.1.0.tar.gz` neben PKGBUILD, `makepkg -d -f`), Nutzer installiert per `sudo pacman -U`. Version bleibt 0.1.0 → `setup` läuft nicht automatisch neu
-- Dev-Loop Editor: `setup` aus Debug-Build ändert vorhandene Paket-Links nicht → Paket bauen (Tarball ohne target/.git), Nutzer installiert; bei CLI-/Katalog-Änderung auch `systemctl --user restart duckydeck`
+- Dev-Test der Shell mit neuer CLI: Shell nutzt `/usr/bin/duckydeck` → lokales Paket bauen (`git archive` als `duckydeck-<ver>.tar.gz` neben PKGBUILD, `makepkg -d -f`), Install per `sudo pacman -U --noconfirm` (Claude darf selbst). Version bleibt 0.1.0 → `setup` läuft nicht automatisch neu
+- Dev-Loop Editor: `setup` aus Debug-Build ändert vorhandene Paket-Links nicht → Paket bauen (Tarball via `git archive`), selbst installieren; bei CLI-/Katalog-Änderung auch `systemctl --user restart duckydeck`
 - Daemon beenden mit `kill $(pgrep -x duckydeckd)` – `pkill -f` trifft auch die eigene Shell; Fake mit stdin per `tail -f <datei> |` – nie `pkill -x tail` (trifft parallele Builds)
 - Entscheidung 2026-10-03: kein AUR, nur GitHub-Release mit fertigem Paket; Paket unsigniert, Install in zwei Schritten (Nutzer ok)
