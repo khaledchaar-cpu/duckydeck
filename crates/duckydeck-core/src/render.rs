@@ -31,6 +31,9 @@ const BLOCK_GAP: f32 = 3.0;
 /// passes approximate a Gaussian).
 const GLOW_RADIUS: usize = 4;
 const GLOW_PASSES: usize = 3;
+/// Accent underglow at the bottom of normal keys: strength and height.
+const UNDERGLOW: f32 = 0.22;
+const UNDERGLOW_H: u32 = 36;
 
 /// One touchstrip segment (the strip is 800×100, one segment per encoder).
 pub const SEGMENT_W: u32 = 200;
@@ -174,7 +177,7 @@ impl Renderer {
     pub fn key(&mut self, theme: &Theme, view: &KeyView) -> Result<RgbImage, RenderError> {
         let bg = theme.get(view.bg);
         let fg = theme.get(view.fg).readable_on(bg, MIN_CONTRAST);
-        let mut pm = key_canvas(theme, bg)?;
+        let mut pm = key_canvas(theme, bg, view.fg)?;
         let mut fx = layer(KEY_SIZE, KEY_SIZE)?;
         brackets(
             &mut fx,
@@ -202,7 +205,8 @@ impl Renderer {
                 px: LABEL_PX,
                 align: Align::Center,
             };
-            self.draw_text(&mut fx, &text.to_uppercase(), &text_box, fg);
+            let color = label_color(theme, view.fg, fg, bg);
+            self.draw_text(&mut fx, &text.to_uppercase(), &text_box, color);
         }
         compose(&mut pm, &fx, glow(theme, view.fg));
         Ok(to_rgb(&pm))
@@ -210,7 +214,7 @@ impl Renderer {
 
     pub fn glyph_key(&mut self, theme: &Theme, view: &GlyphView) -> Result<RgbImage, RenderError> {
         let base = theme.get(view.bg);
-        let mut pm = key_canvas(theme, base)?;
+        let mut pm = key_canvas(theme, base, view.fg)?;
         let mut fx = layer(KEY_SIZE, KEY_SIZE)?;
         // Marked: the key becomes a solid plate in the fg color, text cut out.
         let fg = if view.marked {
@@ -386,23 +390,52 @@ fn canvas(w: u32, h: u32, bg: Color) -> Result<Pixmap, RenderError> {
     Ok(pm)
 }
 
-/// Key background: a soft vertical gradient from a lifted top edge to `bg`.
-fn key_canvas(theme: &Theme, bg: Color) -> Result<Pixmap, RenderError> {
+/// Key background: a soft vertical gradient from a lifted top edge to `bg`;
+/// keys that are not dimmed get a faint accent underglow at the bottom.
+fn key_canvas(theme: &Theme, bg: Color, fg: Role) -> Result<Pixmap, RenderError> {
     let mut pm = canvas(KEY_SIZE, KEY_SIZE, bg)?;
     let top = bg.mix(theme.lighter_background, 0.8);
-    for y in 0..KEY_SIZE / 2 {
-        let t = y as f32 / (KEY_SIZE / 2) as f32;
+    let half = KEY_SIZE / 2;
+    for y in 0..half {
+        let t = y as f32 / half as f32;
         fill_rect(&mut pm, 0.0, y as f32, KEY_SIZE as f32, 1.0, top.mix(bg, t));
+    }
+    if fg != Role::Muted {
+        let glow = bg.mix(theme.accent, UNDERGLOW);
+        let start = KEY_SIZE - UNDERGLOW_H;
+        for y in start..KEY_SIZE {
+            let t = (y - start) as f32 / UNDERGLOW_H as f32;
+            fill_rect(
+                &mut pm,
+                0.0,
+                y as f32,
+                KEY_SIZE as f32,
+                1.0,
+                bg.mix(glow, t),
+            );
+        }
     }
     Ok(pm)
 }
 
-/// Bracket color: the accent stays bright (active state glows), everything
-/// else gets a dim frame that never competes with the content.
+/// Label color: normal keys get a light accent tint, other roles keep `fg`.
+fn label_color(theme: &Theme, role: Role, fg: Color, bg: Color) -> Color {
+    match role {
+        Role::Foreground => theme
+            .foreground
+            .mix(theme.accent, 0.45)
+            .readable_on(bg, MIN_CONTRAST),
+        _ => fg,
+    }
+}
+
+/// Bracket color: full accent for active states (they glow), a toned-down
+/// accent for normal keys, grey for dimmed ones.
 fn frame(theme: &Theme, fg: Role) -> Color {
     match fg {
         Role::Accent | Role::Red => theme.get(fg),
-        _ => theme.muted.mix(theme.foreground, 0.4),
+        Role::Muted => theme.muted.mix(theme.foreground, 0.4),
+        _ => theme.accent.mix(theme.background, 0.35),
     }
 }
 
@@ -700,7 +733,7 @@ mod tests {
         };
         let img = Renderer::new(vec![]).key(&theme(), &view).unwrap();
         assert_eq!(img.pixel(60, 60), [255, 0, 0]);
-        assert_eq!(img.pixel(0, 119), [0x12, 0x12, 0x12]);
+        assert_eq!(img.pixel(0, 70), [0x12, 0x12, 0x12]);
     }
 
     #[test]
@@ -714,7 +747,7 @@ mod tests {
         };
         let img = r.key(&t, &view).unwrap();
         assert_eq!(img.data.len(), 120 * 120 * 3);
-        assert_eq!(img.pixel(0, 119), [0x12, 0x12, 0x12]);
+        assert_eq!(img.pixel(0, 70), [0x12, 0x12, 0x12]);
         // Gradient: the top edge is lifted towards `lighter_background`.
         assert_ne!(img.pixel(0, 0), [0x12, 0x12, 0x12]);
         // Active (accent) keys get accent corner brackets.
@@ -765,14 +798,18 @@ mod tests {
             ..Default::default()
         };
         let img = r.key(&t, &view).unwrap();
-        let bg = [0x12, 0x12, 0x12];
+        // The background is uniform per row (vertical gradients only), so
+        // the left edge pixel is the row's background.
         let label_px = (88..110)
             .flat_map(|y| (0..120).map(move |x| (x, y)))
-            .filter(|&(x, y)| img.pixel(x, y) != bg)
+            .filter(|&(x, y)| img.pixel(x, y) != img.pixel(0, y))
             .count();
         assert!(label_px > 50, "label not drawn");
         // Ellipsized: nothing touches the side edges.
-        assert!((88..110).all(|y| img.pixel(2, y) == bg && img.pixel(117, y) == bg));
+        assert!(
+            (88..110)
+                .all(|y| img.pixel(2, y) == img.pixel(0, y) && img.pixel(117, y) == img.pixel(0, y))
+        );
     }
 
     #[test]

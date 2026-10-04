@@ -34,7 +34,7 @@ Jede eingebaute Action sieht ohne Zutun gut aus und passt zu jedem Omarchy-Theme
 
 ## Look (HUD, einziger Stil – entschieden 2026-10-04)
 Cyberpunk/HUD-Optik, Farben weiterhin nur aus `colors.toml`:
-- Tasten: Hintergrund mit sanftem Verlauf (oben Richtung `lighter_background`), Eck-Klammern oben links/unten rechts – gedimmt (`muted` 40 % Richtung `foreground`), bei aktivem Zustand in `accent`/`red`.
+- Tasten: Hintergrund mit sanftem Verlauf (oben Richtung `lighter_background`), Eck-Klammern oben links/unten rechts. Normale Tasten: Klammern in gedämpftem `accent` (35 % Richtung `background`), Labels leicht akzentgetönt (45 %), Akzent-Underglow an der Unterkante (36 px, 22 %). Aktiv: Klammern in vollem `accent`/`red` mit Glow. Gedimmt (`muted`): graue Klammern, kein Underglow.
 - Labels in Großbuchstaben (14 px). Aktiver Workspace: gefüllte Akzentfläche, Ziffer ausgespart.
 - Touchstrip: Eck-Klammern pro Segment, Pegel und Medienfortschritt als Blockbalken (8 px Block, 3 px Lücke). Scanlines verworfen (am Gerät nicht wahrnehmbar).
 - Neon-Glow nur für aktive Zustände (`accent`/`red`): Tasteninhalt und leuchtende Pegelblöcke bekommen einen weichen Lichthof (Box-Blur, Radius 4, 3 Durchläufe), bei hellen Themes abgeschwächt. Der Lichthof liegt unter den dunklen Blöcken.
