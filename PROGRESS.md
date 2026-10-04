@@ -4,13 +4,14 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 
 **Aktueller Milestone:** alle Milestones (M1–M9) fertig, v0.1.4 auf GitHub (Script-Actions); v2 vollständig
 
-Hardware: Stream Deck + angeschlossen (`0fd9:0084`), zweiter Monitor (DP-1, DP-2). Paket 0.1.4-1 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
+Hardware: Stream Deck + angeschlossen (`0fd9:0084`), zweiter Monitor (DP-1, DP-2). Paket 0.1.4-1 installiert (lokal aus HEAD gebaut, inkl. RSS-Fix; GitHub-Release 0.1.4 ohne) (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
 - Daemon-RSS 17,1 → 14,3 MB: Tokio-Runtime auf `current_thread` (vorher 16 Worker), am Gerät geprüft
+- Lokales Paket aus HEAD gebaut + installiert: Dienst 14,4 MB RSS, 5 Threads
 
 ## Nächster Schritt
-- Mit dem Nutzer klären, was als Nächstes kommt; optional mehr RSS-Puffer (Binary ~7 MB resident, vermutlich eingebettete Icons)
+- Release 0.1.5 mit RSS-Fix, falls gewünscht; sonst mit dem Nutzer klären, was als Nächstes kommt; optional mehr RSS-Puffer (Binary ~7 MB resident, vermutlich eingebettete Icons)
 
 ## Offene Probleme / Notizen
 - RSS-Puffer nur ~0,7 MB; HID-Flushes blockieren jetzt kurz auch IPC/MPRIS/pactl (unkritisch)
