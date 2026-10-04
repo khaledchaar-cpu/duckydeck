@@ -29,6 +29,7 @@ the Omarchy shell, every action running through the `omarchy` CLI.
 - 🔁 **Smart profiles.** Pages and folders as plain TOML, reloaded on save; automatic switching by the focused window.
 - ⚡ **Live keys.** Keys show state: current audio output, active player, next reminder, night light, do-not-disturb …
 - 🧱 **Multi actions and toggles.** Sequences with delays, keys that alternate between two actions.
+- 📜 **Your own scripts.** Drop an executable into `~/.config/duckydeck/scripts/` and it becomes a key or dial action that can update its own label, icon and level.
 - 🪶 **Small and quiet.** One Rust daemon, ~14 MB RAM, events instead of polling, no network, no telemetry, no root.
 
 ## Screenshots
@@ -48,8 +49,8 @@ Made for current Omarchy. Reference device is the Stream Deck + (USB `0fd9:0084`
 ## Install
 
 ```bash
-curl -LO https://github.com/khaledchaar-cpu/duckydeck/releases/latest/download/duckydeck-0.1.3-1-x86_64.pkg.tar.zst
-sudo pacman -U duckydeck-0.1.3-1-x86_64.pkg.tar.zst
+curl -LO https://github.com/khaledchaar-cpu/duckydeck/releases/latest/download/duckydeck-0.1.4-1-x86_64.pkg.tar.zst
+sudo pacman -U duckydeck-0.1.4-1-x86_64.pkg.tar.zst
 ```
 
 The package is unsigned, so pacman only installs it from a local file. Packages for every version are on the [releases page](https://github.com/khaledchaar-cpu/duckydeck/releases).
@@ -133,6 +134,7 @@ profile you picked last in the panel or CLI.
 | `display` | `brightness` (dial) |
 | `window` (dial) | `workspace_scroll` |
 | `structure` | `folder`, `page`, `back`, `profile`, `multi`, `toggle` |
+| `script` | your own scripts, see below |
 
 Arguments of each action are documented in [actions/catalog.toml](actions/catalog.toml).
 `system.reboot`, `system.shutdown` and `system.logout` need a long press.
@@ -153,6 +155,24 @@ Multi and toggle keys wrap other actions:
     { action = "structure.profile", args = { profile = "omarchy" }, label = "Default" },
 ] } }
 ```
+
+### Script actions
+
+Every executable file in `~/.config/duckydeck/scripts/` becomes an action `script.<file name>` – in the editor under *Scripts*. Setup puts a commented `hello` example there to start from; more in `/usr/share/doc/duckydeck/examples/scripts/`.
+
+```sh
+#!/bin/sh
+# duckydeck-label: Hello
+# duckydeck-icon: script
+read -r event                       # {"event":"press","args":{}}
+case "$event" in
+  *'"press"'*) echo "{\"label\":\"$(date +%H:%M)\"}" ;;   # updates the key
+esac
+```
+
+- The deck sends one JSON line per event on stdin: `init`, `press`, `long_press`, and `twist` with `delta` on dials.
+- Each JSON line on stdout updates the key: `label`, `icon`, `state` (highlight), `value` (dial level 0–100); `null` resets a field.
+- Header lines: `# duckydeck-slot: dial` for dials, `# duckydeck-persistent: true` to keep one process running that gets every event and can update the key whenever it likes.
 
 ## Disable or remove
 
