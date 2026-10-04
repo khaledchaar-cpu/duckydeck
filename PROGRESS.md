@@ -2,9 +2,9 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** alle Milestones (M1–M9) fertig, v0.1.3 auf GitHub, v0.1.4 in Vorbereitung; v2 vollständig
+**Aktueller Milestone:** alle Milestones (M1–M9) fertig, v0.1.4 auf GitHub (Script-Actions); v2 vollständig
 
-Hardware: Stream Deck + angeschlossen (`0fd9:0084`), zweiter Monitor (DP-1, DP-2). Lokales Paket 0.1.3-1 mit Dropdown-Fix installiert (Stand `3e52129`) (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
+Hardware: Stream Deck + angeschlossen (`0fd9:0084`), zweiter Monitor (DP-1, DP-2). Paket 0.1.4-1 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
 - v2-Punkt „Zweite UI-Sprache“ ersatzlos gestrichen (Spec aktualisiert)
@@ -12,7 +12,7 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`), zweiter Monitor (DP-1, DP-2
 - Beispiel-Scripts `hello`/`counter`/`knob`; `setup` legt `hello` einmalig an, Paket installiert alle nach `/usr/share/doc/duckydeck/examples/scripts/`
 
 ## Nächster Schritt
-- Release v0.1.4 (Dropdown-Fix, Script-Actions, Beispiel-Script): Version anheben, Paket bauen, GitHub-Release
+- Mit dem Nutzer klären, was als Nächstes kommt (alle v1/v2-Punkte erledigt); Kandidat: Daemon-RSS unter 15 MB drücken
 
 ## Offene Probleme / Notizen
 - Daemon-RSS ~15,1–15,6 MB (Release), knapp über dem 15-MB-Ziel – unabhängig von Script-Actions
