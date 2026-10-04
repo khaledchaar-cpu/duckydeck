@@ -2,7 +2,7 @@
 
 Alle Plugins bauen ausschließlich auf Komponenten und Tokens der Omarchy-Shell auf (`/usr/share/omarchy/shell/Ui/`, `Commons/`). Keine eigenen Farben, Abstände oder Schriften. Vorbild für Struktur und Manifest: First-Party-Plugins in `/usr/share/omarchy/shell/plugins/` – benötigte APIs stehen zusammengefasst in `docs/omarchy-reference.md`.
 
-UI-Texte in v1 nur Englisch, zentral in einer Datei pro Plugin (`Strings.qml`), damit eine zweite Sprache später in einem Durchgang ergänzt werden kann.
+UI-Texte nur Englisch, zentral in einer Datei pro Plugin (`Strings.qml`). Eine zweite UI-Sprache ist nicht geplant (Entscheidung 2026-10-04).
 
 ## v1 (M7)
 
@@ -51,7 +51,7 @@ Eigenes Plugin vom Typ `overlay`, zusätzlich zum Panel aus v1 (das Panel bleibt
 - Tab wechselt zwischen Bibliothek, Vorschau und Inspector, Umschalt+Tab rückwärts; `/` fokussiert die Suche; Enter auf einem Slot öffnet den Ordner bzw. springt ins Label-Feld; Strg+P wechselt zwischen Slot- und Profil-Inspector; Esc verlässt jedes Feld zurück zur Vorschau. Alles ohne Maus bedienbar.
 
 ### Nicht im Editor (spätere v2-Punkte)
-- Eigene Icon-Dateien, Lautstärke pro App, Script-Actions, zweite Sprache.
+- Eigene Icon-Dateien, Lautstärke pro App, Script-Actions.
 
 ### Milestones
 | # | Inhalt |
