@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "duckydeck.widget",
   "name": "DuckyDeck",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "author": "DuckyDeck",
   "license": "MIT",
   "description": "Stream Deck + status and controls in the Omarchy bar.",
