@@ -228,7 +228,12 @@ Panel {
             value: root.status ? root.status.profile : ""
             foreground: root.foreground
             fontFamily: root.fontFamily
-            onChanged: function(v) { if (root.status && v !== root.status.profile) root.run(["profile", v]) }
+            // Dropdown assigns `value` on select, which breaks the binding above;
+            // restore it so external profile switches (CLI, window rules) still show.
+            onChanged: function(v) {
+              value = Qt.binding(function() { return root.status ? root.status.profile : "" })
+              if (root.status && v !== root.status.profile) root.run(["profile", v])
+            }
           }
         }
 
