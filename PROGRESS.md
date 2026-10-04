@@ -7,6 +7,7 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Lokales Paket 0.1.3-1 ohne Glow installiert (Stand `b84bab1`) (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
+- 2026-10-04: Profil-Dropdown zeigte nach eigener Auswahl keine externen Profilwechsel mehr (Omarchy-`Dropdown` überschreibt `value`) → Bindung in `onChanged` wiederhergestellt, am Gerät geprüft, lokales Paket installiert
 - Alle Glow-Effekte entfernt (Neon-Lichthof, Underglow, Blur-Code); HUD-Look sonst unverändert, am Gerät abgenommen
 - Lokales Paket gebaut und installiert
 - Nutzer hat passwortloses `sudo` eingerichtet (`/etc/sudoers.d/90-kc-nopasswd`) + `Bash(sudo *)` in `.claude/settings.local.json` → Claude installiert Pakete selbst (`sudo pacman -U --noconfirm …`)
@@ -20,7 +21,6 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`). Lokales Paket 0.1.3-1 ohne 
 - App-Lautstärke: gewählte App gilt nur bis Daemon-Neustart (bewusst, kein Zustand gespeichert)
 - Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)
 - Multi-Monitor: `window.to_monitor` mit DP-1/DP-2 am Gerät geprüft (hin und zurück, 2026-10-04); Laptop-Actions (internal/mirror) ohne internes Display nicht testbar; Bar-Tooltip geprüft („Stream Deck · omarchy (page 1/4)“, einzeilig, passt)
-- Profil-Dropdown zeigte einmal alten Wert nach Laufzeit-Profilwechsel; nicht reproduzierbar
 - Menüeintrag nur bei neuer Paketversion aktualisiert
 - Hyprland-Zugriff nicht hinter Trait (bewusst offen, geringer Nutzen). Nachtlicht ohne Event ist bewusst so: weder hyprsunset noch Shell melden Änderungen, Polling verboten – steht in actions.md)
 - `scripts/check.sh` braucht `PATH=$HOME/.cargo/bin:$PATH`; Socket-Tests brauchen kurzes `XDG_RUNTIME_DIR` (z. B. `/tmp/claude-1000/dd`)
