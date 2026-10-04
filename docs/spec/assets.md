@@ -36,7 +36,8 @@ Jede eingebaute Action sieht ohne Zutun gut aus und passt zu jedem Omarchy-Theme
 Cyberpunk/HUD-Optik, Farben weiterhin nur aus `colors.toml`:
 - Tasten: Hintergrund mit sanftem Verlauf (oben Richtung `lighter_background`), Eck-Klammern oben links/unten rechts – gedimmt (`muted` 40 % Richtung `foreground`), bei aktivem Zustand in `accent`/`red`.
 - Labels in Großbuchstaben (14 px). Aktiver Workspace: gefüllte Akzentfläche, Ziffer ausgespart.
-- Touchstrip: dunkle Scanlines (jede 3. Zeile, 70 % Richtung Schwarz), Eck-Klammern pro Segment, Pegel und Medienfortschritt als Blockbalken (8 px Block, 3 px Lücke).
+- Touchstrip: Eck-Klammern pro Segment, Pegel und Medienfortschritt als Blockbalken (8 px Block, 3 px Lücke). Scanlines verworfen (am Gerät nicht wahrnehmbar).
+- Neon-Glow nur für aktive Zustände (`accent`/`red`): Tasteninhalt und leuchtende Pegelblöcke bekommen einen weichen Lichthof (Box-Blur, Radius 4, 3 Durchläufe), bei hellen Themes abgeschwächt. Der Lichthof liegt unter den dunklen Blöcken.
 
 ## Weitere Assets
 - **Touchstrip-Layouts** (800×100): Reglerwerte (Balken + Prozent + Icon), Medien, Workspace-Leiste.

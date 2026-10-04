@@ -8,7 +8,7 @@ use cosmic_text::{
 use resvg::tiny_skia::{self, Paint, Pixmap, Rect, Transform};
 use resvg::usvg;
 
-use crate::theme::{Color, MIN_CONTRAST, Role, Theme};
+use crate::theme::{Color, MIN_CONTRAST, Mode, Role, Theme};
 
 pub const KEY_SIZE: u32 = 120;
 
@@ -27,8 +27,10 @@ const BRACKET_W: f32 = 3.0;
 /// Segmented level bars: block width and gap.
 const BLOCK_W: f32 = 8.0;
 const BLOCK_GAP: f32 = 3.0;
-/// Every n-th row of the strip is a darker scanline.
-const SCANLINE_EVERY: u32 = 3;
+/// Neon glow around active elements: box-blur radius and passes (three
+/// passes approximate a Gaussian).
+const GLOW_RADIUS: usize = 4;
+const GLOW_PASSES: usize = 3;
 
 /// One touchstrip segment (the strip is 800×100, one segment per encoder).
 pub const SEGMENT_W: u32 = 200;
@@ -173,8 +175,9 @@ impl Renderer {
         let bg = theme.get(view.bg);
         let fg = theme.get(view.fg).readable_on(bg, MIN_CONTRAST);
         let mut pm = key_canvas(theme, bg)?;
+        let mut fx = layer(KEY_SIZE, KEY_SIZE)?;
         brackets(
-            &mut pm,
+            &mut fx,
             KEY_SIZE as f32,
             KEY_SIZE as f32,
             frame(theme, view.fg),
@@ -187,7 +190,7 @@ impl Renderer {
                 None => (ICON_ALONE, (KEY_SIZE as f32 - ICON_ALONE) / 2.0),
             };
             let left = (KEY_SIZE as f32 - size) / 2.0;
-            draw_svg(&mut pm, svg, &fg.hex(), size, left, top)?;
+            draw_svg(&mut fx, svg, &fg.hex(), size, left, top)?;
         }
         if let Some(text) = label {
             let top = ICON_TOP_WITH_LABEL + ICON_WITH_LABEL + 10.0;
@@ -199,24 +202,26 @@ impl Renderer {
                 px: LABEL_PX,
                 align: Align::Center,
             };
-            self.draw_text(&mut pm, &text.to_uppercase(), &text_box, fg);
+            self.draw_text(&mut fx, &text.to_uppercase(), &text_box, fg);
         }
+        compose(&mut pm, &fx, glow(theme, view.fg));
         Ok(to_rgb(&pm))
     }
 
     pub fn glyph_key(&mut self, theme: &Theme, view: &GlyphView) -> Result<RgbImage, RenderError> {
         let base = theme.get(view.bg);
         let mut pm = key_canvas(theme, base)?;
+        let mut fx = layer(KEY_SIZE, KEY_SIZE)?;
         // Marked: the key becomes a solid plate in the fg color, text cut out.
         let fg = if view.marked {
             let plate = theme.get(view.fg).readable_on(base, MIN_CONTRAST);
             let inset = BRACKET_INSET;
             let side = KEY_SIZE as f32 - 2.0 * inset;
-            fill_rect(&mut pm, inset, inset, side, side, plate);
+            fill_rect(&mut fx, inset, inset, side, side, plate);
             base.readable_on(plate, MIN_CONTRAST)
         } else {
             brackets(
-                &mut pm,
+                &mut fx,
                 KEY_SIZE as f32,
                 KEY_SIZE as f32,
                 frame(theme, view.fg),
@@ -231,8 +236,9 @@ impl Renderer {
             align: Align::Center,
         };
         if !view.text.is_empty() {
-            self.draw_text(&mut pm, view.text, &text_box, fg);
+            self.draw_text(&mut fx, view.text, &text_box, fg);
         }
+        compose(&mut pm, &fx, glow(theme, view.fg));
         Ok(to_rgb(&pm))
     }
 
@@ -240,7 +246,6 @@ impl Renderer {
         let bg = theme.get(view.bg);
         let fg = theme.get(view.fg).readable_on(bg, MIN_CONTRAST);
         let mut pm = canvas(SEGMENT_W, SEGMENT_H, bg)?;
-        scanlines(&mut pm, bg);
         brackets(
             &mut pm,
             SEGMENT_W as f32,
@@ -271,9 +276,9 @@ impl Renderer {
                 inner,
                 SEG_BAR_H,
                 level,
-                fg,
-                track,
-            );
+                (fg, track),
+                glow(theme, view.fg),
+            )?;
         }
         Ok(to_rgb(&pm))
     }
@@ -283,7 +288,6 @@ impl Renderer {
         let fg = theme.get(Role::Foreground).readable_on(bg, MIN_CONTRAST);
         let accent = theme.get(Role::Accent).readable_on(bg, MIN_CONTRAST);
         let mut pm = canvas(STRIP_W, SEGMENT_H, bg)?;
-        scanlines(&mut pm, bg);
         let right = STRIP_W as f32 - SEG_PAD;
         if let Some(svg) = view.icon {
             draw_svg(&mut pm, svg, &accent.hex(), MEDIA_ICON, SEG_PAD, 16.0)?;
@@ -335,9 +339,9 @@ impl Renderer {
                 w,
                 MEDIA_BAR_H,
                 p,
-                accent,
-                track,
-            );
+                (accent, track),
+                glow(theme, Role::Accent),
+            )?;
         }
         Ok(to_rgb(&pm))
     }
@@ -411,25 +415,130 @@ fn brackets(pm: &mut Pixmap, w: f32, h: f32, c: Color) {
     fill_rect(pm, w - i - t, h - i - l, t, l, c);
 }
 
-/// Darkens every n-th row slightly, like an old CRT.
-fn scanlines(pm: &mut Pixmap, bg: Color) {
-    let line = bg.mix(Color(0, 0, 0), 0.7);
-    let w = pm.width() as f32;
-    for y in (0..pm.height()).step_by(SCANLINE_EVERY as usize) {
-        fill_rect(pm, 0.0, y as f32, w, 1.0, line);
+/// Level bar as discrete blocks; a block is lit when its start is below
+/// the level. The halo of lit blocks goes under the unlit track blocks so
+/// it never looks like a half-lit block.
+#[allow(clippy::too_many_arguments)]
+fn blocks(
+    pm: &mut Pixmap,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    level: f32,
+    (on, off): (Color, Color),
+    glow: Option<f32>,
+) -> Result<(), RenderError> {
+    let fill = w * level.clamp(0.0, 1.0);
+    let mut lit = layer(pm.width(), pm.height())?;
+    let mut track = Vec::new();
+    let mut bx = x;
+    while bx + BLOCK_W <= x + w + 0.5 {
+        if bx - x < fill && fill > 0.0 {
+            fill_rect(&mut lit, bx, y, BLOCK_W, h, on);
+        } else {
+            track.push(bx);
+        }
+        bx += BLOCK_W + BLOCK_GAP;
+    }
+    if let Some(opacity) = glow {
+        halo(pm, &lit, opacity);
+    }
+    for bx in track {
+        fill_rect(pm, bx, y, BLOCK_W, h, off);
+    }
+    overlay(pm, &lit);
+    Ok(())
+}
+
+/// Transparent drawing layer for elements that may glow.
+fn layer(w: u32, h: u32) -> Result<Pixmap, RenderError> {
+    Pixmap::new(w, h).ok_or(RenderError::Pixmap)
+}
+
+/// Neon glow strength for a role: only active states (accent, red) glow;
+/// light themes get a softer halo so it does not smear.
+fn glow(theme: &Theme, fg: Role) -> Option<f32> {
+    match fg {
+        Role::Accent | Role::Red => Some(match theme.mode {
+            Mode::Dark => 1.0,
+            Mode::Light => 0.45,
+        }),
+        _ => None,
     }
 }
 
-/// Level bar as discrete blocks; a block is lit when its start is below
-/// the level. Unlit blocks show the track color.
-#[allow(clippy::too_many_arguments)]
-fn blocks(pm: &mut Pixmap, x: f32, y: f32, w: f32, h: f32, level: f32, on: Color, off: Color) {
-    let fill = w * level.clamp(0.0, 1.0);
-    let mut bx = x;
-    while bx + BLOCK_W <= x + w + 0.5 {
-        let lit = bx - x < fill && fill > 0.0;
-        fill_rect(pm, bx, y, BLOCK_W, h, if lit { on } else { off });
-        bx += BLOCK_W + BLOCK_GAP;
+/// Draws `fx` onto `pm`, with a blurred copy underneath as a halo.
+fn compose(pm: &mut Pixmap, fx: &Pixmap, glow: Option<f32>) {
+    if let Some(opacity) = glow {
+        halo(pm, fx, opacity);
+    }
+    overlay(pm, fx);
+}
+
+fn halo(pm: &mut Pixmap, fx: &Pixmap, opacity: f32) {
+    let mut halo = fx.clone();
+    blur(&mut halo, GLOW_RADIUS, GLOW_PASSES);
+    let paint = tiny_skia::PixmapPaint {
+        opacity,
+        ..Default::default()
+    };
+    // Twice: a single blurred copy is too faint on the device.
+    for _ in 0..2 {
+        pm.draw_pixmap(0, 0, halo.as_ref(), &paint, Transform::identity(), None);
+    }
+}
+
+fn overlay(pm: &mut Pixmap, fx: &Pixmap) {
+    let paint = tiny_skia::PixmapPaint::default();
+    pm.draw_pixmap(0, 0, fx.as_ref(), &paint, Transform::identity(), None);
+}
+
+/// Separable box blur on premultiplied RGBA, in place.
+fn blur(pm: &mut Pixmap, radius: usize, passes: usize) {
+    let (w, h) = (pm.width() as usize, pm.height() as usize);
+    let data = pm.data_mut();
+    let mut line = Vec::new();
+    for _ in 0..passes {
+        for y in 0..h {
+            box_line(data, y * w * 4, 4, w, radius, &mut line);
+        }
+        for x in 0..w {
+            box_line(data, x * 4, w * 4, h, radius, &mut line);
+        }
+    }
+}
+
+/// Box-filters `n` pixels starting at byte `start`, `stride` bytes apart.
+fn box_line(data: &mut [u8], start: usize, stride: usize, n: usize, r: usize, line: &mut Vec<u8>) {
+    line.clear();
+    line.extend((0..n).flat_map(|i| {
+        let o = start + i * stride;
+        [data[o], data[o + 1], data[o + 2], data[o + 3]]
+    }));
+    let span = (2 * r + 1) as u32;
+    let mut sum = [0u32; 4];
+    for i in 0..=r.min(n - 1) {
+        for c in 0..4 {
+            sum[c] += u32::from(line[i * 4 + c]);
+        }
+    }
+    for i in 0..n {
+        let o = start + i * stride;
+        for c in 0..4 {
+            // Sum of span values of at most 255, divided by span: fits u8.
+            data[o + c] = (sum[c] / span) as u8;
+        }
+        if i + r + 1 < n {
+            for c in 0..4 {
+                sum[c] += u32::from(line[(i + r + 1) * 4 + c]);
+            }
+        }
+        if i >= r {
+            for c in 0..4 {
+                sum[c] -= u32::from(line[(i - r) * 4 + c]);
+            }
+        }
     }
 }
 
@@ -575,7 +684,9 @@ mod tests {
         let img = r.glyph_key(&theme(), &view).unwrap();
         assert_eq!(img.pixel(60, 100), [0xe6, 0x8e, 0x0d]);
         assert_eq!(img.pixel(10, 10), [0xe6, 0x8e, 0x0d]);
-        assert_eq!(img.pixel(2, 117), [0x12, 0x12, 0x12]);
+        // Neon halo: the margin around the plate is tinted towards the accent.
+        let [r, g, b] = img.pixel(2, 60);
+        assert!(r > 0x12 + 20 && r > g && g > b, "no glow: {r} {g} {b}");
     }
 
     #[test]
@@ -692,7 +803,8 @@ mod tests {
         let y = 70;
         assert_eq!(img.pixel(16, y), [0xe6, 0x8e, 0x0d]);
         assert_eq!(img.pixel(56, y), [0xe6, 0x8e, 0x0d]);
-        assert_eq!(img.pixel(58, y), [0x12, 0x12, 0x12], "gap");
+        let [red, _, blue] = img.pixel(58, y);
+        assert!(red > blue, "gap between lit blocks glows");
         assert_eq!(img.pixel(60, y), [0x33, 0x33, 0x33]);
         assert_eq!(img.pixel(177, y), [0x33, 0x33, 0x33]);
         // Out-of-range levels are clamped.
@@ -716,7 +828,7 @@ mod tests {
             ..Default::default()
         };
         let img = r.segment(&theme(), &view).unwrap();
-        // Text is foreground (0xbe); frame and scanlines stay far darker.
+        // Text is foreground (0xbe); the frame stays far darker.
         let cols: Vec<u32> = (0..200)
             .filter(|&x| (16..52).any(|y| x >= 30 && img.pixel(x, y)[0] > 0x80))
             .collect();
