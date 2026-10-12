@@ -44,28 +44,10 @@ struct Held {
     consumed: bool,
 }
 
-/// Slots 0-7 keys, 8-11 encoders.
+/// Controls currently held down, in press order.
 #[derive(Default)]
 pub struct Recognizer {
-    held: [Option<Held>; 12],
-}
-
-fn slot(c: Control) -> Option<usize> {
-    let (i, base, max) = match c {
-        Control::Key(i) => (i, 0, 8),
-        Control::Encoder(i) => (i, 8, 4),
-    };
-    (i < max).then_some(base + usize::from(i))
-}
-
-fn control(slot: usize) -> Control {
-    // Slots are < 12, so the cast cannot truncate.
-    let i = u8::try_from(slot).unwrap_or(0);
-    if i < 8 {
-        Control::Key(i)
-    } else {
-        Control::Encoder(i - 8)
-    }
+    held: Vec<(Control, Held)>,
 }
 
 impl Recognizer {
@@ -76,8 +58,8 @@ impl Recognizer {
             Input::EncoderDown(i) => self.down(Control::Encoder(i), now),
             Input::EncoderUp(i) => self.up(Control::Encoder(i)),
             Input::EncoderTwist(encoder, delta) => {
-                let held = slot(Control::Encoder(encoder))
-                    .and_then(|s| self.held[s].as_mut())
+                let held = self
+                    .held_mut(Control::Encoder(encoder))
                     .map(|h| h.consumed = true)
                     .is_some();
                 vec![Gesture::Twist {
@@ -96,7 +78,7 @@ impl Recognizer {
     pub fn deadline(&self) -> Option<Instant> {
         self.held
             .iter()
-            .flatten()
+            .map(|(_, h)| h)
             .filter(|h| !h.consumed)
             .map(|h| h.since + LONG_PRESS)
             .min()
@@ -105,30 +87,34 @@ impl Recognizer {
     /// Fires all long presses that are due at `now`.
     pub fn tick(&mut self, now: Instant) -> Vec<Gesture> {
         let mut out = Vec::new();
-        for (s, h) in self.held.iter_mut().enumerate() {
-            if let Some(h) = h
-                && !h.consumed
-                && now >= h.since + LONG_PRESS
-            {
+        for (c, h) in &mut self.held {
+            if !h.consumed && now >= h.since + LONG_PRESS {
                 h.consumed = true;
-                out.push(Gesture::LongPress(control(s)));
+                out.push(Gesture::LongPress(*c));
             }
         }
         out
     }
 
+    fn held_mut(&mut self, c: Control) -> Option<&mut Held> {
+        self.held.iter_mut().find(|(h, _)| *h == c).map(|(_, h)| h)
+    }
+
     fn down(&mut self, c: Control, now: Instant) -> Vec<Gesture> {
-        let Some(s) = slot(c) else { return Vec::new() };
-        self.held[s] = Some(Held {
-            since: now,
-            consumed: false,
-        });
+        self.held.retain(|(h, _)| *h != c);
+        self.held.push((
+            c,
+            Held {
+                since: now,
+                consumed: false,
+            },
+        ));
         vec![Gesture::Down(c)]
     }
 
     fn up(&mut self, c: Control) -> Vec<Gesture> {
-        let Some(s) = slot(c) else { return Vec::new() };
-        match self.held[s].take() {
+        let pos = self.held.iter().position(|(h, _)| *h == c);
+        match pos.map(|i| self.held.remove(i).1) {
             Some(h) if !h.consumed => vec![Gesture::Up(c), Gesture::Tap(c)],
             _ => vec![Gesture::Up(c)],
         }
@@ -154,6 +140,23 @@ mod tests {
             [Gesture::Up(K), Gesture::Tap(K)]
         );
         assert_eq!(r.deadline(), None);
+    }
+
+    #[test]
+    fn xl_keys_and_dials_tap() {
+        let t = Instant::now();
+        let mut r = Recognizer::default();
+        let (k, e) = (Control::Key(35), Control::Encoder(5));
+        r.input(Input::KeyDown(35), t);
+        r.input(Input::EncoderDown(5), t);
+        assert_eq!(
+            r.input(Input::KeyUp(35), t),
+            [Gesture::Up(k), Gesture::Tap(k)]
+        );
+        assert_eq!(
+            r.input(Input::EncoderUp(5), t),
+            [Gesture::Up(e), Gesture::Tap(e)]
+        );
     }
 
     #[test]
@@ -193,7 +196,7 @@ mod tests {
     }
 
     #[test]
-    fn independent_controls_and_bad_indices() {
+    fn independent_controls_and_stray_release() {
         let t = Instant::now();
         let mut r = Recognizer::default();
         r.input(Input::KeyDown(0), t);
@@ -206,8 +209,11 @@ mod tests {
             r.deadline(),
             Some(t + Duration::from_millis(100) + LONG_PRESS)
         );
-        assert!(r.input(Input::KeyDown(8), t).is_empty());
-        assert!(r.input(Input::EncoderUp(9), t).is_empty());
+        // A release without press (held before the daemon started) is no tap.
+        assert_eq!(
+            r.input(Input::EncoderUp(5), t),
+            [Gesture::Up(Control::Encoder(5))]
+        );
     }
 
     #[test]

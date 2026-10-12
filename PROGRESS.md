@@ -7,8 +7,7 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + angeschlossen (`0fd9:0084`), zweiter Monitor (DP-1, DP-2). Paket 0.1.5-1 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- Daemon-RSS 17,1 → 14,3 MB: Tokio-Runtime auf `current_thread` (vorher 16 Worker), am Gerät geprüft
-- Release 0.1.5 auf GitHub, installiert: Dienst 14,2 MB RSS
+- Startwarnung von Claude Code behoben: wirkungslose `Write(...)`-Deny-Regel aus `.claude/settings.json` entfernt (`Edit(...)` deckt alle Schreib-Tools ab), gepusht
 
 ## Nächster Schritt
 - Mit dem Nutzer klären, was als Nächstes kommt; optional mehr RSS-Puffer (Binary ~7 MB resident, vermutlich eingebettete Icons)
@@ -28,4 +27,5 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`), zweiter Monitor (DP-1, DP-2
 - Dev-Test der Shell mit neuer CLI: Shell nutzt `/usr/bin/duckydeck` → lokales Paket bauen (`git archive` als `duckydeck-<ver>.tar.gz` neben PKGBUILD, `makepkg -d -f`), Install per `sudo pacman -U --noconfirm` (Claude darf selbst). Version bleibt 0.1.0 → `setup` läuft nicht automatisch neu
 - Dev-Loop Editor: `setup` aus Debug-Build ändert vorhandene Paket-Links nicht → Paket bauen (Tarball via `git archive`), selbst installieren; bei CLI-/Katalog-Änderung auch `systemctl --user restart duckydeck`
 - Daemon beenden mit `kill $(pgrep -x duckydeckd)` – `pkill -f` trifft auch die eigene Shell; Fake mit stdin per `tail -f <datei> |` – nie `pkill -x tail` (trifft parallele Builds)
+- Auto-Modus blockiert Änderungen an `.claude/settings*.json` auch mit Zustimmung → Nutzer per `! <befehl>` ändern lassen
 - Entscheidung 2026-10-03: kein AUR, nur GitHub-Release mit fertigem Paket; Paket unsigniert, Install in zwei Schritten (Nutzer ok)
