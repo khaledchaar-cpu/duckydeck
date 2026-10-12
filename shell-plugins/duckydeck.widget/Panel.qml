@@ -4,7 +4,7 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// Bar icon for the Stream Deck +: dimmed while the device (or daemon) is
+// Bar icon for the Stream Deck: dimmed while the device (or daemon) is
 // away, tooltip with the active profile. Clicking toggles the panel;
 // `omarchy-shell duckydeck.widget toggle` does the same (menu entry).
 Panel {
@@ -159,7 +159,7 @@ Panel {
 
         PanelHero {
           width: parent.width
-          title: strings.title
+          title: strings.deviceName(root.status ? root.status.device : "")
           meta: root.error !== "" ? root.error
             : !deck.daemonUp ? strings.noDaemon
             : !deck.connected ? strings.disconnected

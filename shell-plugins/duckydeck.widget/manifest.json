@@ -5,7 +5,7 @@
   "version": "0.1.5",
   "author": "DuckyDeck",
   "license": "MIT",
-  "description": "Stream Deck + status and controls in the Omarchy bar.",
+  "description": "Stream Deck status and controls in the Omarchy bar.",
   "kinds": [
     "bar-widget"
   ],
@@ -14,7 +14,7 @@
   },
   "barWidget": {
     "displayName": "Stream Deck",
-    "description": "Stream Deck + connection, active profile and controls",
+    "description": "Stream Deck connection, active profile and controls",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right"

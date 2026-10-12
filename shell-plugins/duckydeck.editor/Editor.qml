@@ -124,9 +124,15 @@ Item {
   property color scrim: Color.menu.scrim
   property color accent: Color.accent
   property string fontFamily: Style.font.menuFamily
-  readonly property real deckScale: 0.8
+  // Layout of the profile's device (from `export --json`).
+  readonly property var device: profileData && profileData.device ? profileData.device : ({ keys: 8, columns: 4, dials: 4 })
+  readonly property int keyCount: device.keys
+  readonly property int keyColumns: device.columns
+  readonly property int dialCount: device.dials
+  // Larger decks are drawn smaller so the editor keeps its size.
+  readonly property real deckScale: keyColumns > 4 ? 0.55 : 0.8
   readonly property int keySize: Math.round(120 * deckScale)
-  readonly property int deckGap: Style.space(14)
+  readonly property int deckGap: Style.space(keyColumns > 4 ? 8 : 14)
 
   function open(payloadJson) {
     var top = ToplevelManager.activeToplevel
@@ -253,7 +259,7 @@ Item {
   function select(kind, index) {
     root.openEntry = -1
     root.selKind = kind
-    root.selIndex = Math.max(0, Math.min(kind === "dial" ? 3 : 7, index))
+    root.selIndex = Math.max(0, Math.min(kind === "dial" ? root.dialCount - 1 : root.keyCount - 1, index))
     if (kind === "dial") root.refreshAudioApps()
   }
 
@@ -262,14 +268,15 @@ Item {
     audioAppsProc.running = true
   }
 
-  // Keys are 2 rows of 4, dials one row below them.
+  // Keys in rows of `keyColumns`, dials one row below them.
   function move(dx, dy) {
-    var row = root.selKind === "dial" ? 2 : Math.floor(root.selIndex / 4)
-    var col = root.selKind === "dial" ? root.selIndex : root.selIndex % 4
-    row = Math.max(0, Math.min(2, row + dy))
-    col = Math.max(0, Math.min(3, col + dx))
-    if (row === 2) root.select("dial", col)
-    else root.select("key", row * 4 + col)
+    var cols = root.keyColumns
+    var rows = Math.ceil(root.keyCount / cols)
+    var row = root.selKind === "dial" ? rows : Math.floor(root.selIndex / cols)
+    var col = root.selKind === "dial" ? root.selIndex : root.selIndex % cols
+    row = Math.max(0, Math.min(rows, row + dy))
+    if (row === rows) root.select("dial", Math.max(0, Math.min(root.dialCount - 1, col + dx)))
+    else root.select("key", row * cols + Math.max(0, Math.min(cols - 1, col + dx)))
   }
 
   function folderOf(slot) {
@@ -684,6 +691,7 @@ Item {
     for (var n = 2; taken.indexOf(id) >= 0; n++) id = base + "-" + n
     var args = [id, "create", name]
     if (copy) args.push(root.profile)
+    else if (root.status && root.status.device) args.push("--device", root.status.device)
     root.manage(args, function() {
       root.creating = false
       root.setProfile(id)
@@ -1353,7 +1361,7 @@ Item {
             }
           }
 
-          // The deck: 2×4 keys, then the strip segments with their dials.
+          // The deck: rows of keys, then the strip segments with their dials.
           Rectangle {
             id: deck
             anchors.horizontalCenter: parent.horizontalCenter
@@ -1371,10 +1379,10 @@ Item {
 
               Grid {
                 anchors.horizontalCenter: parent.horizontalCenter
-                columns: 4
+                columns: root.keyColumns
                 spacing: root.deckGap
                 Repeater {
-                  model: 8
+                  model: root.keyCount
                   Rectangle {
                     readonly property bool isSelected: root.selKind === "key" && root.selIndex === index
                     width: root.keySize
@@ -1422,7 +1430,7 @@ Item {
               Row {
                 anchors.horizontalCenter: parent.horizontalCenter
                 Repeater {
-                  model: 4
+                  model: root.dialCount
                   Item {
                    readonly property bool isSelected: root.selKind === "dial" && root.selIndex === index
                    width: dialColumn.implicitWidth

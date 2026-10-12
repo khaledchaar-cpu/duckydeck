@@ -1,5 +1,8 @@
-# DuckyDeck: give the logged-in user access to the Elgato Stream Deck + (no root needed).
+# DuckyDeck: give the logged-in user access to the Elgato Stream Deck + and + XL (no root needed).
 KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0084", TAG+="uaccess"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00c6", TAG+="uaccess"
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0084", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00c6", TAG+="uaccess"
 # Plugging the deck in also starts the user daemon (e.g. right after package installation).
 SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0084", TAG+="systemd", ENV{SYSTEMD_USER_WANTS}+="duckydeck.service"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00c6", TAG+="systemd", ENV{SYSTEMD_USER_WANTS}+="duckydeck.service"

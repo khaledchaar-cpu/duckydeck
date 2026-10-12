@@ -5,7 +5,7 @@
   "version": "0.1.5",
   "author": "DuckyDeck",
   "license": "MIT",
-  "description": "Edit Stream Deck + profiles with a live preview of the device.",
+  "description": "Edit Stream Deck profiles with a live preview of the device.",
   "kinds": [
     "overlay"
   ],
