@@ -12,10 +12,11 @@ Da Layouts in v1 von Hand bearbeitet werden, gilt: Format kurz und lesbar halten
 
 `config.toml` (alle Felder optional): `brightness = 60` (0–100), `screensaver_minutes = 10` (0 = aus), `profile = "omarchy"` (Datei-Stamm unter `profiles/`).
 
-Profil: kommentiertes Referenzbeispiel = Default-Profil [`examples/profiles/omarchy.toml`](../../examples/profiles/omarchy.toml) (eingebettet, Id `omarchy`, durch eine gleichnamige Nutzerdatei überschreibbar).
-- `name`, optional `match = { class, title }` (Regex, siehe Kontextwechsel in `actions.md`), `[[pages]]` (≥ 1) mit `keys` (≤ 8) und `dials` (≤ 4)
+Profil: kommentiertes Referenzbeispiel = Default-Profil [`examples/profiles/omarchy.toml`](../../examples/profiles/omarchy.toml) (eingebettet, Id `omarchy`, durch eine gleichnamige Nutzerdatei überschreibbar); für das Stream Deck + XL entsprechend [`omarchy-xl.toml`](../../examples/profiles/omarchy-xl.toml) (Id `omarchy-xl`).
+- `name`, optional `device = "plus" | "plus_xl"` (Standard `plus`), optional `match = { class, title }` (Regex, siehe Kontextwechsel in `actions.md`), `[[pages]]` (≥ 1) mit `keys` und `dials` (höchstens so viele, wie das Modell hat: Plus 8/4, Plus XL 36/6)
+- Profile pro Modell (Entscheidung 2026-10-12): der Daemon nutzt nur Profile des angeschlossenen Modells; passt `config.profile` nicht zum Modell, gilt dessen eingebautes Profil. Immer nur ein Gerät gleichzeitig.
 - Slot: `{ action, args = {…}, label, icon }`; `{}` = leer. Parameter wie `step` immer in `args`.
-- Ordner: `[folders.<name>]` mit ≤ 7 Tasten (letzte Taste = automatisches Zurück), geöffnet per `{ action = "structure.folder", args = { folder = "<name>" } }`.
+- Ordner: `[folders.<name>]` mit ≤ Tastenzahl − 1 Tasten (letzte Taste = automatisches Zurück), geöffnet per `{ action = "structure.folder", args = { folder = "<name>" } }`.
 - Seiten: `{ action = "structure.page", args = { n = 2 } }` bzw. `args = { to = "next" | "prev" }`; Swipe auf dem Touchstrip (≥ 100 px) wechselt ebenfalls die Seite (nach links = nächste, zyklisch); als Regler `{ action = "structure.page_scroll" }`.
 - Profil: `{ action = "structure.profile", args = { profile = "<id>" } }` (zählt als manuelle Wahl, siehe Kontextwechsel).
 - Multi: `{ action = "structure.multi", args = { steps = [{ action = "…", args = {…} }, { delay_ms = 300 }, …] } }` – Schritte nacheinander, `delay_ms` 0–10000. Ein langer Druck gilt für alle Schritte (Long-Press-Bestätigung).

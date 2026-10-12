@@ -8,7 +8,7 @@ Steuerungs-App für **Elgato Stream Decks** (Referenzgerät: Stream Deck +), aus
 - Omarchy-Routen und Shell-APIs: **`docs/omarchy-reference.md`** (generiert von `scripts/gen-omarchy-reference.sh`).
 
 ## Harte Regeln
-1. **Nur aktuelles Omarchy.** Keine Abstraktionen für andere Distros oder Desktops. Geräte: Stream Deck + (PID `0x0084`) ist Referenz und einziges Testgerät; weitere Elgato-Modelle über die Gerätefähigkeiten (Tasten, Regler, Touchstrip, Bildgrößen) aus `elgato-streamdeck`, nie über modellspezifische Sonderfälle in UI/Config. Waybar, Walker, mako, SwayOSD gibt es nicht – nicht verwenden.
+1. **Nur aktuelles Omarchy.** Keine Abstraktionen für andere Distros oder Desktops. Geräte: Stream Deck + (PID `0x0084`) ist Referenz, Stream Deck + XL (PID `0x00c6`) zweites Testgerät (Profile pro Modell, `device` im Profil); weitere Elgato-Modelle über die Gerätefähigkeiten (Tasten, Regler, Touchstrip, Bildgrößen) aus `elgato-streamdeck`, nie über modellspezifische Sonderfälle in UI/Config. Waybar, Walker, mako, SwayOSD gibt es nicht – nicht verwenden.
 2. **Omarchy-Standards vor Eigenbau:** Actions rufen `omarchy <group> <action>` auf; UI ist ein Shell-Plugin mit Shell-Komponenten; Feedback über Omarchy-OSD und Shell-Benachrichtigungen; Farben nur aus `colors.toml` (Daemon) bzw. Shell-Tokens (QML).
 3. **Plug & Play:** nach der Paketinstallation kein manueller Schritt.
 4. **Effizienz:** Daemon < 15 MB RSS, ~0 % CPU im Leerlauf, Events statt Polling.

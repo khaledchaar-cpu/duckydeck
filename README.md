@@ -44,7 +44,7 @@ the Omarchy shell, every action running through the `omarchy` CLI.
   <em>The panel behind the bar icon – profile, page, brightness.</em>
 </p>
 
-Made for current Omarchy. Reference device is the Stream Deck + (USB `0fd9:0084`).
+Made for current Omarchy. Supported devices: Stream Deck + (USB `0fd9:0084`) and Stream Deck + XL (`0fd9:00c6`). Profiles are made for one model (`device = "plus_xl"` for the XL).
 
 ## Install
 
@@ -191,6 +191,7 @@ bar layout via `omarchy plugin disable`.
 systemctl --user stop duckydeck
 cargo run -p duckydeckd -- --debug
 DUCKYDECK_FAKE_DEVICE=1 cargo run -p duckydeckd   # no device: renders to $XDG_RUNTIME_DIR/duckydeck/fake/deck.png
+                                                  # (=plus_xl fakes a Stream Deck + XL)
 scripts/check.sh                                  # fmt + clippy + tests
 ```
 

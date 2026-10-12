@@ -27,7 +27,7 @@ Konkrete Routen und Shell-Komponenten stehen in `docs/omarchy-reference.md` (gen
 | 4 Drehregler | endlos, drückbar | Lautstärke, Mikrofon, Helligkeit, Workspace-Scroll |
 | Touchstrip | 800×100 px, Tap/Long-Press/Swipe | 4 Segmente à 200 px; Swipe = Seite wechseln |
 
-USB: VID `0x0fd9`, PID `0x0084`.
+USB: VID `0x0fd9`, PID `0x0084`. Stream Deck + XL (PID `0x00c6`): 36 Tasten (4 × 9), 6 Regler, Touchstrip 1200×100 px; Layout aus `duckydeck_core::model`.
 
 ## Komponenten
 

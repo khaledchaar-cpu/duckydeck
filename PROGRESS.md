@@ -4,13 +4,14 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 
 **Aktueller Milestone:** alle Milestones (M1–M9) fertig, v0.1.5 auf GitHub (RSS-Fix); v2 vollständig
 
-Hardware: Stream Deck + angeschlossen (`0fd9:0084`), zweiter Monitor (DP-1, DP-2). Paket 0.1.5-1 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
+Hardware: Stream Deck + XL angeschlossen (`0fd9:00c6`), Stream Deck + (`0fd9:0084`) vorhanden, zweiter Monitor (DP-1, DP-2). Paket 0.1.5-1 installiert (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- Startwarnung von Claude Code behoben: wirkungslose `Write(...)`-Deny-Regel aus `.claude/settings.json` entfernt (`Edit(...)` deckt alle Schreib-Tools ab), gepusht
+- Stream Deck + XL (`0fd9:00c6`) unterstützt: `duckydeck_core::model` (Tasten/Spalten/Regler/Strip), Profile pro Modell (`device = "plus_xl"`, Standard `plus`), eingebautes Profil `omarchy-xl`, Daemon verbindet Plus oder XL und nutzt nur passende Profile, Gesten ohne feste 8/4-Tabelle, Fake `DUCKYDECK_FAKE_DEVICE=plus_xl`, Editor-Raster aus `export --json` (`device`), `create --device`, udev-Regel für `00c6`
+- Lokales Paket gebaut/installiert, echtes XL verbunden (RSS 13,7 MB)
 
 ## Nächster Schritt
-- Mit dem Nutzer klären, was als Nächstes kommt; optional mehr RSS-Puffer (Binary ~7 MB resident, vermutlich eingebettete Icons)
+- Nutzer prüft XL am Gerät (Tasten, Regler, Strip, Editor); danach Plus erneut am echten Gerät gegentesten und Release 0.1.6
 
 ## Offene Probleme / Notizen
 - RSS-Puffer nur ~0,7 MB; HID-Flushes blockieren jetzt kurz auch IPC/MPRIS/pactl (unkritisch)
@@ -24,6 +25,7 @@ Hardware: Stream Deck + angeschlossen (`0fd9:0084`), zweiter Monitor (DP-1, DP-2
 - Hyprland-Zugriff nicht hinter Trait (bewusst offen, geringer Nutzen). Nachtlicht ohne Event ist bewusst so: weder hyprsunset noch Shell melden Änderungen, Polling verboten – steht in actions.md)
 - `scripts/check.sh` braucht `PATH=$HOME/.cargo/bin:$PATH`; Socket-Tests brauchen kurzes `XDG_RUNTIME_DIR` (z. B. `/tmp/claude-1000/dd`)
 - Lernmodus: jede Regler-Rastung erzeugt ein `slot_pressed` (Editor entprellt)
+- `git archive` immer aus dem Repo-Root (aus `packaging/` heraus packt es nur den Unterordner)
 - Dev-Test der Shell mit neuer CLI: Shell nutzt `/usr/bin/duckydeck` → lokales Paket bauen (`git archive` als `duckydeck-<ver>.tar.gz` neben PKGBUILD, `makepkg -d -f`), Install per `sudo pacman -U --noconfirm` (Claude darf selbst). Version bleibt 0.1.0 → `setup` läuft nicht automatisch neu
 - Dev-Loop Editor: `setup` aus Debug-Build ändert vorhandene Paket-Links nicht → Paket bauen (Tarball via `git archive`), selbst installieren; bei CLI-/Katalog-Änderung auch `systemctl --user restart duckydeck`
 - Daemon beenden mit `kill $(pgrep -x duckydeckd)` – `pkill -f` trifft auch die eigene Shell; Fake mit stdin per `tail -f <datei> |` – nie `pkill -x tail` (trifft parallele Builds)
