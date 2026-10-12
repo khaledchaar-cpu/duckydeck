@@ -7,7 +7,8 @@ use anyhow::{Context, Result};
 use duckydeck_core::model::{Model, SEGMENT_W};
 use elgato_streamdeck::StreamDeck;
 use elgato_streamdeck::images::ImageRect;
-use image::{DynamicImage, GenericImage, Rgb, RgbImage};
+use elgato_streamdeck::info::ImageRotation;
+use image::{DynamicImage, GenericImage, Rgb, RgbImage, imageops};
 
 pub const KEY_SIZE: u32 = 120;
 pub const STRIP_H: u32 = 100;
@@ -31,12 +32,39 @@ impl Surface for StreamDeck {
     }
 
     fn set_strip(&mut self, x: u16, img: &RgbImage) -> Result<()> {
-        let rect = ImageRect::from_image(DynamicImage::ImageRgb8(img.clone()))?;
-        Ok(self.write_lcd(x, 0, &rect)?)
+        let rotation = self
+            .kind()
+            .lcd_image_format()
+            .map_or(ImageRotation::Rot0, |f| f.rotation);
+        let strip_w = self.kind().lcd_strip_size().map_or(0, |(w, h)| w.max(h));
+        let (img, x, y) = to_native(img, x, strip_w, rotation);
+        let rect = ImageRect::from_image(DynamicImage::ImageRgb8(img))?;
+        Ok(self.write_lcd(x, y, &rect)?)
     }
 
     fn flush(&mut self) -> Result<()> {
         Ok(StreamDeck::flush(self)?)
+    }
+}
+
+/// Maps a strip image at logical `x` (strip `strip_w` px wide, left to
+/// right) to the device's native LCD orientation. The Stream Deck + XL
+/// stores its strip as a portrait 100×1200 panel rotated by 270°.
+fn to_native(
+    img: &RgbImage,
+    x: u16,
+    strip_w: usize,
+    rotation: ImageRotation,
+) -> (RgbImage, u16, u16) {
+    match rotation {
+        ImageRotation::Rot270 => {
+            let right = u16::try_from(strip_w).unwrap_or(u16::MAX);
+            let w = u16::try_from(img.width()).unwrap_or(0);
+            let y = right.saturating_sub(x).saturating_sub(w);
+            (imageops::rotate270(img), 0, y)
+        }
+        ImageRotation::Rot90 => (imageops::rotate90(img), 0, x),
+        _ => (img.clone(), x, 0),
     }
 }
 
@@ -162,6 +190,17 @@ mod tests {
         assert_eq!(*png.get_pixel(MARGIN + 100, strip + 50), BODY);
         std::fs::remove_dir_all(dir)?;
         Ok(())
+    }
+
+    #[test]
+    fn xl_strip_segments_map_to_the_portrait_panel() {
+        let seg = RgbImage::from_pixel(200, STRIP_H, Rgb([1, 2, 3]));
+        let (img, x, y) = to_native(&seg, 0, 1200, ImageRotation::Rot270);
+        assert_eq!((img.dimensions(), x, y), ((100, 200), 0, 1000));
+        let (_, _, y) = to_native(&seg, 1000, 1200, ImageRotation::Rot270);
+        assert_eq!(y, 0);
+        let (img, x, y) = to_native(&seg, 600, 800, ImageRotation::Rot0);
+        assert_eq!((img.dimensions(), x, y), ((200, 100), 600, 0));
     }
 
     #[test]
