@@ -19,6 +19,7 @@ pub mod icons;
 pub mod ipc;
 pub mod library;
 pub mod media;
+pub mod model;
 pub mod nav;
 
 pub use command::{

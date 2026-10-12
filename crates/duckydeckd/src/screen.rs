@@ -20,6 +20,7 @@ use duckydeck_core::hypr::{self, WorkspaceState, Workspaces};
 use duckydeck_core::icons;
 use duckydeck_core::ipc;
 use duckydeck_core::media::{self, MediaKey, Players, Status};
+use duckydeck_core::model::{Model, SEGMENT_W};
 use duckydeck_core::nav::{BACK_ACTION, Nav, PAGE_ACTION, PAGE_SCROLL_ACTION, Press};
 use duckydeck_core::render::{GlyphView, KeyView, MediaView, Renderer, SegmentView};
 use duckydeck_core::script::{self, Script};
@@ -227,6 +228,21 @@ impl Screen {
         self.app_icons.borrow_mut().clear();
     }
 
+    /// A deck connected: show the profiles made for its model.
+    pub fn set_model(&mut self, model: Model) {
+        if !self.store.set_model(model) {
+            return;
+        }
+        tracing::info!(model = model.id(), "using profiles for model");
+        self.toggled.clear();
+        self.app_picks.clear();
+        self.context.reload(&self.store.current, true);
+        let wanted = self.context.wanted().to_owned();
+        if self.nav.set_profile(&self.store.current, &wanted).is_err() {
+            self.nav = Nav::new(&self.store.current);
+        }
+    }
+
     /// Returns whether the deck needs a redraw.
     pub fn reload_config(&mut self, runner: &dyn CommandRunner) -> bool {
         let configured = self.store.current.config.profile.clone();
@@ -235,7 +251,7 @@ impl Screen {
             return false;
         }
         self.sync_scripts(true);
-        duckydeck_core::check::notify_problems(&self.store.current, &self.catalog, runner);
+        duckydeck_core::check::notify_problems(&self.store.all, &self.catalog, runner);
         self.app_icons.borrow_mut().clear();
         self.app_names.borrow_mut().clear();
         self.brightness = None;
@@ -276,6 +292,7 @@ impl Screen {
         ipc::Status {
             connected: deck.is_some(),
             serial: deck.map(|d| d.serial.clone()),
+            device: self.store.model(),
             profile: self.nav.profile.clone(),
             profiles: c.profiles.keys().cloned().collect(),
             page: self.nav.page + 1,
@@ -307,7 +324,7 @@ impl Screen {
     ) -> Result<ipc::Preview> {
         let p = self
             .store
-            .current
+            .all
             .profiles
             .get(profile)
             .with_context(|| format!("unknown profile {profile:?}"))?;
@@ -337,13 +354,14 @@ impl Screen {
                 .with_context(|| format!("write {}", path.display()))?;
             Ok(path)
         };
+        let model = p.device;
         let mut keys = Vec::new();
-        for i in 0..8 {
+        for i in 0..model.keys() as u8 {
             let img = self.key_image(&nav, i, false)?;
             keys.push(write(format!("key{i}"), img)?);
         }
         let mut dials = Vec::new();
-        for i in 0..4 {
+        for i in 0..model.dials() as u8 {
             let img = self.segment_image(&nav, i, false)?;
             dials.push(write(format!("dial{i}"), img)?);
         }
@@ -417,7 +435,8 @@ impl Screen {
     }
 
     pub fn draw_keys(&mut self, deck: &mut Deck) -> Result<()> {
-        (0..8u8).try_for_each(|i| self.key(deck, i, false))?;
+        let keys = self.store.model().keys() as u8;
+        (0..keys).try_for_each(|i| self.key(deck, i, false))?;
         deck.out.flush()
     }
 
@@ -467,12 +486,14 @@ impl Screen {
                 time: time.as_deref(),
                 progress: p.progress(now),
             };
-            let img = to_image(self.renderer.media(&self.theme, &view)?)?;
+            let width = self.store.model().strip_width();
+            let img = to_image(self.renderer.media(&self.theme, &view, width)?)?;
             self.media_tick = Some(now + MEDIA_TICK);
             deck.out.set_strip(0, &img)?;
         } else {
             self.media_tick = None;
-            (0..4u8).try_for_each(|seg| self.segment(deck, seg, false))?;
+            let dials = self.store.model().dials() as u8;
+            (0..dials).try_for_each(|seg| self.segment(deck, seg, false))?;
         }
         deck.out.flush()
     }
@@ -604,8 +625,8 @@ impl Screen {
 
     /// The script binding on encoder `seg`, if it has one.
     fn dial_script(&self, seg: u8) -> Option<Binding> {
-        self.nav.dials(&self.store.current)[usize::from(seg % 4)]
-            .take()
+        self.nav
+            .dial(&self.store.current, usize::from(seg))
             .filter(|b| b.action.starts_with(script::PREFIX))
     }
 
@@ -653,6 +674,12 @@ impl Screen {
         self.learned.take()
     }
 
+    /// Segment (and dial) under strip position `x`.
+    fn strip_segment(&self, x: u16) -> u8 {
+        let last = self.store.model().dials() - 1;
+        u8::try_from((usize::from(x) / SEGMENT_W as usize).min(last)).unwrap_or(0)
+    }
+
     /// Learn mode: presses select slots instead of running actions.
     fn learn(&mut self, g: &Gesture) -> bool {
         use duckydeck_core::library::Slot;
@@ -662,7 +689,7 @@ impl Screen {
             | Gesture::LongPress(Control::Encoder(i))
             | Gesture::Twist { encoder: i, .. } => (Slot::Dial, i),
             Gesture::StripTap(x, _) | Gesture::StripLongPress(x, _) => {
-                (Slot::Dial, u8::try_from(x / 200).unwrap_or(3).min(3))
+                (Slot::Dial, self.strip_segment(x))
             }
             _ => return false,
         };
@@ -753,7 +780,9 @@ impl Screen {
 
     /// Dial on encoder `seg`; an app-volume dial carries its picked app.
     fn dial(&self, seg: u8) -> Option<Dial> {
-        let d = self.nav.dials(&self.store.current)[usize::from(seg % 4)]
+        let d = self
+            .nav
+            .dial(&self.store.current, usize::from(seg))
             .as_ref()
             .and_then(Dial::from_binding)?;
         Some(self.with_pick(seg, d))
@@ -795,7 +824,8 @@ impl Screen {
     }
 
     fn dial_is(&self, seg: u8, action: &str) -> bool {
-        self.nav.dials(&self.store.current)[usize::from(seg % 4)]
+        self.nav
+            .dial(&self.store.current, usize::from(seg))
             .as_ref()
             .is_some_and(|b| b.action == action)
     }
@@ -964,8 +994,8 @@ impl Screen {
     }
 
     fn key_image(&mut self, nav: &Nav, i: u8, pressed: bool) -> Result<RgbImage> {
-        let binding = nav.keys(&self.store.current)[usize::from(i % 8)]
-            .take()
+        let binding = nav
+            .key(&self.store.all, usize::from(i))
             .map(|b| self.shown_in(nav, i, b))
             .map(|b| self.scripted(b));
         let bg = if pressed {
@@ -1018,12 +1048,12 @@ impl Screen {
     fn segment(&mut self, deck: &mut Deck, seg: u8, pressed: bool) -> Result<()> {
         let nav = self.nav.clone();
         let img = self.segment_image(&nav, seg, pressed)?;
-        deck.out.set_strip(u16::from(seg) * 200, &img)
+        deck.out.set_strip(u16::from(seg) * SEGMENT_W as u16, &img)
     }
 
     fn segment_image(&mut self, nav: &Nav, seg: u8, pressed: bool) -> Result<RgbImage> {
-        let binding = nav.dials(&self.store.current)[usize::from(seg % 4)]
-            .take()
+        let binding = nav
+            .dial(&self.store.all, usize::from(seg))
             .map(|b| self.scripted(b));
         let level = binding.as_ref().and_then(Dial::from_binding).map(|d| {
             let d = self.with_pick(seg, d);
@@ -1054,7 +1084,7 @@ impl Screen {
         let pages = binding
             .as_ref()
             .filter(|b| b.action == PAGE_SCROLL_ACTION)
-            .and_then(|_| self.store.current.profiles.get(&nav.profile))
+            .and_then(|_| self.store.all.profiles.get(&nav.profile))
             .map(|p| format!("{}/{}", nav.page + 1, p.pages.len()));
         let text = match &level {
             _ if app.is_some() => app.as_ref().map(|(t, _)| t.clone()),

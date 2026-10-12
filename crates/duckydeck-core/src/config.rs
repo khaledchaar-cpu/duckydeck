@@ -10,14 +10,26 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 use crate::command::{CommandRunner, CommandSpec};
+use crate::model::Model;
 
-pub const KEYS: usize = 8;
-pub const DIALS: usize = 4;
 /// Action that opens a folder; its `folder` arg names an entry of `[folders]`.
 pub const FOLDER_ACTION: &str = "structure.folder";
 /// The default profile, also shipped as an example.
 pub const DEFAULT_PROFILE: &str = include_str!("../../../examples/profiles/omarchy.toml");
 pub const DEFAULT_PROFILE_ID: &str = "omarchy";
+/// The default profile for the Stream Deck + XL.
+pub const DEFAULT_PROFILE_XL: &str = include_str!("../../../examples/profiles/omarchy-xl.toml");
+
+/// Source of a built-in profile, used while it has no file of its own.
+pub fn builtin(id: &str) -> Option<&'static str> {
+    if id == DEFAULT_PROFILE_ID {
+        Some(DEFAULT_PROFILE)
+    } else if id == Model::PlusXl.default_profile() {
+        Some(DEFAULT_PROFILE_XL)
+    } else {
+        None
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
@@ -71,6 +83,9 @@ impl Config {
 #[serde(deny_unknown_fields)]
 pub struct Profile {
     pub name: String,
+    /// Model the profile is laid out for; only that model shows it.
+    #[serde(default)]
+    pub device: Model,
     #[serde(default, rename = "match")]
     pub matcher: Option<WindowMatch>,
     pub pages: Vec<Page>,
@@ -146,6 +161,18 @@ impl Profile {
         Self::parse(DEFAULT_PROFILE, Path::new("examples/profiles/omarchy.toml"))
     }
 
+    /// Built-in profiles for every model, by id.
+    pub fn defaults() -> Result<BTreeMap<String, Self>, ConfigError> {
+        let xl = Self::parse(
+            DEFAULT_PROFILE_XL,
+            Path::new("examples/profiles/omarchy-xl.toml"),
+        )?;
+        Ok(BTreeMap::from([
+            (DEFAULT_PROFILE_ID.to_owned(), Self::default_profile()?),
+            (Model::PlusXl.default_profile().to_owned(), xl),
+        ]))
+    }
+
     fn validate(&self) -> Result<(), String> {
         if self.pages.is_empty() {
             return Err("profile needs at least one [[pages]]".into());
@@ -154,12 +181,12 @@ impl Profile {
             .pages
             .iter()
             .enumerate()
-            .map(|(i, p)| (format!("page {}", i + 1), p, KEYS));
+            .map(|(i, p)| (format!("page {}", i + 1), p, self.device.keys()));
         // The last folder key is reserved for the automatic back key.
         let folders = self
             .folders
             .iter()
-            .map(|(n, p)| (format!("folder {n:?}"), p, KEYS - 1));
+            .map(|(n, p)| (format!("folder {n:?}"), p, self.device.keys() - 1));
         for (what, page, max_keys) in pages.chain(folders) {
             if page.keys.len() > max_keys {
                 return Err(format!(
@@ -167,9 +194,10 @@ impl Profile {
                     page.keys.len()
                 ));
             }
-            if page.dials.len() > DIALS {
+            let max_dials = self.device.dials();
+            if page.dials.len() > max_dials {
                 return Err(format!(
-                    "{what}: {} dials, at most {DIALS}",
+                    "{what}: {} dials, at most {max_dials}",
                     page.dials.len()
                 ));
             }
@@ -218,8 +246,7 @@ impl Loaded {
             Some(src) => Config::parse(&src, &config_path)?,
             None => Config::default(),
         };
-        let mut profiles = BTreeMap::new();
-        profiles.insert(DEFAULT_PROFILE_ID.to_owned(), Profile::default_profile()?);
+        let mut profiles = Profile::defaults()?;
         let profile_dir = dir.join("profiles");
         let entries = match std::fs::read_dir(&profile_dir) {
             Ok(entries) => entries.collect::<Result<Vec<_>, _>>(),
@@ -253,6 +280,23 @@ impl Loaded {
         }
         Ok(Self { config, profiles })
     }
+
+    /// The part a deck of `model` uses: only its profiles, and
+    /// `config.profile` replaced by the model's default if it is for
+    /// another model.
+    pub fn for_model(&self, model: Model) -> Self {
+        let profiles: BTreeMap<_, _> = self
+            .profiles
+            .iter()
+            .filter(|(_, p)| p.device == model)
+            .map(|(id, p)| (id.clone(), p.clone()))
+            .collect();
+        let mut config = self.config.clone();
+        if !profiles.contains_key(&config.profile) {
+            model.default_profile().clone_into(&mut config.profile);
+        }
+        Self { config, profiles }
+    }
 }
 
 /// `$XDG_CONFIG_HOME/duckydeck`, falling back to `~/.config/duckydeck`.
@@ -268,38 +312,61 @@ pub fn dir() -> Option<PathBuf> {
 /// and reports the error as a shell notification.
 pub struct Store {
     dir: PathBuf,
+    model: Model,
+    /// Every profile, for the editor and previews.
+    pub all: Loaded,
+    /// What the connected model uses, see [`Loaded::for_model`].
     pub current: Loaded,
 }
 
 impl Store {
     /// Loads `dir`; on error falls back to the built-in defaults.
     pub fn open(dir: PathBuf, runner: &dyn CommandRunner) -> Result<Self, ConfigError> {
-        let current = match Loaded::load(&dir) {
+        let all = match Loaded::load(&dir) {
             Ok(loaded) => loaded,
             Err(e) => {
                 notify_error(runner, &e);
                 Loaded {
                     config: Config::default(),
-                    profiles: BTreeMap::from([(
-                        DEFAULT_PROFILE_ID.to_owned(),
-                        Profile::default_profile()?,
-                    )]),
+                    profiles: Profile::defaults()?,
                 }
             }
         };
-        Ok(Self { dir, current })
+        let model = Model::default();
+        let current = all.for_model(model);
+        Ok(Self {
+            dir,
+            model,
+            all,
+            current,
+        })
     }
 
     pub fn dir(&self) -> &Path {
         &self.dir
     }
 
-    /// Returns whether the active configuration changed.
+    pub fn model(&self) -> Model {
+        self.model
+    }
+
+    /// A deck of `model` connected; returns whether the profiles changed.
+    pub fn set_model(&mut self, model: Model) -> bool {
+        if model == self.model {
+            return false;
+        }
+        self.model = model;
+        self.current = self.all.for_model(model);
+        true
+    }
+
+    /// Returns whether the configuration changed.
     pub fn reload(&mut self, runner: &dyn CommandRunner) -> bool {
         match Loaded::load(&self.dir) {
-            Ok(loaded) if loaded == self.current => false,
+            Ok(loaded) if loaded == self.all => false,
             Ok(loaded) => {
-                self.current = loaded;
+                self.current = loaded.for_model(self.model);
+                self.all = loaded;
                 true
             }
             Err(e) => {
@@ -370,8 +437,8 @@ mod tests {
     fn default_profile_parses() -> anyhow::Result<()> {
         let p = Profile::default_profile()?;
         assert_eq!(p.name, "Omarchy");
-        assert_eq!(p.pages[0].keys.len(), KEYS);
-        assert_eq!(p.pages[0].dials.len(), DIALS);
+        assert_eq!(p.pages[0].keys.len(), Model::Plus.keys());
+        assert_eq!(p.pages[0].dials.len(), Model::Plus.dials());
         let b = p.pages[0].dials[0]
             .0
             .as_ref()
@@ -430,6 +497,43 @@ mod tests {
     }
 
     #[test]
+    fn xl_profiles_have_more_slots() -> anyhow::Result<()> {
+        let keys = [r#"{ action = "a" }"#; 36].join(",");
+        let dials = ["{}"; 6].join(",");
+        let p = profile(&format!(
+            "name = \"T\"\ndevice = \"plus_xl\"\n[[pages]]\nkeys = [{keys}]\ndials = [{dials}]"
+        ))?;
+        assert_eq!(p.device, Model::PlusXl);
+        let seven = ["{}"; 7].join(",");
+        assert!(
+            err(&format!(
+                "name = \"T\"\ndevice = \"plus_xl\"\n[[pages]]\ndials = [{seven}]"
+            ))
+            .contains("at most 6")
+        );
+        assert!(err("name = \"T\"\ndevice = \"mini\"\n[[pages]]").contains("device"));
+        Ok(())
+    }
+
+    #[test]
+    fn for_model_keeps_only_its_profiles() -> anyhow::Result<()> {
+        let mut loaded = Loaded {
+            config: Config::default(),
+            profiles: Profile::defaults()?,
+        };
+        let plus = loaded.for_model(Model::Plus);
+        assert_eq!(plus.profiles.keys().collect::<Vec<_>>(), ["omarchy"]);
+        assert_eq!(plus.config.profile, "omarchy");
+        let xl = loaded.for_model(Model::PlusXl);
+        assert_eq!(xl.profiles.keys().collect::<Vec<_>>(), ["omarchy-xl"]);
+        assert_eq!(xl.config.profile, "omarchy-xl");
+        loaded.config.profile = "omarchy-xl".into();
+        assert_eq!(loaded.for_model(Model::PlusXl).config.profile, "omarchy-xl");
+        assert_eq!(loaded.for_model(Model::Plus).config.profile, "omarchy");
+        Ok(())
+    }
+
+    #[test]
     fn parse_error_reports_line() {
         let e = err("name = \"T\"\n\n[[pages]]\nkeys = [{ action = 1 }]");
         assert!(e.contains("p.toml") && e.contains("line 4"), "{e}");
@@ -458,7 +562,7 @@ mod tests {
         let loaded = Loaded::load(&dir)?;
         assert_eq!(
             loaded.profiles.keys().collect::<Vec<_>>(),
-            ["omarchy", "work"]
+            ["omarchy", "omarchy-xl", "work"]
         );
 
         std::fs::write(dir.join("config.toml"), "profile = \"nope\"")?;

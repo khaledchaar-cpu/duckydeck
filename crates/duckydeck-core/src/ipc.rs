@@ -117,8 +117,11 @@ pub struct Status {
     pub connected: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub serial: Option<String>,
+    /// Model of the (last) connected deck; `profiles` are the ones for it.
+    #[serde(default)]
+    pub device: crate::model::Model,
     pub profile: String,
-    /// All profile ids, sorted.
+    /// Profile ids for `device`, sorted.
     pub profiles: Vec<String>,
     /// 1-based.
     pub page: usize,
@@ -203,6 +206,7 @@ mod tests {
         Status {
             connected: true,
             serial: Some("A1".into()),
+            device: crate::model::Model::PlusXl,
             profile: "default".into(),
             profiles: vec!["default".into()],
             page: 1,

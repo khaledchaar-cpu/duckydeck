@@ -4,6 +4,7 @@
 use anyhow::{Context, Result, bail};
 use duckydeck_core::catalog::Catalog;
 use duckydeck_core::ipc::{self, Command, Request, Response, Status};
+use duckydeck_core::model::Model;
 use duckydeck_core::{check, config, custom_icons, icon_libraries, setup};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::net::UnixStream;
@@ -24,7 +25,8 @@ commands:
   brightness <0-100>    set the brightness (until the next config change)
   check                 validate config and profiles (no daemon needed)
   export <profile>      print a profile as TOML (also the built-in one); with
-                        --json: parsed, 8 keys and 4 dials per page (empty = null)
+                        --json: parsed, all keys and dials of the profile's
+                        device per page (empty = null)
   edit                  open the layout editor
   edit <profile> set <page|folder> key|dial <n> <json>
   edit <profile> clear <page|folder> key|dial <n>
@@ -34,9 +36,10 @@ commands:
   edit <profile> page add | page remove <n> | page move <from> <to>
   edit <profile> name <text> | match <class regex> | title <title regex>
                         (empty regex = off; class and title must both match)
-  edit <profile> create <name> [<copy of>] | delete | restore <toml>
-                        manage pages and profiles; deleting the default
-                        profile resets it to the built-in one
+  edit <profile> create <name> [<copy of> | --device plus|plus_xl]
+  edit <profile> delete | restore <toml>
+                        manage pages and profiles; deleting a built-in
+                        profile resets it
   reload                re-read system font, theme and config
   actions               list every action (id, slot, label) for the editor
   profiles              list profile ids and names (no daemon needed)
@@ -292,7 +295,9 @@ async fn main() -> Result<()> {
                 let list: Vec<_> = loaded
                     .profiles
                     .iter()
-                    .map(|(id, p)| serde_json::json!({ "id": id, "name": p.name }))
+                    .map(|(id, p)| {
+                        serde_json::json!({ "id": id, "name": p.name, "device": p.device.id() })
+                    })
                     .collect();
                 println!(
                     "{}",
@@ -300,7 +305,7 @@ async fn main() -> Result<()> {
                 );
             } else {
                 for (id, p) in &loaded.profiles {
-                    println!("{id}\t{}", p.name);
+                    println!("{id}\t{}\t{}", p.name, p.device.id());
                 }
             }
             return Ok(());
@@ -565,10 +570,20 @@ fn edit(args: &[&str]) -> Result<()> {
             })?;
         }
         [id, "create", name] => {
-            edit::create(&dir, id, name, None)?;
+            edit::create(&dir, id, name, None, Model::default())?;
+        }
+        [id, "create", name, "--device", device] => {
+            let model = Model::from_id(device).with_context(|| {
+                let ids: Vec<_> = Model::ALL.iter().map(|m| m.id()).collect();
+                format!(
+                    "unknown device {device:?}, expected one of {}",
+                    ids.join(", ")
+                )
+            })?;
+            edit::create(&dir, id, name, None, model)?;
         }
         [id, "create", name, from] => {
-            edit::create(&dir, id, name, Some(from))?;
+            edit::create(&dir, id, name, Some(from), Model::default())?;
         }
         [id, "delete"] => edit::delete(&dir, id)?,
         [id, "restore", src] => {
@@ -605,9 +620,11 @@ fn profile_json(p: &config::Profile) -> serde_json::Value {
             })
             .collect()
     };
-    let page = |pg: &config::Page| json!({ "keys": slots(&pg.keys, config::KEYS), "dials": slots(&pg.dials, config::DIALS) });
+    let m = p.device;
+    let page = |pg: &config::Page| json!({ "keys": slots(&pg.keys, m.keys()), "dials": slots(&pg.dials, m.dials()) });
     json!({
         "name": p.name,
+        "device": { "id": m.id(), "name": m.display_name(), "keys": m.keys(), "columns": m.columns(), "dials": m.dials() },
         "match": p.matcher.as_ref().map(|m| json!({ "class": m.class, "title": m.title })),
         "pages": p.pages.iter().map(page).collect::<Vec<_>>(),
         "folders": p.folders.iter().map(|(k, v)| (k.clone(), page(v))).collect::<serde_json::Map<_, _>>(),
@@ -621,10 +638,10 @@ fn export(id: &str) -> Result<()> {
     let path = dir.join("profiles").join(format!("{id}.toml"));
     let src = match std::fs::read_to_string(&path) {
         Ok(s) => s,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound && id == config::DEFAULT_PROFILE_ID => {
-            config::DEFAULT_PROFILE.to_owned()
-        }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => bail!("unknown profile {id:?}"),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => match config::builtin(id) {
+            Some(src) => src.to_owned(),
+            None => bail!("unknown profile {id:?}"),
+        },
         Err(e) => return Err(e).with_context(|| format!("read {}", path.display())),
     };
     print!("{src}");

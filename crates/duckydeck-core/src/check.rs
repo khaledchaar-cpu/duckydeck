@@ -197,8 +197,7 @@ mod tests {
     fn default_profile_is_clean() {
         let catalog = Catalog::builtin().unwrap();
         let mut l = loaded("name = \"x\"\n[[pages]]");
-        l.profiles
-            .insert("omarchy".into(), Profile::default_profile().unwrap());
+        l.profiles.extend(Profile::defaults().unwrap());
         assert_eq!(problems(&l, &catalog), Vec::<String>::new());
     }
 

@@ -1,4 +1,4 @@
-//! DuckyDeck daemon: owns the Stream Deck +, renders keys and runs actions.
+//! DuckyDeck daemon: owns the Stream Deck, renders keys and runs actions.
 
 mod configwatch;
 mod dbuswatch;
@@ -98,7 +98,7 @@ async fn main() -> Result<()> {
         text_tx.clone(),
         toggle_tx.clone(),
     ));
-    duckydeck_core::check::notify_problems(&store.current, &catalog, &runner);
+    duckydeck_core::check::notify_problems(&store.all, &catalog, &runner);
     let (script_tx, script_rx) = mpsc::unbounded_channel();
     tokio::spawn(scripts::run(script_rx, tx.clone()));
     let mut painter = screen::Screen::new(
@@ -125,8 +125,8 @@ async fn main() -> Result<()> {
         None => tracing::warn!("XDG_RUNTIME_DIR not set: IPC disabled"),
     }
     let mut deck = try_connect(&mut painter, &tx);
-    if installed && deck.is_some() {
-        notify_connected(&runner);
+    if installed && let Some(d) = &deck {
+        notify_connected(&runner, d);
     }
     let mut gestures = Recognizer::default();
     let mut last = painter.status(deck.as_ref());
@@ -171,8 +171,8 @@ async fn main() -> Result<()> {
         match ev {
             DeckEvent::Added if deck.is_none() => {
                 deck = try_connect(&mut painter, &tx);
-                if deck.is_some() {
-                    notify_connected(&runner);
+                if let Some(d) = &deck {
+                    notify_connected(&runner, d);
                 }
                 // The booting firmware clears the strip once, 1.0–1.5 s after
                 // plug-in (measured on fw 2.0.3.7); keys are not affected.
@@ -273,7 +273,7 @@ async fn main() -> Result<()> {
                 }
             }
             DeckEvent::Disconnected => {
-                tracing::info!("Stream Deck + disconnected");
+                tracing::info!("deck disconnected");
                 deck = None;
                 gestures = Recognizer::default();
             }
@@ -430,7 +430,8 @@ fn spawn_hotplug(hotplug_tx: mpsc::UnboundedSender<DeckEvent>) -> Result<()> {
 fn try_connect(p: &mut screen::Screen, tx: &mpsc::UnboundedSender<DeckEvent>) -> Option<Deck> {
     match device::connect() {
         Ok(mut d) => {
-            tracing::info!(serial = %d.serial, "Stream Deck + connected");
+            tracing::info!(serial = %d.serial, model = d.model.display_name(), "deck connected");
+            p.set_model(d.model);
             if let Err(e) = p.draw(&mut d) {
                 tracing::warn!(error = %e, "initial draw failed");
             }
@@ -441,7 +442,7 @@ fn try_connect(p: &mut screen::Screen, tx: &mpsc::UnboundedSender<DeckEvent>) ->
             Some(d)
         }
         Err(e) => {
-            tracing::info!(reason = %e, "waiting for Stream Deck +");
+            tracing::info!(reason = %e, "waiting for a Stream Deck");
             None
         }
     }
@@ -449,16 +450,14 @@ fn try_connect(p: &mut screen::Screen, tx: &mpsc::UnboundedSender<DeckEvent>) ->
 
 /// Plug & Play: run `duckydeck setup` once per installed version.
 /// Shell notification on plug-in; not at login with the deck already there.
-fn notify_connected(runner: &dyn duckydeck_core::CommandRunner) {
+fn notify_connected(runner: &dyn duckydeck_core::CommandRunner, deck: &Deck) {
     let spec =
         duckydeck_core::CommandSpec::omarchy(["notification", "send", "--app-name", "DuckyDeck"])
-            .args([CONNECTED_TEXT]);
+            .args([format!("{} connected", deck.model.display_name())]);
     if let Err(e) = runner.spawn(&spec) {
         tracing::warn!(error = %e, "connect notification failed");
     }
 }
-
-const CONNECTED_TEXT: &str = "Stream Deck + connected";
 
 /// Returns whether setup ran (first start after installing this version).
 async fn first_start_setup(runner: &duckydeck_core::TokioRunner) -> bool {

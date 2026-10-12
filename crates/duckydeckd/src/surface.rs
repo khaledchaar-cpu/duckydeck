@@ -4,12 +4,12 @@
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
+use duckydeck_core::model::{Model, SEGMENT_W};
 use elgato_streamdeck::StreamDeck;
 use elgato_streamdeck::images::ImageRect;
 use image::{DynamicImage, GenericImage, Rgb, RgbImage};
 
 pub const KEY_SIZE: u32 = 120;
-pub const STRIP_W: u32 = 800;
 pub const STRIP_H: u32 = 100;
 
 pub trait Surface: Send {
@@ -40,50 +40,63 @@ impl Surface for StreamDeck {
     }
 }
 
-// Composite layout: keys are centered over the 200 px strip segments, like
-// on the device; encoders are drawn as placeholders below the strip.
+// Composite layout: keys are spread over the strip width like on the
+// device; encoders are drawn as placeholders below the strip.
 const MARGIN: u32 = 20;
 const ROW_GAP: u32 = 20;
-const STRIP_Y: u32 = MARGIN + 2 * KEY_SIZE + ROW_GAP + 20;
 const KNOB: u32 = 60;
-const KNOB_Y: u32 = STRIP_Y + STRIP_H + 20;
-const WIDTH: u32 = STRIP_W + 2 * MARGIN;
-const HEIGHT: u32 = KNOB_Y + KNOB + MARGIN;
 const BODY: Rgb<u8> = Rgb([18, 18, 18]);
 
-pub fn key_origin(key: u8) -> (u32, u32) {
-    let (col, row) = (u32::from(key % 4), u32::from(key / 4));
-    let seg = STRIP_W / 4;
+/// Where a key sits in the composite image.
+pub fn key_origin(model: Model, key: u8) -> (u32, u32) {
+    let cols = model.columns() as u32;
+    let (col, row) = (u32::from(key) % cols, u32::from(key) / cols);
+    let pitch = model.strip_width() / cols;
     (
-        MARGIN + col * seg + (seg - KEY_SIZE) / 2,
+        MARGIN + col * pitch + (pitch - KEY_SIZE) / 2,
         MARGIN + row * (KEY_SIZE + ROW_GAP),
     )
 }
 
+fn strip_y(model: Model) -> u32 {
+    let rows = (model.keys() / model.columns()) as u32;
+    MARGIN + rows * KEY_SIZE + (rows - 1) * ROW_GAP + 20
+}
+
 pub struct FakeSurface {
+    model: Model,
     canvas: RgbImage,
     path: PathBuf,
 }
 
 impl FakeSurface {
-    pub fn new() -> Result<Self> {
+    pub fn new(model: Model) -> Result<Self> {
         let dir = std::env::var_os("XDG_RUNTIME_DIR")
             .map(PathBuf::from)
             .context("XDG_RUNTIME_DIR not set")?
             .join("duckydeck/fake");
         std::fs::create_dir_all(&dir).with_context(|| format!("create {}", dir.display()))?;
-        Ok(Self::at(dir.join("deck.png")))
+        Ok(Self::at(model, dir.join("deck.png")))
     }
 
-    fn at(path: PathBuf) -> Self {
-        let mut canvas = RgbImage::from_pixel(WIDTH, HEIGHT, BODY);
+    fn at(model: Model, path: PathBuf) -> Self {
+        let knob_y = strip_y(model) + STRIP_H + 20;
+        let width = model.strip_width() + 2 * MARGIN;
+        let mut canvas = RgbImage::from_pixel(width, knob_y + KNOB + MARGIN, BODY);
         let knob = RgbImage::from_pixel(KNOB, KNOB, Rgb([60, 60, 60]));
-        let seg = STRIP_W / 4;
-        for i in 0..4 {
-            // Fits by construction of WIDTH/HEIGHT.
-            let _ = canvas.copy_from(&knob, MARGIN + i * seg + (seg - KNOB) / 2, KNOB_Y);
+        for i in 0..model.dials() as u32 {
+            // Fits by construction of the canvas size.
+            let _ = canvas.copy_from(
+                &knob,
+                MARGIN + i * SEGMENT_W + (SEGMENT_W - KNOB) / 2,
+                knob_y,
+            );
         }
-        Self { canvas, path }
+        Self {
+            model,
+            canvas,
+            path,
+        }
     }
 
     fn blit(&mut self, x: u32, y: u32, img: &RgbImage) -> Result<()> {
@@ -99,13 +112,16 @@ impl Surface for FakeSurface {
     }
 
     fn set_key(&mut self, key: u8, img: &RgbImage) -> Result<()> {
-        anyhow::ensure!(key < 8, "key {key} out of range");
-        let (x, y) = key_origin(key);
+        anyhow::ensure!(
+            usize::from(key) < self.model.keys(),
+            "key {key} out of range"
+        );
+        let (x, y) = key_origin(self.model, key);
         self.blit(x, y, img)
     }
 
     fn set_strip(&mut self, x: u16, img: &RgbImage) -> Result<()> {
-        self.blit(MARGIN + u32::from(x), STRIP_Y, img)?;
+        self.blit(MARGIN + u32::from(x), strip_y(self.model), img)?;
         // The device shows strip writes immediately.
         self.flush()
     }
@@ -130,7 +146,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("duckydeck-fake-{}", std::process::id()));
         std::fs::create_dir_all(&dir)?;
         let path = dir.join("deck.png");
-        let mut f = FakeSurface::at(path.clone());
+        let mut f = FakeSurface::at(Model::Plus, path.clone());
         let red = Rgb([255, 0, 0]);
         let blue = Rgb([0, 0, 255]);
         f.set_key(5, &RgbImage::from_pixel(KEY_SIZE, KEY_SIZE, red))?;
@@ -138,12 +154,35 @@ mod tests {
         assert!(f.set_key(8, &RgbImage::new(KEY_SIZE, KEY_SIZE)).is_err());
 
         let png = image::open(&path)?.to_rgb8();
-        assert_eq!(png.dimensions(), (WIDTH, HEIGHT));
-        let (kx, ky) = key_origin(5);
+        let (kx, ky) = key_origin(Model::Plus, 5);
+        let strip = strip_y(Model::Plus);
         assert_eq!(*png.get_pixel(kx + 60, ky + 60), red);
         assert_eq!(*png.get_pixel(kx - 1, ky), BODY);
-        assert_eq!(*png.get_pixel(MARGIN + 700, STRIP_Y + 50), blue);
-        assert_eq!(*png.get_pixel(MARGIN + 100, STRIP_Y + 50), BODY);
+        assert_eq!(*png.get_pixel(MARGIN + 700, strip + 50), blue);
+        assert_eq!(*png.get_pixel(MARGIN + 100, strip + 50), BODY);
+        std::fs::remove_dir_all(dir)?;
+        Ok(())
+    }
+
+    #[test]
+    fn xl_composite_has_four_rows_of_nine() -> Result<()> {
+        let dir = std::env::temp_dir().join(format!("duckydeck-fake-xl-{}", std::process::id()));
+        std::fs::create_dir_all(&dir)?;
+        let path = dir.join("deck.png");
+        let mut f = FakeSurface::at(Model::PlusXl, path.clone());
+        let red = Rgb([255, 0, 0]);
+        f.set_key(35, &RgbImage::from_pixel(KEY_SIZE, KEY_SIZE, red))?;
+        f.set_strip(1000, &RgbImage::from_pixel(200, STRIP_H, red))?;
+        assert!(f.set_key(36, &RgbImage::new(KEY_SIZE, KEY_SIZE)).is_err());
+        let png = image::open(&path)?.to_rgb8();
+        assert_eq!(png.width(), 1200 + 2 * MARGIN);
+        let (kx, ky) = key_origin(Model::PlusXl, 35);
+        assert_eq!(ky, MARGIN + 3 * (KEY_SIZE + ROW_GAP));
+        assert_eq!(*png.get_pixel(kx + 60, ky + 60), red);
+        assert_eq!(
+            *png.get_pixel(MARGIN + 1100, strip_y(Model::PlusXl) + 50),
+            red
+        );
         std::fs::remove_dir_all(dir)?;
         Ok(())
     }

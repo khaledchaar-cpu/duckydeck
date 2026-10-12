@@ -1,13 +1,14 @@
-//! Stream Deck + connection: discovery, input thread and udev hotplug.
-//! With `DUCKYDECK_FAKE_DEVICE=1` a fake deck renders to a PNG and reads
-//! input lines (fixture format) from stdin.
+//! Stream Deck connection: discovery, input thread and udev hotplug.
+//! With `DUCKYDECK_FAKE_DEVICE=1` (or `=plus_xl` for a Stream Deck + XL) a
+//! fake deck renders to a PNG and reads input lines (fixture format) from stdin.
 
 use std::io::BufRead;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
+use duckydeck_core::model::Model;
 use elgato_streamdeck::info::Kind;
 use elgato_streamdeck::{StreamDeck, list_devices, new_hidapi};
 use tokio::io::unix::AsyncFd;
@@ -56,6 +57,7 @@ pub enum DeckEvent {
 /// connection owned by a dedicated thread, so a blocking read never stalls writes.
 pub struct Deck {
     pub serial: String,
+    pub model: Model,
     pub out: Box<dyn Surface>,
     input: Option<InputSource>,
 }
@@ -83,26 +85,35 @@ impl Deck {
     }
 }
 
-/// Opens the first Stream Deck +; input starts with [`Deck::start_input`].
+/// The supported model behind a device kind.
+fn model_of(kind: Kind) -> Option<Model> {
+    match kind {
+        Kind::Plus => Some(Model::Plus),
+        Kind::PlusXl => Some(Model::PlusXl),
+        _ => None,
+    }
+}
+
+/// Opens the first supported Stream Deck; input starts with [`Deck::start_input`].
 pub fn connect() -> Result<Deck> {
-    if fake_enabled() {
+    if let Some(model) = fake_model() {
         return Ok(Deck {
             serial: "FAKE".into(),
-            out: Box::new(FakeSurface::new()?),
+            model,
+            out: Box::new(FakeSurface::new(model)?),
             input: Some(InputSource::Stdin),
         });
     }
     let hid = new_hidapi().context("hidapi init")?;
-    let Some((kind, serial)) = list_devices(&hid)
+    let (kind, model, serial) = list_devices(&hid)
         .into_iter()
-        .find(|(k, _)| *k == Kind::Plus)
-    else {
-        bail!("no Stream Deck + found");
-    };
+        .find_map(|(k, serial)| Some((k, model_of(k)?, serial)))
+        .context("no supported Stream Deck found")?;
     let out = StreamDeck::connect(&hid, kind, &serial).context("open output handle")?;
     let input = StreamDeck::connect(&hid, kind, &serial).context("open input handle")?;
     Ok(Deck {
         serial,
+        model,
         out: Box::new(out),
         input: Some(InputSource::Hid(input)),
     })
@@ -135,7 +146,17 @@ fn input_loop(input: StreamDeck, tx: UnboundedSender<DeckEvent>) {
 }
 
 pub fn fake_enabled() -> bool {
-    std::env::var_os("DUCKYDECK_FAKE_DEVICE").is_some_and(|v| v != "0" && !v.is_empty())
+    fake_model().is_some()
+}
+
+/// `DUCKYDECK_FAKE_DEVICE`: a model id, or any other non-empty value but
+/// `0` for the Stream Deck +.
+fn fake_model() -> Option<Model> {
+    let v = std::env::var("DUCKYDECK_FAKE_DEVICE").ok()?;
+    match v.as_str() {
+        "" | "0" => None,
+        id => Some(Model::from_id(id).unwrap_or_default()),
+    }
 }
 
 /// Fake input: one event per line, e.g. `cat fixture.txt | duckydeckd`.

@@ -8,7 +8,8 @@ use toml_edit::{Array, ArrayOfTables, DocumentMut, InlineTable, Item, Table, Val
 
 use crate::catalog::Catalog;
 use crate::check;
-use crate::config::{self, DIALS, KEYS, Loaded, Profile};
+use crate::config::{self, Loaded, Profile};
+use crate::model::Model;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EditError {
@@ -170,14 +171,21 @@ pub fn set_match(src: &str, field: MatchField, regex: &str) -> Result<String, Ed
     finish(doc)
 }
 
-/// Creates profile `id` named `name`, empty or as a copy of profile `from`.
-pub fn create(dir: &Path, id: &str, name: &str, from: Option<&str>) -> Result<PathBuf, EditError> {
+/// Creates profile `id` named `name`, empty for `device` or as a copy of
+/// profile `from` (keeping its device).
+pub fn create(
+    dir: &Path,
+    id: &str,
+    name: &str,
+    from: Option<&str>,
+    device: Model,
+) -> Result<PathBuf, EditError> {
     check_id(id)?;
     if name.trim().is_empty() {
         return Err(invalid("name must not be empty"));
     }
     let path = profile_path(dir, id);
-    if id == config::DEFAULT_PROFILE_ID || path.exists() {
+    if config::builtin(id).is_some() || path.exists() {
         return Err(invalid(format!("profile {id:?} already exists")));
     }
     let src = match from {
@@ -188,7 +196,11 @@ pub fn create(dir: &Path, id: &str, name: &str, from: Option<&str>) -> Result<Pa
             doc.remove("match");
             doc.to_string()
         }
-        None => set_name("[[pages]]\n", name)?,
+        None if device == Model::default() => set_name("[[pages]]\n", name)?,
+        None => set_name(
+            &format!("device = \"{}\"\n\n[[pages]]\n", device.id()),
+            name,
+        )?,
     };
     Profile::parse(&src, &path)?;
     write(&path, &src)?;
@@ -212,7 +224,7 @@ pub fn delete(dir: &Path, id: &str) -> Result<(), EditError> {
     if !loaded.profiles.contains_key(id) {
         return Err(invalid(format!("unknown profile {id:?}")));
     }
-    if id != config::DEFAULT_PROFILE_ID {
+    if config::builtin(id).is_none() {
         if loaded.config.profile == id {
             return Err(invalid(format!(
                 "profile {id:?} is the fallback profile in config.toml"
@@ -274,12 +286,9 @@ fn read(dir: &Path, id: &str) -> Result<String, EditError> {
     let path = profile_path(dir, id);
     match std::fs::read_to_string(&path) {
         Ok(s) => Ok(s),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound && id == config::DEFAULT_PROFILE_ID => {
-            Ok(config::DEFAULT_PROFILE.to_owned())
-        }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            Err(invalid(format!("unknown profile {id:?}")))
-        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => config::builtin(id)
+            .map(str::to_owned)
+            .ok_or_else(|| invalid(format!("unknown profile {id:?}"))),
         Err(source) => Err(EditError::Io { path, source }),
     }
 }
@@ -376,9 +385,14 @@ fn finish(doc: DocumentMut) -> Result<String, EditError> {
 
 /// The `keys`/`dials` array of a page or folder, created when missing.
 fn slots<'a>(doc: &'a mut DocumentMut, slot: &SlotRef) -> Result<&'a mut Array, EditError> {
+    let model = doc
+        .get("device")
+        .and_then(Item::as_str)
+        .and_then(Model::from_id)
+        .unwrap_or_default();
     let max = match slot.kind {
-        Kind::Key => KEYS,
-        Kind::Dial => DIALS,
+        Kind::Key => model.keys(),
+        Kind::Dial => model.dials(),
     };
     if slot.index == 0 || slot.index > max {
         return Err(invalid(format!("slot must be 1-{max}")));
@@ -596,6 +610,10 @@ keys = [{ action = "capture.qr" }]
         );
         assert!(set(SRC, &key(Location::Page(3), 1), None).is_err());
         assert!(set(SRC, &key(Location::Page(1), 9), None).is_err());
+        let xl = format!("device = \"plus_xl\"\n{SRC}");
+        let qr = json!({ "action": "capture.qr" });
+        assert!(set(&xl, &key(Location::Page(1), 36), Some(&qr)).is_ok());
+        assert!(set(&xl, &key(Location::Page(1), 37), Some(&qr)).is_err());
         assert!(set(SRC, &key(Location::Folder("x".into()), 1), None).is_err());
         assert!(
             set(
@@ -692,13 +710,19 @@ keys = [{ action = "capture.qr" }]
     fn create_and_delete_profiles() {
         let dir = std::env::temp_dir().join(format!("duckydeck-profiles-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
-        create(&dir, "dev", "Dev", None).unwrap();
-        create(&dir, "dev2", "Dev 2", Some("omarchy")).unwrap();
-        assert!(create(&dir, "dev", "x", None).is_err());
-        assert!(create(&dir, "omarchy", "x", None).is_err());
-        assert!(create(&dir, "Bad Id", "x", None).is_err());
-        assert!(create(&dir, "dev3", " ", None).is_err());
+        let plus = Model::Plus;
+        create(&dir, "dev", "Dev", None, plus).unwrap();
+        create(&dir, "dev2", "Dev 2", Some("omarchy"), plus).unwrap();
+        create(&dir, "big", "Big", None, Model::PlusXl).unwrap();
+        create(&dir, "big2", "Big 2", Some("omarchy-xl"), plus).unwrap();
+        assert!(create(&dir, "dev", "x", None, plus).is_err());
+        assert!(create(&dir, "omarchy", "x", None, plus).is_err());
+        assert!(create(&dir, "omarchy-xl", "x", None, plus).is_err());
+        assert!(create(&dir, "Bad Id", "x", None, plus).is_err());
+        assert!(create(&dir, "dev3", " ", None, plus).is_err());
         let loaded = Loaded::load(&dir).unwrap();
+        assert_eq!(loaded.profiles["big"].device, Model::PlusXl);
+        assert_eq!(loaded.profiles["big2"].device, Model::PlusXl);
         assert_eq!(loaded.profiles["dev"].name, "Dev");
         assert_eq!(loaded.profiles["dev2"].name, "Dev 2");
         assert_eq!(

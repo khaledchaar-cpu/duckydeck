@@ -1,7 +1,8 @@
 //! Which profile, page and folder the deck shows, and what a key press on
 //! a structure action does. Pure state, no device or rendering.
 
-use crate::config::{Binding, DIALS, FOLDER_ACTION, KEYS, Loaded, Page, Profile};
+use crate::config::{Binding, FOLDER_ACTION, Loaded, Page, Profile};
+use crate::model::Model;
 
 pub const BACK_ACTION: &str = "structure.back";
 /// Args: `n = <1-based page>` or `to = "next" | "prev"`.
@@ -65,16 +66,25 @@ impl Nav {
         Some((profile, page))
     }
 
-    /// The 8 keys of the current view; folders get the back key last.
-    pub fn keys(&self, loaded: &Loaded) -> [Option<Binding>; KEYS] {
-        let mut keys: [Option<Binding>; KEYS] = Default::default();
+    /// Model of the current profile.
+    pub fn model(&self, loaded: &Loaded) -> Model {
+        loaded
+            .profiles
+            .get(&self.profile)
+            .map(|p| p.device)
+            .unwrap_or_default()
+    }
+
+    /// All keys of the current view; folders get the back key last.
+    pub fn keys(&self, loaded: &Loaded) -> Vec<Option<Binding>> {
+        let mut keys = vec![None; self.model(loaded).keys()];
         if let Some((_, page)) = self.current(loaded) {
             for (slot, b) in keys.iter_mut().zip(&page.keys) {
                 slot.clone_from(&b.0);
             }
         }
-        if self.folder.is_some() {
-            keys[KEYS - 1] = Some(Binding {
+        if let (Some(_), Some(last)) = (&self.folder, keys.last_mut()) {
+            *last = Some(Binding {
                 action: BACK_ACTION.to_owned(),
                 args: toml::Table::new(),
                 label: None,
@@ -84,8 +94,8 @@ impl Nav {
         keys
     }
 
-    pub fn dials(&self, loaded: &Loaded) -> [Option<Binding>; DIALS] {
-        let mut dials: [Option<Binding>; DIALS] = Default::default();
+    pub fn dials(&self, loaded: &Loaded) -> Vec<Option<Binding>> {
+        let mut dials = vec![None; self.model(loaded).dials()];
         if let Some((_, page)) = self.current(loaded) {
             for (slot, b) in dials.iter_mut().zip(&page.dials) {
                 slot.clone_from(&b.0);
@@ -94,8 +104,18 @@ impl Nav {
         dials
     }
 
+    /// Key `i` of the current view, if bound.
+    pub fn key(&self, loaded: &Loaded, i: usize) -> Option<Binding> {
+        self.keys(loaded).into_iter().nth(i).flatten()
+    }
+
+    /// Dial `i` of the current view, if bound.
+    pub fn dial(&self, loaded: &Loaded, i: usize) -> Option<Binding> {
+        self.dials(loaded).into_iter().nth(i).flatten()
+    }
+
     pub fn press_key(&mut self, loaded: &Loaded, key: usize) -> Press {
-        match self.keys(loaded).get(key).cloned().flatten() {
+        match self.key(loaded, key) {
             Some(b) => self.apply(loaded, b),
             None => Press::Nothing,
         }

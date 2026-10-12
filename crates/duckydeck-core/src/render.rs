@@ -28,8 +28,8 @@ const BRACKET_W: f32 = 3.0;
 const BLOCK_W: f32 = 8.0;
 const BLOCK_GAP: f32 = 3.0;
 
-/// One touchstrip segment (the strip is 800×100, one segment per encoder).
-pub const SEGMENT_W: u32 = 200;
+/// One touchstrip segment (one per encoder).
+pub use crate::model::SEGMENT_W;
 pub const SEGMENT_H: u32 = 100;
 const SEG_PAD: f32 = 16.0;
 const SEG_ICON: f32 = 36.0;
@@ -38,8 +38,6 @@ const SEG_TEXT_PX: f32 = 28.0;
 const SEG_BAR_TOP: f32 = 68.0;
 const SEG_BAR_H: f32 = 10.0;
 
-/// The whole strip, used for the media view.
-pub const STRIP_W: u32 = 800;
 const MEDIA_ICON: f32 = 40.0;
 const MEDIA_TITLE_PX: f32 = 26.0;
 const MEDIA_ARTIST_PX: f32 = 20.0;
@@ -275,12 +273,18 @@ impl Renderer {
         Ok(to_rgb(&pm))
     }
 
-    pub fn media(&mut self, theme: &Theme, view: &MediaView) -> Result<RgbImage, RenderError> {
+    /// The media view across the whole strip, `width` px wide.
+    pub fn media(
+        &mut self,
+        theme: &Theme,
+        view: &MediaView,
+        width: u32,
+    ) -> Result<RgbImage, RenderError> {
         let bg = theme.get(Role::Background);
         let fg = theme.get(Role::Foreground).readable_on(bg, MIN_CONTRAST);
         let accent = theme.get(Role::Accent).readable_on(bg, MIN_CONTRAST);
-        let mut pm = canvas(STRIP_W, SEGMENT_H, bg)?;
-        let right = STRIP_W as f32 - SEG_PAD;
+        let mut pm = canvas(width, SEGMENT_H, bg)?;
+        let right = width as f32 - SEG_PAD;
         if let Some(svg) = view.icon {
             draw_svg(&mut pm, svg, &accent.hex(), MEDIA_ICON, SEG_PAD, 16.0)?;
         }
@@ -552,7 +556,7 @@ mod tests {
             progress: Some(0.25),
             ..Default::default()
         };
-        let img = r.media(&theme(), &view).unwrap();
+        let img = r.media(&theme(), &view, 800).unwrap();
         assert_eq!((img.width, img.height), (800, 100));
         // Bar: filled in accent up to a quarter, track after it.
         assert_eq!(img.pixel(100, 82), [0xe6, 0x8e, 0x0d]);

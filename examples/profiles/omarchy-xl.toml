@@ -1,0 +1,75 @@
+# Default profile for the Stream Deck + XL, shipped with DuckyDeck.
+# Copy to ~/.config/duckydeck/profiles/<name>.toml and edit; changes reload live.
+# Check a file without restarting: `duckydeck check`.
+
+name = "Omarchy XL"
+# Profiles are made for one model; the Stream Deck + uses `device = "plus"`
+# (the default) and only shows those.
+device = "plus_xl"
+
+# Each page has up to 36 keys (9 per row, top row first) and up to 6 dials.
+# `{}` leaves a slot empty. `label` and `icon` override the action's defaults.
+
+# Page 1 – workspaces, apps, capture, media, windows and system.
+[[pages]]
+keys = [
+  { action = "window.workspace", args = { n = 1 } },
+  { action = "window.workspace", args = { n = 2 } },
+  { action = "window.workspace", args = { n = 3 } },
+  { action = "window.workspace", args = { n = 4 } },
+  { action = "window.workspace", args = { n = 5 } },
+  { action = "window.workspace", args = { n = 6 } },
+  { action = "window.workspace", args = { n = 7 } },
+  { action = "window.workspace", args = { n = 8 } },
+  { action = "window.workspace", args = { n = 9 } },
+
+  { action = "launcher.terminal" },
+  { action = "launcher.browser" },
+  { action = "launcher.files" },
+  { action = "capture.screenshot" },
+  { action = "capture.screenrecording" },
+  { action = "capture.color_picker" },
+  { action = "capture.ocr" },
+  { action = "capture.qr" },
+  { action = "system.menu" },
+
+  { action = "media.previous" },
+  { action = "media.play_pause" },
+  { action = "media.next" },
+  { action = "window.close" },
+  { action = "window.float" },
+  { action = "window.fullscreen" },
+  { action = "window.layout" },
+  { action = "window.scratchpad" },
+  { action = "window.gaps" },
+
+  { action = "system.theme" },
+  { action = "system.wallpaper" },
+  { action = "system.nightlight" },
+  { action = "system.dnd" },
+  { action = "system.idle" },
+  { action = "system.dismiss_notifications" },
+  { action = "system.bluetooth" },
+  { action = "system.lock" },
+  { action = "structure.folder", args = { folder = "power" }, label = "Power", icon = "power" },
+]
+# Dial 2 sets the volume of one playing app: hold it down and turn to pick
+# the app, press to mute it.
+dials = [
+  { action = "media.volume", args = { step = 5 } },
+  { action = "media.app_volume" },
+  { action = "media.mic" },
+  { action = "display.brightness", args = { step = 5 } },
+  { action = "window.workspace_scroll" },
+  { action = "structure.page_scroll" },
+]
+
+# A folder shows a back key in its last slot automatically.
+[folders.power]
+keys = [
+  { action = "system.lock" },
+  { action = "system.suspend" },
+  { action = "system.logout" },
+  { action = "system.reboot" },
+  { action = "system.shutdown" },
+]
