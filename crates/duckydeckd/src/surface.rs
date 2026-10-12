@@ -22,38 +22,53 @@ pub trait Surface: Send {
     fn flush(&mut self) -> Result<()>;
 }
 
-impl Surface for StreamDeck {
-    fn set_brightness(&mut self, percent: u8) -> Result<()> {
-        Ok(StreamDeck::set_brightness(self, percent)?)
-    }
+/// The real device. Rotated strips (Stream Deck + XL: a portrait 100×1200
+/// panel) only show full writes, so their segments go through a landscape
+/// buffer that is rotated and written whole.
+pub struct DeckSurface {
+    deck: StreamDeck,
+    rotated: Option<(ImageRotation, RgbImage)>,
+}
 
-    fn set_key(&mut self, key: u8, img: &RgbImage) -> Result<()> {
-        Ok(self.set_button_image(key, DynamicImage::ImageRgb8(img.clone()))?)
-    }
-
-    fn set_strip(&mut self, x: u16, img: &RgbImage) -> Result<()> {
-        let rotation = self
-            .kind()
-            .lcd_image_format()
-            .map_or(ImageRotation::Rot0, |f| f.rotation);
-        let (img, x, y) = to_native(img, x, rotation);
-        let rect = ImageRect::from_image(DynamicImage::ImageRgb8(img))?;
-        Ok(self.write_lcd(x, y, &rect)?)
-    }
-
-    fn flush(&mut self) -> Result<()> {
-        Ok(StreamDeck::flush(self)?)
+impl DeckSurface {
+    pub fn new(deck: StreamDeck) -> Self {
+        let rotated = deck.kind().lcd_image_format().and_then(|f| {
+            let (w, h) = deck.kind().lcd_strip_size()?;
+            let (w, h) = (u32::try_from(w.max(h)).ok()?, u32::try_from(w.min(h)).ok()?);
+            matches!(f.rotation, ImageRotation::Rot90 | ImageRotation::Rot270)
+                .then(|| (f.rotation, RgbImage::new(w, h)))
+        });
+        Self { deck, rotated }
     }
 }
 
-/// Maps a strip image at logical `x` (left to right) to the device's native
-/// LCD orientation. The Stream Deck + XL stores its strip as a portrait
-/// 100×1200 panel rotated by 270°; its native y runs left to right.
-fn to_native(img: &RgbImage, x: u16, rotation: ImageRotation) -> (RgbImage, u16, u16) {
-    match rotation {
-        ImageRotation::Rot270 => (imageops::rotate270(img), 0, x),
-        ImageRotation::Rot90 => (imageops::rotate90(img), 0, x),
-        _ => (img.clone(), x, 0),
+impl Surface for DeckSurface {
+    fn set_brightness(&mut self, percent: u8) -> Result<()> {
+        Ok(self.deck.set_brightness(percent)?)
+    }
+
+    fn set_key(&mut self, key: u8, img: &RgbImage) -> Result<()> {
+        Ok(self
+            .deck
+            .set_button_image(key, DynamicImage::ImageRgb8(img.clone()))?)
+    }
+
+    fn set_strip(&mut self, x: u16, img: &RgbImage) -> Result<()> {
+        let Some((rotation, buf)) = &mut self.rotated else {
+            let rect = ImageRect::from_image(DynamicImage::ImageRgb8(img.clone()))?;
+            return Ok(self.deck.write_lcd(x, 0, &rect)?);
+        };
+        imageops::replace(buf, img, i64::from(x), 0);
+        let native = match rotation {
+            ImageRotation::Rot90 => imageops::rotate90(buf),
+            _ => imageops::rotate270(buf),
+        };
+        let rect = ImageRect::from_image(DynamicImage::ImageRgb8(native))?;
+        Ok(self.deck.write_lcd(0, 0, &rect)?)
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        Ok(self.deck.flush()?)
     }
 }
 
@@ -179,17 +194,6 @@ mod tests {
         assert_eq!(*png.get_pixel(MARGIN + 100, strip + 50), BODY);
         std::fs::remove_dir_all(dir)?;
         Ok(())
-    }
-
-    #[test]
-    fn xl_strip_segments_map_to_the_portrait_panel() {
-        let seg = RgbImage::from_pixel(200, STRIP_H, Rgb([1, 2, 3]));
-        let (img, x, y) = to_native(&seg, 0, ImageRotation::Rot270);
-        assert_eq!((img.dimensions(), x, y), ((100, 200), 0, 0));
-        let (_, _, y) = to_native(&seg, 1000, ImageRotation::Rot270);
-        assert_eq!(y, 1000);
-        let (img, x, y) = to_native(&seg, 600, ImageRotation::Rot0);
-        assert_eq!((img.dimensions(), x, y), ((200, 100), 600, 0));
     }
 
     #[test]

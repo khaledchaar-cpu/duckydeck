@@ -15,7 +15,7 @@ use tokio::io::unix::AsyncFd;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::input::Input;
-use crate::surface::{FakeSurface, Surface};
+use crate::surface::{DeckSurface, FakeSurface, Surface};
 
 /// Events delivered to the daemon's main loop.
 #[derive(Debug)]
@@ -114,7 +114,7 @@ pub fn connect() -> Result<Deck> {
     Ok(Deck {
         serial,
         model,
-        out: Box::new(out),
+        out: Box::new(DeckSurface::new(out)),
         input: Some(InputSource::Hid(input)),
     })
 }
