@@ -36,8 +36,7 @@ impl Surface for StreamDeck {
             .kind()
             .lcd_image_format()
             .map_or(ImageRotation::Rot0, |f| f.rotation);
-        let strip_w = self.kind().lcd_strip_size().map_or(0, |(w, h)| w.max(h));
-        let (img, x, y) = to_native(img, x, strip_w, rotation);
+        let (img, x, y) = to_native(img, x, rotation);
         let rect = ImageRect::from_image(DynamicImage::ImageRgb8(img))?;
         Ok(self.write_lcd(x, y, &rect)?)
     }
@@ -47,22 +46,12 @@ impl Surface for StreamDeck {
     }
 }
 
-/// Maps a strip image at logical `x` (strip `strip_w` px wide, left to
-/// right) to the device's native LCD orientation. The Stream Deck + XL
-/// stores its strip as a portrait 100×1200 panel rotated by 270°.
-fn to_native(
-    img: &RgbImage,
-    x: u16,
-    strip_w: usize,
-    rotation: ImageRotation,
-) -> (RgbImage, u16, u16) {
+/// Maps a strip image at logical `x` (left to right) to the device's native
+/// LCD orientation. The Stream Deck + XL stores its strip as a portrait
+/// 100×1200 panel rotated by 270°; its native y runs left to right.
+fn to_native(img: &RgbImage, x: u16, rotation: ImageRotation) -> (RgbImage, u16, u16) {
     match rotation {
-        ImageRotation::Rot270 => {
-            let right = u16::try_from(strip_w).unwrap_or(u16::MAX);
-            let w = u16::try_from(img.width()).unwrap_or(0);
-            let y = right.saturating_sub(x).saturating_sub(w);
-            (imageops::rotate270(img), 0, y)
-        }
+        ImageRotation::Rot270 => (imageops::rotate270(img), 0, x),
         ImageRotation::Rot90 => (imageops::rotate90(img), 0, x),
         _ => (img.clone(), x, 0),
     }
@@ -195,11 +184,11 @@ mod tests {
     #[test]
     fn xl_strip_segments_map_to_the_portrait_panel() {
         let seg = RgbImage::from_pixel(200, STRIP_H, Rgb([1, 2, 3]));
-        let (img, x, y) = to_native(&seg, 0, 1200, ImageRotation::Rot270);
-        assert_eq!((img.dimensions(), x, y), ((100, 200), 0, 1000));
-        let (_, _, y) = to_native(&seg, 1000, 1200, ImageRotation::Rot270);
-        assert_eq!(y, 0);
-        let (img, x, y) = to_native(&seg, 600, 800, ImageRotation::Rot0);
+        let (img, x, y) = to_native(&seg, 0, ImageRotation::Rot270);
+        assert_eq!((img.dimensions(), x, y), ((100, 200), 0, 0));
+        let (_, _, y) = to_native(&seg, 1000, ImageRotation::Rot270);
+        assert_eq!(y, 1000);
+        let (img, x, y) = to_native(&seg, 600, ImageRotation::Rot0);
         assert_eq!((img.dimensions(), x, y), ((200, 100), 600, 0));
     }
 
