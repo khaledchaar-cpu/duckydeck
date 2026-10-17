@@ -162,6 +162,13 @@ run      = ["omarchy", "capture", "screenrecording", "{opts}"]
 defaults = { opts = "--fullscreen" }
 state    = { file = "/tmp/omarchy-screenrecord-filename", elapsed = true }
 
+# Fullscreen with system sound; `opts` takes only one option, hence its own entry.
+[capture.screenrecording_audio]
+label = "Rec+Audio"
+icon  = { on = "record-stop", off = "record" }
+run   = ["omarchy", "capture", "screenrecording", "--fullscreen", "--with-desktop-audio"]
+state = { file = "/tmp/omarchy-screenrecord-filename", elapsed = true }
+
 # Same as Omarchy's Super+Print binding (no omarchy route).
 [capture.color_picker]
 label = "Color"
