@@ -975,7 +975,7 @@ impl Screen {
                     Ok(())
                 }
             });
-        if entry.state.as_ref().is_some_and(|s| !s.command.is_empty()) {
+        if entry.state.is_some() {
             let _ = self.toggle_tx.send(b.action.clone());
         }
         if entry.text.is_some() {

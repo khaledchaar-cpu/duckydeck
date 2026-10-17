@@ -2,11 +2,14 @@
 //!
 //! File states are watched with inotify on the nearest existing directory;
 //! command states run at startup and shortly after each press (the screen
-//! sends the action id). Every change goes out as one full map.
+//! sends the action id). A press flips a file state right away and holds the
+//! guess until the file changes or `HOLD` runs out: scripts like screen
+//! recording write or remove their file only seconds later. Every change goes
+//! out as one full map.
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use anyhow::{Context, Result};
 use duckydeck_core::catalog::Catalog;
@@ -23,6 +26,10 @@ pub type Toggles = HashMap<String, Toggle>;
 /// Status checks after a press: the toggle may take a moment (nightlight
 /// retries for up to 2 s).
 const RECHECKS: [Duration; 2] = [Duration::from_millis(300), Duration::from_millis(2500)];
+
+/// How long a flipped file state waits for its file to follow (screen
+/// recording finalizes the video before it removes the file).
+const HOLD: Duration = Duration::from_secs(15);
 
 struct Source {
     id: String,
@@ -65,6 +72,10 @@ pub async fn run(
     watch_dirs(&mut inotify.watches(), &sources);
     let mut events = inotify.into_event_stream([0u8; 1024])?;
     let (due_tx, mut due) = mpsc::unbounded_channel::<String>();
+    let (expire_tx, mut expire) = mpsc::unbounded_channel::<(String, u64)>();
+    // Flipped file states: id -> (file state at the press, press number).
+    let mut held: HashMap<String, (Option<Toggle>, u64)> = HashMap::new();
+    let mut press_no = 0u64;
     loop {
         let mut next = toggles.clone();
         tokio::select! {
@@ -76,13 +87,33 @@ pub async fn run(
                 watch_dirs(&mut events.watches(), &sources);
                 for s in &sources {
                     if let Some(p) = &s.path {
-                        set(&mut next, &s.id, file_state(&s.state, p));
+                        let now = file_state(&s.state, p);
+                        if held.get(&s.id).is_some_and(|(before, _)| *before == now) {
+                            continue;
+                        }
+                        held.remove(&s.id);
+                        set(&mut next, &s.id, now);
                     }
                 }
             }
             id = presses.recv() => {
                 let Some(id) = id else { break };
-                if sources.iter().any(|s| s.id == id && s.path.is_none()) {
+                let Some(s) = sources.iter().find(|s| s.id == id) else { continue };
+                if let Some(p) = &s.path {
+                    let Some(cur) = next.get(&id).copied() else { continue };
+                    press_no += 1;
+                    let before = held.get(&id).map_or_else(|| file_state(&s.state, p), |h| h.0);
+                    held.insert(id.clone(), (before, press_no));
+                    let on = !cur.on;
+                    let since = (on && s.state.elapsed).then(SystemTime::now);
+                    next.insert(id.clone(), Toggle { on, since });
+                    let expire_tx = expire_tx.clone();
+                    let no = press_no;
+                    tokio::spawn(async move {
+                        tokio::time::sleep(HOLD).await;
+                        let _ = expire_tx.send((id, no));
+                    });
+                } else {
                     for d in RECHECKS {
                         let due_tx = due_tx.clone();
                         let id = id.clone();
@@ -91,8 +122,18 @@ pub async fn run(
                             let _ = due_tx.send(id);
                         });
                     }
+                    continue;
                 }
-                continue;
+            }
+            Some((id, no)) = expire.recv() => {
+                if held.get(&id).is_some_and(|h| h.1 == no) {
+                    held.remove(&id);
+                    if let Some(s) = sources.iter().find(|s| s.id == id)
+                        && let Some(p) = &s.path
+                    {
+                        set(&mut next, &id, file_state(&s.state, p));
+                    }
+                }
             }
             Some(id) = due.recv() => {
                 if let Some(s) = sources.iter().find(|s| s.id == id) {
