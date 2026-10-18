@@ -1184,6 +1184,9 @@ impl Screen {
         if let Some(st) = self.script_states.get(&b.action) {
             return st.state;
         }
+        if let Some(t) = self.toggles.get(&b.action) {
+            return t.on;
+        }
         let Some(e) = self.catalog.get(&b.action) else {
             return false;
         };
