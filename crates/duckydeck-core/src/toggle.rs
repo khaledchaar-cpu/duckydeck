@@ -23,6 +23,9 @@ pub struct StateSource {
     /// While on, the key shows how long since the file was last modified.
     #[serde(default)]
     pub elapsed: bool,
+    /// While on, the key is drawn in red instead of the accent color.
+    #[serde(default)]
+    pub alert: bool,
     /// Events that re-run a status command, besides startup and presses.
     #[serde(default)]
     pub refresh: Vec<crate::status::Trigger>,

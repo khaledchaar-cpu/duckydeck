@@ -1029,7 +1029,13 @@ impl Screen {
                 .and_then(|b| Some((MediaKey::from_binding(b)?, b)))
             {
                 Some((k, b)) if !enabled(&self.players, k, b) => Role::Muted,
-                _ if binding.as_ref().is_some_and(|b| self.is_active(b)) => Role::Accent,
+                _ if binding.as_ref().is_some_and(|b| self.is_active(b)) => {
+                    if binding.as_ref().is_some_and(|b| self.is_alert(b)) {
+                        Role::Red
+                    } else {
+                        Role::Accent
+                    }
+                }
                 _ => Role::Foreground,
             },
             bg: if pressed {
@@ -1180,6 +1186,14 @@ impl Screen {
 
     /// Whether the status text equals the binding's value of the entry's
     /// `active` placeholder (e.g. the active power profile).
+    /// Active state flagged `alert` in the catalog (e.g. recording).
+    fn is_alert(&self, b: &Binding) -> bool {
+        self.catalog
+            .get(&b.action)
+            .and_then(|e| e.state.as_ref())
+            .is_some_and(|s| s.alert)
+    }
+
     fn is_active(&self, b: &Binding) -> bool {
         if let Some(st) = self.script_states.get(&b.action) {
             return st.state;
