@@ -49,8 +49,8 @@ Made for current Omarchy. Supported devices: Stream Deck + (USB `0fd9:0084`) and
 ## Install
 
 ```bash
-curl -LO https://github.com/khaledchaar-cpu/duckydeck/releases/latest/download/duckydeck-0.1.6-1-x86_64.pkg.tar.zst
-sudo pacman -U duckydeck-0.1.6-1-x86_64.pkg.tar.zst
+curl -LO https://github.com/khaledchaar-cpu/duckydeck/releases/latest/download/duckydeck-0.1.7-1-x86_64.pkg.tar.zst
+sudo pacman -U duckydeck-0.1.7-1-x86_64.pkg.tar.zst
 ```
 
 The package is unsigned, so pacman only installs it from a local file. Packages for every version are on the [releases page](https://github.com/khaledchaar-cpu/duckydeck/releases).

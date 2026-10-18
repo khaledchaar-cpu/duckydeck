@@ -2,9 +2,9 @@
 
 Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung aktualisieren.
 
-**Aktueller Milestone:** alle Milestones (M1–M9) fertig, v0.1.6 vorbereitet (Stream Deck + XL, Rec+Audio); v2 vollständig
+**Aktueller Milestone:** alle Milestones (M1–M9) fertig, v0.1.7 (rote Aufnahme-Taste, Fenster gleich verteilen); v2 vollständig
 
-Hardware: Stream Deck + XL angeschlossen (`0fd9:00c6`), Stream Deck + (`0fd9:0084`) vorhanden, zweiter Monitor (DP-1, DP-2). Paket 0.1.5-1 installiert (0.1.6 ausstehend) (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
+Hardware: Stream Deck + XL angeschlossen (`0fd9:00c6`), Stream Deck + (`0fd9:0084`) vorhanden, zweiter Monitor (DP-1, DP-2). Paket 0.1.7-1 (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
 - Stream Deck + XL (`0fd9:00c6`) unterstützt: `duckydeck_core::model` (Tasten/Spalten/Regler/Strip), Profile pro Modell (`device = "plus_xl"`, Standard `plus`), eingebautes Profil `omarchy-xl`, Daemon verbindet Plus oder XL und nutzt nur passende Profile, Gesten ohne feste 8/4-Tabelle, Fake `DUCKYDECK_FAKE_DEVICE=plus_xl`, Editor-Raster aus `export --json` (`device`), `create --device`, udev-Regel für `00c6`
