@@ -1,0 +1,13 @@
+---
+source: crates/duckydeck-core/src/hypr.rs
+expression: "plan.join(\"\\n\")"
+---
+hl.dsp.window.move({ workspace = "special:duckydeck-equalize", follow = false, window = "address:0xb" })
+hl.dsp.window.move({ workspace = "special:duckydeck-equalize", follow = false, window = "address:0xc" })
+hl.dsp.focus({ window = "address:0xa" })
+hl.dsp.window.move({ workspace = "1", follow = false, window = "address:0xc" })
+hl.dsp.layout("splitratio 1.3333 exact")
+hl.dsp.focus({ window = "address:0xa" })
+hl.dsp.window.move({ workspace = "1", follow = false, window = "address:0xb" })
+hl.dsp.layout("splitratio 1.0000 exact")
+hl.dsp.focus({ window = "address:0xc" })

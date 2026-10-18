@@ -120,6 +120,7 @@ const BUILTINS: &[Builtin] = &[
         Slot::Dial,
         &[STEP],
     ),
+    ("window.equalize", "Equalize", "equalize", Slot::Key, &[]),
     (
         "window.workspace_scroll",
         "Workspaces",

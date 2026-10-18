@@ -78,6 +78,7 @@ Unten steht bei jeder Kategorie, was Katalog (K) und was Rust (R) ist.
 - Workspace 1–10 wechseln / Fenster verschieben (`window.workspace`, `window.move_to_workspace`, `args = { n }`); Taste zeigt die Ziffer: aktiv = gefüllte Akzentfläche, belegt = Vordergrund, leer = gedimmt. Status aus Events `workspacev2`/`focusedmonv2`, Belegung per `j/workspaces` nur nach Fenster-/Workspace-Events
 - **Regler** `window.workspace_scroll`: Workspaces durchblättern (`e±N`), Druck = Scratchpad; Strip zeigt die aktive Nummer
 - Fenster schließen, Floating, Vollbild, Pseudo, Split
+- **Gleich verteilen** `window.equalize` (R, Entscheidung Nutzer 2026-10-18): alle gekachelten Fenster des aktiven Workspace gleich groß. Weder Hyprland noch Omarchy können das; der Daemon parkt alle Kacheln außer der ersten auf `special:duckydeck-equalize` und setzt sie in Lesereihenfolge wieder ein (fokussierte Kachel teilen, `splitratio <r> exact` mit dem Anteil der Fenster je Seite) – ein Batch, Anordnung wird neu aufgebaut. Setzt dwindle mit `force_split = 2` und `use_active_for_splits` voraus (Omarchy-Standard)
 - Omarchy-Routen: Tiled-Fullscreen, Pop-out, Transparenz, Gaps, Layout dwindle ↔ scrolling (`omarchy hyprland …`)
 - Fokus (`window.focus`), Verschieben in Richtung (`window.move`, tauscht wie Omarchys SUPER+SHIFT+Pfeil), Fenster an Monitor (`window.to_monitor`, `monitor = "+1"` oder Name), internen Monitor an/aus/spiegeln (`window.monitor_internal`/`window.monitor_mirror`, `mode = toggle|on|off`)
 - Beliebiger Dispatch (`window.dispatch`, `expr = 'hl.dsp.…'`)

@@ -7,7 +7,7 @@ use crate::command::{CommandRunner, CommandSpec};
 use crate::compound::{self, MULTI_ACTION, PROFILE_ACTION, Step, TOGGLE_ACTION};
 use crate::config::{Binding, FOLDER_ACTION, Loaded, Page};
 use crate::dial::Dial;
-use crate::hypr::SCROLL_ACTION;
+use crate::hypr::{EQUALIZE_ACTION, SCROLL_ACTION};
 use crate::library::Slot;
 use crate::media::MediaKey;
 use crate::nav::{BACK_ACTION, PAGE_ACTION, PAGE_SCROLL_ACTION};
@@ -139,7 +139,8 @@ fn check_key(
         }
         _ => {}
     }
-    if MediaKey::from_binding(b).is_some() || [FOLDER_ACTION, BACK_ACTION, PAGE_ACTION].contains(&a)
+    if MediaKey::from_binding(b).is_some()
+        || [FOLDER_ACTION, BACK_ACTION, PAGE_ACTION, EQUALIZE_ACTION].contains(&a)
     {
         return Ok(());
     }
@@ -167,6 +168,7 @@ fn not_a(b: &Binding, slot: &str, catalog: &Catalog) -> String {
     let known = catalog.get(&b.action).is_some()
         || Dial::from_binding(b).is_some()
         || b.action == SCROLL_ACTION
+        || b.action == EQUALIZE_ACTION
         || MediaKey::from_binding(b).is_some()
         || b.action.starts_with("structure.");
     if known {

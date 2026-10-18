@@ -33,6 +33,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::device::{Deck, DeckEvent};
 use crate::gesture::{Control, Gesture};
+use crate::hyprland;
 use crate::levels::Job;
 use crate::mpris;
 use crate::scripts;
@@ -60,7 +61,7 @@ type ToggleSlot = (String, usize, Option<String>, u8);
 pub struct Tasks {
     pub jobs: UnboundedSender<Job>,
     pub media: UnboundedSender<mpris::Press>,
-    pub hypr: UnboundedSender<String>,
+    pub hypr: UnboundedSender<hyprland::Request>,
     pub toggles: UnboundedSender<String>,
     pub texts: UnboundedSender<texts::Msg>,
     pub scripts: UnboundedSender<scripts::Msg>,
@@ -114,7 +115,7 @@ pub struct Screen {
     /// Player last shown in the media view and until when it stays.
     media_hold: Option<(String, Instant)>,
     /// Lua dispatchers for the [`hyprland`](crate::hyprland) task.
-    hypr_tx: UnboundedSender<String>,
+    hypr_tx: UnboundedSender<hyprland::Request>,
     workspaces: Workspaces,
     toggles: Toggles,
     /// Pressed toggle actions for the [`toggles`](crate::toggles) task.
@@ -831,7 +832,7 @@ impl Screen {
     }
 
     fn dispatch(&self, lua: String) {
-        let _ = self.hypr_tx.send(lua);
+        let _ = self.hypr_tx.send(hyprland::Request::Dispatch(lua));
     }
 
     fn dial_job(&self, seg: u8, job: impl FnOnce(Dial) -> Job) {
@@ -939,6 +940,10 @@ impl Screen {
                 false => script::Event::Press { args },
             });
             tracing::info!(action = %b.action, "script event sent");
+            return;
+        }
+        if b.action == hypr::EQUALIZE_ACTION {
+            let _ = self.hypr_tx.send(hyprland::Request::Equalize);
             return;
         }
         if let Some(key) = MediaKey::from_binding(b) {

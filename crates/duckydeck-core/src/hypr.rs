@@ -13,6 +13,7 @@ use crate::config::Binding;
 
 pub const SCROLL_ACTION: &str = "window.workspace_scroll";
 pub const WORKSPACE_ACTION: &str = "window.workspace";
+pub const EQUALIZE_ACTION: &str = "window.equalize";
 
 /// `$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/<name>`.
 pub fn socket_path(name: &str) -> Option<PathBuf> {
@@ -136,6 +137,82 @@ pub fn scroll(delta: i32) -> Option<String> {
 
 pub const SCROLL_PRESS: &str = r#"hl.dsp.workspace.toggle_special("scratchpad")"#;
 
+/// Parked here while the tiles are re-inserted; empty (and gone) afterwards.
+const EQUALIZE_PARK: &str = "special:duckydeck-equalize";
+
+#[derive(Deserialize)]
+struct Client {
+    address: String,
+    workspace: ClientWorkspace,
+    at: (i32, i32),
+    floating: bool,
+    #[serde(default)]
+    hidden: bool,
+}
+
+#[derive(Deserialize)]
+struct ClientWorkspace {
+    id: i32,
+}
+
+/// Dispatches that give every tiled window on `workspace` the same size.
+///
+/// Expects dwindle with `force_split = 2` and `use_active_for_splits`
+/// (Omarchy's defaults): all tiles but the first are parked, then put back
+/// one by one into the focused tile, which splits along its longer side.
+/// Each split gets the share of the windows that end up on either side, so
+/// the result is a balanced tree of equal tiles in reading order. `None`
+/// with fewer than two tiles.
+pub fn equalize(
+    clients_json: &str,
+    workspace: i32,
+    focused: Option<&str>,
+) -> Result<Option<Vec<String>>, serde_json::Error> {
+    let clients: Vec<Client> = serde_json::from_str(clients_json)?;
+    let mut tiles: Vec<_> = clients
+        .iter()
+        .filter(|c| c.workspace.id == workspace && !c.floating && !c.hidden)
+        .collect();
+    if tiles.len() < 2 {
+        return Ok(None);
+    }
+    tiles.sort_by_key(|c| (c.at.1, c.at.0));
+    let addrs: Vec<&str> = tiles.iter().map(|c| c.address.as_str()).collect();
+    let mut out: Vec<String> = addrs[1..]
+        .iter()
+        .map(|a| {
+            format!(
+                r#"hl.dsp.window.move({{ workspace = "{EQUALIZE_PARK}", follow = false, window = "address:{a}" }})"#
+            )
+        })
+        .collect();
+    split(&addrs, &workspace.to_string(), &mut out);
+    let back = focused.filter(|f| addrs.contains(f)).unwrap_or(addrs[0]);
+    out.push(format!(r#"hl.dsp.focus({{ window = "address:{back}" }})"#));
+    Ok(Some(out))
+}
+
+/// `group[0]` is placed; insert the rest so it fills that tile evenly.
+fn split(group: &[&str], ws: &str, out: &mut Vec<String>) {
+    if group.len() < 2 {
+        return;
+    }
+    let (first, second) = group.split_at(group.len().div_ceil(2));
+    out.push(format!(
+        r#"hl.dsp.focus({{ window = "address:{}" }})"#,
+        first[0]
+    ));
+    out.push(format!(
+        r#"hl.dsp.window.move({{ workspace = "{ws}", follow = false, window = "address:{}" }})"#,
+        second[0]
+    ));
+    // 1.0 is an even split; the first child gets `ratio / 2`.
+    let ratio = 2.0 * first.len() as f64 / group.len() as f64;
+    out.push(format!(r#"hl.dsp.layout("splitratio {ratio:.4} exact")"#));
+    split(first, ws, out);
+    split(second, ws, out);
+}
+
 /// `ok` is Hyprland's success reply to a dispatch.
 pub fn dispatch_ok(reply: &str) -> bool {
     reply.trim() == "ok"
@@ -144,6 +221,20 @@ pub fn dispatch_ok(reply: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn equalize_plan() {
+        let json = r#"[
+            {"address":"0xb","workspace":{"id":1},"at":[900,0],"floating":false},
+            {"address":"0xa","workspace":{"id":1},"at":[0,0],"floating":false},
+            {"address":"0xc","workspace":{"id":1},"at":[900,500],"floating":false},
+            {"address":"0xf","workspace":{"id":1},"at":[5,5],"floating":true},
+            {"address":"0xd","workspace":{"id":2},"at":[0,0],"floating":false}
+        ]"#;
+        let plan = equalize(json, 1, Some("0xc")).unwrap().unwrap();
+        insta::assert_snapshot!(plan.join("\n"));
+        assert_eq!(equalize(json, 2, None).unwrap(), None);
+    }
 
     #[test]
     fn parses_events() {
