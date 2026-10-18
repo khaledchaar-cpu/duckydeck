@@ -41,7 +41,7 @@ keys = [
   { action = "window.fullscreen" },
   { action = "window.layout" },
   { action = "window.scratchpad" },
-  { action = "window.gaps" },
+  { action = "window.equalize" },
 
   { action = "system.theme" },
   { action = "system.wallpaper" },
@@ -50,7 +50,7 @@ keys = [
   { action = "system.idle" },
   { action = "system.dismiss_notifications" },
   { action = "system.bluetooth" },
-  { action = "system.lock" },
+  { action = "window.gaps" },
   { action = "structure.folder", args = { folder = "power" }, label = "Power", icon = "power" },
 ]
 # Dial 2 sets the volume of one playing app: hold it down and turn to pick

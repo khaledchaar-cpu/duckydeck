@@ -78,6 +78,7 @@ keys = [
   { action = "system.nightlight" },
   { action = "window.gaps" },
   { action = "window.transparency" },
+  { action = "window.equalize" },
 ]
 
 [folders.power]
