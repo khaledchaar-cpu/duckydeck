@@ -7,11 +7,12 @@ Kurz halten: Stand, nächster Schritt, offene Probleme. Am Ende jeder Sitzung ak
 Hardware: Stream Deck + XL angeschlossen (`0fd9:00c6`), Stream Deck + (`0fd9:0084`) vorhanden, zweiter Monitor (DP-1, DP-2). Paket 0.1.7-1 (`/usr/bin/duckydeck`); Entwicklung mit `systemctl --user stop duckydeck` + `cargo run`, danach Dienst wieder starten.
 
 ## Erledigt (letzte Sitzung)
-- Stream Deck + XL (`0fd9:00c6`) unterstützt: `duckydeck_core::model` (Tasten/Spalten/Regler/Strip), Profile pro Modell (`device = "plus_xl"`, Standard `plus`), eingebautes Profil `omarchy-xl`, Daemon verbindet Plus oder XL und nutzt nur passende Profile, Gesten ohne feste 8/4-Tabelle, Fake `DUCKYDECK_FAKE_DEVICE=plus_xl`, Editor-Raster aus `export --json` (`device`), `create --device`, udev-Regel für `00c6`
-- Lokales Paket gebaut/installiert, echtes XL verbunden (RSS 13,7 MB)
+- Aktive Toggles in Akzentfarbe; `state.alert = true` zeichnet sie rot (beide Aufnahme-Actions)
+- Neue Action `window.equalize`: alle Kacheln des aktiven Workspace gleich groß (parken auf `special:duckydeck-equalize`, Neuaufbau per Batch mit `splitratio <r> exact`); in beiden Beispielprofilen
+- Release 0.1.7 auf GitHub, Paket installiert, am XL bestätigt
 
 ## Nächster Schritt
-- Nutzer prüft XL am Gerät (Tasten, Regler, Strip, Editor); danach Plus erneut am echten Gerät gegentesten und Release 0.1.6
+- Plus erneut am echten Gerät gegentesten (Equalize, rote Aufnahme)
 
 ## Offene Probleme / Notizen
 - RSS-Puffer nur ~0,7 MB; HID-Flushes blockieren jetzt kurz auch IPC/MPRIS/pactl (unkritisch)
@@ -22,6 +23,7 @@ Hardware: Stream Deck + XL angeschlossen (`0fd9:00c6`), Stream Deck + (`0fd9:008
 - Neue Daemon-Fixes erst nach `makepkg -d` im installierten Paket (Rust per rustup → lokal `makepkg -d`)
 - Laptop-Actions (`monitor_internal`/`monitor_mirror`) ohne internes Display nicht testbar
 - Menüeintrag nur bei neuer Paketversion aktualisiert
+- Equalize nur für dwindle mit `force_split = 2` + `use_active_for_splits` (Omarchy-Standard), nicht für scrolling
 - Hyprland-Zugriff nicht hinter Trait (bewusst offen, geringer Nutzen). Nachtlicht ohne Event ist bewusst so: weder hyprsunset noch Shell melden Änderungen, Polling verboten – steht in actions.md)
 - `scripts/check.sh` braucht `PATH=$HOME/.cargo/bin:$PATH`; Socket-Tests brauchen kurzes `XDG_RUNTIME_DIR` (z. B. `/tmp/claude-1000/dd`)
 - Lernmodus: jede Regler-Rastung erzeugt ein `slot_pressed` (Editor entprellt)
