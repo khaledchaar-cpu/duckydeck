@@ -195,7 +195,7 @@ DUCKYDECK_FAKE_DEVICE=1 cargo run -p duckydeckd   # no device: renders to $XDG_R
 scripts/check.sh                                  # fmt + clippy + tests
 ```
 
-Package: [packaging/PKGBUILD](packaging/PKGBUILD). Specification: [SPEC.md](SPEC.md) (German).
+Package: [packaging/PKGBUILD](packaging/PKGBUILD).
 
 ## License
 

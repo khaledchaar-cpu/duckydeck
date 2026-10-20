@@ -6,3 +6,7 @@
 packaging/pkg/
 packaging/src/
 packaging/*.tar.gz
+/CLAUDE.md
+/SPEC.md
+/PROGRESS.md
+/docs/spec
