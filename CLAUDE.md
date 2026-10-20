@@ -1,5 +1,7 @@
 # CLAUDE.md – DuckyDeck
 
+> Projektgedächtnis: `~/Brain/Projekte/DuckyDeck.md` (zu Beginn lesen, am Ende aktualisieren)
+
 Steuerungs-App für **Elgato Stream Decks** (Referenzgerät: Stream Deck +), ausschließlich für **Omarchy Linux**: Rust-Daemon für das Gerät, Oberfläche als Plugin der Omarchy-Shell (Quickshell/QML).
 
 ## Wo steht was
