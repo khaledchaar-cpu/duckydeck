@@ -1,10 +1,10 @@
-# Maintainer: Khaled Chaar <254331885+khaledchaar-cpu@users.noreply.github.com>
+# Maintainer: Khaled Chaar <254331885+tangowerk@users.noreply.github.com>
 pkgname=duckydeck
 pkgver=0.1.7
 pkgrel=1
 pkgdesc='Elgato Stream Deck + integration for Omarchy'
 arch=('x86_64')
-url='https://github.com/khaledchaar-cpu/duckydeck'
+url='https://github.com/tangowerk/duckydeck'
 license=('MIT')
 depends=('gcc-libs' 'glibc' 'systemd-libs' 'hyprland' 'libpulse' 'fontconfig')
 makedepends=('cargo')

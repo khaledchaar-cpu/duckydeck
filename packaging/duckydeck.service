@@ -1,6 +1,6 @@
 [Unit]
 Description=DuckyDeck – Elgato Stream Deck + daemon
-Documentation=https://github.com/khaledchaar-cpu/duckydeck
+Documentation=https://github.com/tangowerk/duckydeck
 PartOf=graphical-session.target
 After=graphical-session.target
 

@@ -9,7 +9,7 @@ the Omarchy shell, every action running through the `omarchy` CLI.
 
 *Plug it in – it works.*
 
-[![Release](https://img.shields.io/github/v/release/khaledchaar-cpu/duckydeck)](https://github.com/khaledchaar-cpu/duckydeck/releases/latest)
+[![Release](https://img.shields.io/github/v/release/tangowerk/duckydeck)](https://github.com/tangowerk/duckydeck/releases/latest)
 ![Platform](https://img.shields.io/badge/platform-Omarchy-blue)
 ![Rust](https://img.shields.io/badge/made%20with-Rust-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -49,11 +49,11 @@ Made for current Omarchy. Supported devices: Stream Deck + (USB `0fd9:0084`) and
 ## Install
 
 ```bash
-curl -LO https://github.com/khaledchaar-cpu/duckydeck/releases/latest/download/duckydeck-0.1.7-1-x86_64.pkg.tar.zst
+curl -LO https://github.com/tangowerk/duckydeck/releases/latest/download/duckydeck-0.1.7-1-x86_64.pkg.tar.zst
 sudo pacman -U duckydeck-0.1.7-1-x86_64.pkg.tar.zst
 ```
 
-The package is unsigned, so pacman only installs it from a local file. Packages for every version are on the [releases page](https://github.com/khaledchaar-cpu/duckydeck/releases).
+The package is unsigned, so pacman only installs it from a local file. Packages for every version are on the [releases page](https://github.com/tangowerk/duckydeck/releases).
 
 Then plug the deck in (or replug it). That's all: the package ships a udev rule
 (access without root, starts the daemon on plug-in) and a systemd user service
