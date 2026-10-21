@@ -15,11 +15,10 @@ Run these steps in order. Keep output short.
    - `Offene Punkte` – failing checks, decisions waiting for the user, open findings
    - `Log` – add one dated line (`- YYYY-MM-DD: …`, German)
    - Technical pitfalls go to `CLAUDE.md` → `Stolpersteine`, not into PROGRESS.md.
-   - Set `zuletzt_aktualisiert` in the vault project card `~/Brain/Projekte/DuckyDeck/DuckyDeck.md` to today.
+   - If the project status changed, update it in `~/Projekte.md`.
 
 3. **Spec drift:** New decisions go to `SPEC.md` → `Entscheidungen` (dated, with reason). If a decision changed behaviour described in `docs/spec/*.md`, update that file (only the affected lines). If new Omarchy routes/APIs were used, make sure `scripts/gen-omarchy-reference.sh` covers them.
 
 4. **Commit proposal:** show `git status --short` and a one-line English commit message (conventional style, e.g. `feat(daemon): hotplug detection`). Commit only if the user agrees.
-   Then commit the vault: `git -C ~/Brain add -A && git -C ~/Brain commit -m "DuckyDeck: <kurz>" && git -C ~/Brain push -q`.
 
 5. **Final message to the user (German, max. 5 lines):** what was done, check result, next step, and that `/clear` is now safe.
