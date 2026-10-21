@@ -1,6 +1,6 @@
 ---
 name: session-wrapup
-description: End-of-session routine for DuckyDeck. Use when a milestone step is finished, the user says the session is done/"wrap up"/"Feierabend", or before suggesting /clear. Runs the full check, updates PROGRESS.md in the vault and proposes commits.
+description: End-of-session routine for DuckyDeck. Use when a milestone step is finished, the user says the session is done/"wrap up"/"Feierabend", or before suggesting /clear. Runs the full check, updates PROGRESS.md and proposes commits.
 ---
 
 # Session Wrap-up
@@ -9,13 +9,13 @@ Run these steps in order. Keep output short.
 
 1. **Full check:** `scripts/check.sh` (whole workspace). If it fails, fix the problems or list them as open issues in step 2 – never report success on a red check.
 
-2. **Update `PROGRESS.md`** (symlink into the vault `~/Brain/Projekte/DuckyDeck/`; keep the sections, overwrite outdated content):
+2. **Update `PROGRESS.md`** (local, gitignored – never commit it; keep the sections, overwrite outdated content):
    - `Stand` – current state, incl. the last session's results (max. 5 bullets)
    - `Nächste Schritte` – concrete, immediately actionable tasks
    - `Offene Punkte` – failing checks, decisions waiting for the user, open findings
    - `Log` – add one dated line (`- YYYY-MM-DD: …`, German)
    - Technical pitfalls go to `CLAUDE.md` → `Stolpersteine`, not into PROGRESS.md.
-   - Set `zuletzt_aktualisiert` in `DuckyDeck.md` (the vault note next to it) to today.
+   - Set `zuletzt_aktualisiert` in the vault project card `~/Brain/Projekte/DuckyDeck/DuckyDeck.md` to today.
 
 3. **Spec drift:** New decisions go to `SPEC.md` → `Entscheidungen` (dated, with reason). If a decision changed behaviour described in `docs/spec/*.md`, update that file (only the affected lines). If new Omarchy routes/APIs were used, make sure `scripts/gen-omarchy-reference.sh` covers them.
 
